@@ -333,6 +333,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setSelectedAwardBadge('');
   };
 
+  const handleAssignBadgeToUser = (targetUserId: string, badgeId: string) => {
+    const alreadyAssigned = userBadges.some(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
+    const badge = badges.find(item => item.id === badgeId);
+
+    if (alreadyAssigned || !badge) return;
+
+    const newAward: UserBadge = {
+      id: Math.random().toString(36).substr(2, 9),
+      user_id: targetUserId,
+      badge_id: badgeId,
+      awarded_at: new Date().toISOString(),
+      awarded_by: adminProfile.id,
+    };
+
+    setUserBadges(prev => [...prev, newAward]);
+    setUsers(prev => prev.map(user => {
+      if (user.id !== targetUserId) return user;
+      const newXp = (user.xp || 0) + badge.points;
+      return { ...user, xp: newXp, level: Math.floor(newXp / 1000) + 1 };
+    }));
+  };
+
+  const handleRemoveBadgeFromUser = (targetUserId: string, badgeId: string) => {
+    const badge = badges.find(item => item.id === badgeId);
+    if (!badge) return;
+
+    const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
+    if (!badgeAward) return;
+
+    setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
+    setUsers(prev => prev.map(user => {
+      if (user.id !== targetUserId) return user;
+      const newXp = Math.max(0, (user.xp || 0) - badge.points);
+      return { ...user, xp: newXp, level: Math.floor(newXp / 1000) + 1 };
+    }));
+  };
+
   const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1007,22 +1044,64 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* User Badges Viewing Modal */}
       {viewingUserBadges && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">conquistas de {viewingUserBadges.full_name}</h2>
-            <div className="overflow-y-auto pr-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {userBadges.filter(ub => ub.user_id === viewingUserBadges.id).map(ub => {
-                const b = badges.find(badge => badge.id === ub.badge_id);
+          <div className="bg-white w-full max-w-6xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
+              <div>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">cartela de selos de {viewingUserBadges.full_name}</h2>
+                <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">
+                  {companies.find(c => c.id === viewingUserBadges.company_id)?.name || 'Independente'} ? {productiveUnits.find(unit => unit.id === viewingUserBadges.productive_unit_id)?.name || 'Sem unidade produtiva'}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                  <div className="text-xl font-black">{userBadges.filter(ub => ub.user_id === viewingUserBadges.id).length}</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest">selos</div>
+                </div>
+                <div className="bg-cyan-50 text-cyan-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                  <div className="text-xl font-black">{viewingUserBadges.xp}</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest">xp atual</div>
+                </div>
+              </div>
+            </div>
+            <div className="overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {badges.map(badge => {
+                const badgeAward = userBadges.find(ub => ub.user_id === viewingUserBadges.id && ub.badge_id === badge.id);
+                const isAssigned = Boolean(badgeAward);
+
                 return (
-                  <div key={ub.id} className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 flex items-center gap-4">
-                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-3xl shadow-inner">{b?.icon_name || '🛡️'}</div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-sm">{b?.name}</div>
-                      <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">NV {viewingUserBadges.level} • {new Date(ub.awarded_at).toLocaleDateString()}</div>
+                  <div key={badge.id} className={`p-6 rounded-[32px] border transition-all ${isAssigned ? 'bg-white border-indigo-200 shadow-lg' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-start gap-4">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400'}`}>
+                        {badge.icon_name || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-bold text-slate-900 text-sm">{badge.name}</div>
+                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isAssigned ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                            {isAssigned ? 'ativo' : 'dispon?vel'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-500 mt-2">{badge.description}</p>
+                        <div className="flex items-center justify-between mt-4">
+                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.points} XP ? {badge.category}</span>
+                          {badgeAward && <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(badgeAward.awarded_at).toLocaleDateString()}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-5">
+                      {isAssigned ? (
+                        <button onClick={() => handleRemoveBadgeFromUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">
+                          remover da cartela
+                        </button>
+                      ) : (
+                        <button onClick={() => handleAssignBadgeToUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all">
+                          conceder ? cartela
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
-              {userBadges.filter(ub => ub.user_id === viewingUserBadges.id).length === 0 && <p className="text-center col-span-2 text-slate-400 font-bold py-10">nenhum selo conquistado ainda.</p>}
             </div>
             <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">fechar</button>
           </div>
