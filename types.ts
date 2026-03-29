@@ -71,6 +71,13 @@ export interface ImportSourceConfig {
   columns: Record<ImportSourceField, string>;
 }
 
+export interface ImportBindingSnapshot {
+  sourceId: string;
+  sourceName: string;
+  matchedColumns: Partial<Record<ImportSourceField, string>>;
+  importedAt: string;
+}
+
 export interface BadgeSubmission {
   id: string;
   user_id: string;

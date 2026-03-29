@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField } from '../types';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
@@ -28,6 +28,7 @@ interface AdminPanelProps {
   setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
   importSources: ImportSourceConfig[];
   setImportSources: React.Dispatch<React.SetStateAction<ImportSourceConfig[]>>;
+  setImportBindingSnapshot: React.Dispatch<React.SetStateAction<ImportBindingSnapshot | null>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -45,6 +46,7 @@ interface ImportPreview {
   productiveUnit?: ProductiveUnit;
   tone: BadgeTone;
   sourceName: string;
+  matchedColumns: Partial<Record<ImportSourceField, string>>;
   status: 'valid' | 'invalid';
   reason?: string;
 }
@@ -62,6 +64,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setBadgeLegends,
   importSources,
   setImportSources,
+  setImportBindingSnapshot,
   users,
   setUsers,
   userBadges,
@@ -115,12 +118,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportMappingModalOpen, setIsImportMappingModalOpen] = useState(false);
   const [isImportSourceModalOpen, setIsImportSourceModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
   const [importPreviews, setImportPreviews] = useState<ImportPreview[]>([]);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
   const [selectedImportSourceId, setSelectedImportSourceId] = useState<string>(importSources[0]?.id || '');
   const [editingImportSource, setEditingImportSource] = useState<ImportSourceConfig | null>(null);
+  const [importSheetRows, setImportSheetRows] = useState<Record<string, unknown>[]>([]);
+  const [importSheetHeaders, setImportSheetHeaders] = useState<string[]>([]);
+  const [assistedImportColumns, setAssistedImportColumns] = useState<Record<ImportSourceField, string>>({
+    company: '',
+    productive_unit: '',
+    user: '',
+    badge: '',
+    tone: '',
+    award: '',
+  });
   
   const [userSearch, setUserSearch] = useState('');
 
@@ -165,6 +179,86 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
     const matchedKey = Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
     return matchedKey ? normalizeCell(row[matchedKey]) : '';
+  };
+
+  const getMatchedColumnName = (row: Record<string, unknown>, field: ImportSourceField, source: ImportSourceConfig) => {
+    const columnName = source.columns[field];
+    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
+    return Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
+  };
+
+  const suggestColumnForField = (headers: string[], field: ImportSourceField, source: ImportSourceConfig) => {
+    const candidates = [source.columns[field], ...IMPORT_FIELD_ALIASES[field]].map(normalizeCompare);
+
+    const exactMatch = headers.find(header => candidates.includes(normalizeCompare(header)));
+    if (exactMatch) return exactMatch;
+
+    const partialMatch = headers.find(header => candidates.some(candidate => normalizeCompare(header).includes(candidate) || candidate.includes(normalizeCompare(header))));
+    return partialMatch || '';
+  };
+
+  const buildImportPreviews = (rows: Record<string, unknown>[], source: ImportSourceConfig) => {
+    const previews: ImportPreview[] = rows.map(row => {
+      const matchedColumns: Partial<Record<ImportSourceField, string>> = {
+        company: getMatchedColumnName(row, 'company', source),
+        productive_unit: getMatchedColumnName(row, 'productive_unit', source),
+        user: getMatchedColumnName(row, 'user', source),
+        badge: getMatchedColumnName(row, 'badge', source),
+        tone: getMatchedColumnName(row, 'tone', source),
+        award: getMatchedColumnName(row, 'award', source),
+      };
+      const companyValue = getSourceCell(row, 'company', source);
+      const unitValue = getSourceCell(row, 'productive_unit', source);
+      const userValue = getSourceCell(row, 'user', source);
+      const badgeValue = getSourceCell(row, 'badge', source);
+      const toneValue = getSourceCell(row, 'tone', source);
+      const awardValue = getSourceCell(row, 'award', source).toUpperCase();
+
+      const companyFound = companies.find(company => normalizeCompare(company.name) === normalizeCompare(companyValue));
+      const productiveUnitFound = productiveUnits.find(unit =>
+        normalizeCompare(unit.name) === normalizeCompare(unitValue) &&
+        (!companyFound || unit.company_id === companyFound.id)
+      );
+      const userFound = users.find(user =>
+        (normalizeCompare(user.full_name) === normalizeCompare(userValue) || normalizeCompare(user.email) === normalizeCompare(userValue)) &&
+        (!companyFound || user.company_id === companyFound.id) &&
+        (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
+      );
+      const badgeFound = badges.find(badge => normalizeCompare(badge.name) === normalizeCompare(badgeValue));
+      const tone = parseTone(toneValue);
+
+      let status: 'valid' | 'invalid' = 'valid';
+      let reason = '';
+
+      if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
+      else if (!productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
+      else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
+      else if (!badgeFound) { status = 'invalid'; reason = 'selo nao encontrado'; }
+      else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
+
+      return {
+        row: {
+          ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+          explorador: userValue,
+          empresa: companyValue,
+          unidade_produtiva: unitValue,
+          selo: badgeValue,
+          premio: awardValue,
+          marcacao: toneValue || tone,
+        },
+        user: userFound,
+        badge: badgeFound,
+        company: companyFound,
+        productiveUnit: productiveUnitFound,
+        tone,
+        sourceName: source.name,
+        matchedColumns,
+        status,
+        reason,
+      };
+    });
+
+    return previews;
   };
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
@@ -413,62 +507,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const wb = XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
+      const headers = Object.keys(data[0] || {});
+      const suggestedColumns: Record<ImportSourceField, string> = {
+        company: suggestColumnForField(headers, 'company', activeImportSource),
+        productive_unit: suggestColumnForField(headers, 'productive_unit', activeImportSource),
+        user: suggestColumnForField(headers, 'user', activeImportSource),
+        badge: suggestColumnForField(headers, 'badge', activeImportSource),
+        tone: suggestColumnForField(headers, 'tone', activeImportSource),
+        award: suggestColumnForField(headers, 'award', activeImportSource),
+      };
 
-      const previews: ImportPreview[] = data.map(row => {
-        const companyValue = getSourceCell(row, 'company', activeImportSource);
-        const unitValue = getSourceCell(row, 'productive_unit', activeImportSource);
-        const userValue = getSourceCell(row, 'user', activeImportSource);
-        const badgeValue = getSourceCell(row, 'badge', activeImportSource);
-        const toneValue = getSourceCell(row, 'tone', activeImportSource);
-        const awardValue = getSourceCell(row, 'award', activeImportSource).toUpperCase();
-
-        const companyFound = companies.find(company => normalizeCompare(company.name) === normalizeCompare(companyValue));
-        const productiveUnitFound = productiveUnits.find(unit =>
-          normalizeCompare(unit.name) === normalizeCompare(unitValue) &&
-          (!companyFound || unit.company_id === companyFound.id)
-        );
-        const userFound = users.find(user =>
-          (normalizeCompare(user.full_name) === normalizeCompare(userValue) || normalizeCompare(user.email) === normalizeCompare(userValue)) &&
-          (!companyFound || user.company_id === companyFound.id) &&
-          (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
-        );
-        const badgeFound = badges.find(badge => normalizeCompare(badge.name) === normalizeCompare(badgeValue));
-        const tone = parseTone(toneValue);
-
-        let status: 'valid' | 'invalid' = 'valid';
-        let reason = '';
-
-        if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
-        else if (!productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
-        else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
-        else if (!badgeFound) { status = 'invalid'; reason = 'selo nao encontrado'; }
-        else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
-
-        return {
-          row: {
-            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-            explorador: userValue,
-            empresa: companyValue,
-            unidade_produtiva: unitValue,
-            selo: badgeValue,
-            premio: awardValue,
-            marcacao: toneValue || tone,
-          },
-          user: userFound,
-          badge: badgeFound,
-          company: companyFound,
-          productiveUnit: productiveUnitFound,
-          tone,
-          sourceName: activeImportSource.name,
-          status,
-          reason,
-        };
-      });
-
-      setImportPreviews(previews);
-      setIsImportModalOpen(true);
+      setImportSheetRows(data);
+      setImportSheetHeaders(headers);
+      setAssistedImportColumns(suggestedColumns);
+      setIsImportMappingModalOpen(true);
     };
     reader.readAsBinaryString(file);
+  };
+
+  const handleConfirmImportMapping = () => {
+    if (!activeImportSource || importSheetRows.length === 0) return;
+
+    const mappedSource: ImportSourceConfig = {
+      ...activeImportSource,
+      columns: assistedImportColumns,
+    };
+
+    const previews = buildImportPreviews(importSheetRows, mappedSource);
+    setImportPreviews(previews);
+
+    const firstPreview = previews[0];
+    if (firstPreview) {
+      setImportBindingSnapshot({
+        sourceId: mappedSource.id,
+        sourceName: mappedSource.name,
+        matchedColumns: firstPreview.matchedColumns,
+        importedAt: new Date().toISOString(),
+      });
+    }
+
+    setIsImportMappingModalOpen(false);
+    setIsImportModalOpen(true);
   };
 
   const finalizeImport = () => {
@@ -1184,6 +1263,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Salvar Fonte</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isImportMappingModalOpen && activeImportSource && (
+        <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Mapeamento assistido do Excel</h2>
+            <p className="text-sm text-slate-500 mb-8">Revise os cabeçalhos detectados antes de gerar a pré-visualização dos selos.</p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 flex-1 overflow-hidden">
+              <div className="rounded-[32px] border border-slate-100 bg-slate-50/70 p-6 overflow-y-auto">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Cabeçalhos detectados</div>
+                <div className="flex flex-wrap gap-3">
+                  {importSheetHeaders.map(header => (
+                    <span key={header} className="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-slate-700">
+                      {header}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[32px] border border-slate-100 bg-white p-6 overflow-y-auto space-y-4">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mapeamento sugerido</div>
+                {(['company', 'productive_unit', 'user', 'badge', 'tone', 'award'] as ImportSourceField[]).map(field => (
+                  <label key={field} className="space-y-2 block">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</span>
+                    <select
+                      value={assistedImportColumns[field]}
+                      onChange={(e) => setAssistedImportColumns(prev => ({ ...prev, [field]: e.target.value }))}
+                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
+                    >
+                      <option value="">Nao mapear</option>
+                      {importSheetHeaders.map(header => <option key={header} value={header}>{header}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-8">
+              <button type="button" onClick={() => setIsImportMappingModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+              <button type="button" onClick={handleConfirmImportMapping} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Gerar pre-visualizacao</button>
+            </div>
           </div>
         </div>
       )}

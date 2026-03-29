@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField } from '../types';
+import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
@@ -13,6 +13,7 @@ interface DashboardProps {
   companies: Company[];
   productiveUnits: ProductiveUnit[];
   importSources: ImportSourceConfig[];
+  importBindingSnapshot: ImportBindingSnapshot | null;
   onOpenSolicitation: () => void;
   onVerifyEmail?: () => void;
 }
@@ -27,6 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   companies,
   productiveUnits,
   importSources,
+  importBindingSnapshot,
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
@@ -35,7 +37,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
-  const linkedImportSource = importSources[0];
+  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
   const visibleCollaborators = useMemo(() => {
     const base = users.filter(profile => profile.role === 'user');
@@ -171,12 +173,13 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">fonte excel vinculada ao dashboard</div>
             <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource.name}</h3>
             {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
+            {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">último vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {(Object.entries(linkedImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
               <div key={field} className="bg-slate-50 rounded-2xl px-4 py-3">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
-                <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
+                <div className="text-sm font-bold text-slate-900 mt-1">{importBindingSnapshot?.matchedColumns[field] || column}</div>
               </div>
             ))}
           </div>

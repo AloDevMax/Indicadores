@@ -18,7 +18,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
-import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig } from './types';
+import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -84,6 +84,7 @@ const App: React.FC = () => {
   const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings>(INITIAL_BADGE_LEGENDS);
   const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
   const [importSources, setImportSources] = useState<ImportSourceConfig[]>(INITIAL_IMPORT_SOURCES);
+  const [importBindingSnapshot, setImportBindingSnapshot] = useState<ImportBindingSnapshot | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('quest_user');
@@ -204,6 +205,7 @@ const App: React.FC = () => {
                       companies={companies}
                       productiveUnits={productiveUnits}
                       importSources={importSources}
+                      importBindingSnapshot={importBindingSnapshot}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />
@@ -252,6 +254,7 @@ const App: React.FC = () => {
                       setBadgeLegends={setBadgeLegends}
                       importSources={importSources}
                       setImportSources={setImportSources}
+                      setImportBindingSnapshot={setImportBindingSnapshot}
                       users={users}
                       setUsers={setUsers}
                       userBadges={userBadges}
