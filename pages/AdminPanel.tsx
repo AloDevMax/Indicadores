@@ -6,6 +6,15 @@ import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, Ba
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
+const IMPORT_FIELD_ALIASES: Record<ImportSourceField, string[]> = {
+  company: ['empresa', 'companhia', 'organizacao', 'organização', 'company'],
+  productive_unit: ['unidade_produtiva', 'unidade produtiva', 'unidade', 'setor', 'area', 'área', 'productive_unit'],
+  user: ['explorador', 'colaborador', 'funcionario', 'funcionário', 'nome', 'usuario', 'usuário', 'user'],
+  badge: ['selo', 'badge', 'conquista'],
+  tone: ['marcacao', 'marcação', 'cor', 'tone', 'faixa'],
+  award: ['premio', 'prêmio', 'autorizar', 'autorizacao', 'autorização', 'award'],
+};
+
 interface AdminPanelProps {
   activeMode: 'management' | 'personal';
   setActiveMode: (_mode: 'management' | 'personal') => void;
@@ -153,7 +162,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const getSourceCell = (row: Record<string, unknown>, field: ImportSourceField, source: ImportSourceConfig) => {
     const columnName = source.columns[field];
-    const matchedKey = Object.keys(row).find(key => normalizeCompare(key) === normalizeCompare(columnName));
+    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
+    const matchedKey = Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
     return matchedKey ? normalizeCell(row[matchedKey]) : '';
   };
 

@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit } from '../types';
+import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
@@ -12,6 +12,7 @@ interface DashboardProps {
   users: Profile[];
   companies: Company[];
   productiveUnits: ProductiveUnit[];
+  importSources: ImportSourceConfig[];
   onOpenSolicitation: () => void;
   onVerifyEmail?: () => void;
 }
@@ -25,6 +26,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   users,
   companies,
   productiveUnits,
+  importSources,
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
@@ -33,6 +35,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
+  const linkedImportSource = importSources[0];
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
   const visibleCollaborators = useMemo(() => {
     const base = users.filter(profile => profile.role === 'user');
@@ -46,6 +49,37 @@ const Dashboard: React.FC<DashboardProps> = ({
       return profile.id === user.id;
     });
   }, [isAdmin, user.id, user.company_id, user.productive_unit_id, users]);
+  const groupedCollaborators = useMemo(() => {
+    const groups = new Map<string, {
+      companyId: string;
+      companyName: string;
+      units: Map<string, { unitId: string; unitName: string; collaborators: Profile[] }>;
+    }>();
+
+    visibleCollaborators.forEach((collaborator) => {
+      const companyId = collaborator.company_id || 'independente';
+      const companyName = companies.find(company => company.id === collaborator.company_id)?.name || 'Independente';
+      const unitId = collaborator.productive_unit_id || `${companyId}-sem-unidade`;
+      const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name || 'Sem unidade produtiva';
+
+      if (!groups.has(companyId)) {
+        groups.set(companyId, { companyId, companyName, units: new Map() });
+      }
+
+      const companyGroup = groups.get(companyId)!;
+
+      if (!companyGroup.units.has(unitId)) {
+        companyGroup.units.set(unitId, { unitId, unitName, collaborators: [] });
+      }
+
+      companyGroup.units.get(unitId)!.collaborators.push(collaborator);
+    });
+
+    return Array.from(groups.values()).map(group => ({
+      ...group,
+      units: Array.from(group.units.values()),
+    }));
+  }, [companies, productiveUnits, visibleCollaborators]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] space-y-8 md:space-y-12 animate-in fade-in duration-500 pb-24 md:pb-8">
@@ -131,6 +165,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
+      {linkedImportSource && (
+        <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-4">
+          <div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">fonte excel vinculada ao dashboard</div>
+            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource.name}</h3>
+            {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {(Object.entries(linkedImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
+              <div key={field} className="bg-slate-50 rounded-2xl px-4 py-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
+                <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {mySubmissions.length > 0 && (
         <section className="space-y-4">
           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest px-1">solicitações recentes</h3>
@@ -182,63 +234,93 @@ const Dashboard: React.FC<DashboardProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {visibleCollaborators.map((collaborator) => {
-            const collaboratorBadges = userBadges.filter(ub => ub.user_id === collaborator.id);
-            const collaboratorMetrics = getUserMonthlyBadgeMetrics(collaborator.id, userBadges);
-            const companyName = companies.find(company => company.id === collaborator.company_id)?.name || 'Independente';
-            const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name || 'Sem unidade produtiva';
-
-            return (
-              <div key={collaborator.id} className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-5">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="text-lg font-black text-slate-900">{collaborator.full_name}</h4>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mt-2">{companyName}</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 mt-1">{unitName}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">saldo do mês</div>
-                  </div>
+        <div className="space-y-6">
+          {groupedCollaborators.map((companyGroup) => (
+            <div key={companyGroup.companyId} className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h4 className="text-xl font-black text-slate-900">{companyGroup.companyName}</h4>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
+                    {companyGroup.units.reduce((total, unit) => total + unit.collaborators.length, 0)} colaboradores
+                  </p>
                 </div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl">
+                  {companyGroup.units.length} unidades
+                </div>
+              </div>
 
-                {collaboratorBadges.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
-                    {collaboratorBadges.map((userBadge) => {
-                      const badge = allBadges.find(item => item.id === userBadge.badge_id);
-                      if (!badge) return null;
+              <div className="space-y-5">
+                {companyGroup.units.map((unitGroup) => (
+                  <div key={unitGroup.unitId} className="rounded-[28px] border border-slate-100 bg-slate-50/70 p-5 space-y-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div>
+                        <h5 className="text-lg font-black text-slate-900">{unitGroup.unitName}</h5>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 mt-2">
+                          {unitGroup.collaborators.length} colaboradores na unidade
+                        </p>
+                      </div>
+                    </div>
 
-                      const toneAccent =
-                        userBadge.tone === 'gold' ? 'border-amber-400 bg-amber-50' :
-                        userBadge.tone === 'silver' ? 'border-slate-400 bg-slate-50' :
-                        userBadge.tone === 'bronze' ? 'border-amber-700 bg-orange-50' :
-                        userBadge.tone === 'loss_2' ? 'border-rose-600 bg-rose-100' :
-                        'border-rose-400 bg-rose-50';
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      {unitGroup.collaborators.map((collaborator) => {
+                        const collaboratorBadges = userBadges.filter(ub => ub.user_id === collaborator.id);
+                        const collaboratorMetrics = getUserMonthlyBadgeMetrics(collaborator.id, userBadges);
 
-                      return (
-                        <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{badge.icon_name}</span>
-                            <div className="min-w-0">
-                              <div className="text-xs font-black text-slate-900 truncate">{badge.name}</div>
-                              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                                {BADGE_TONE_LABELS[userBadge.tone]}
+                        return (
+                          <div key={collaborator.id} className="bg-white rounded-[28px] border border-slate-100 shadow-sm p-5 space-y-5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h6 className="text-lg font-black text-slate-900">{collaborator.full_name}</h6>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">saldo do mês</div>
                               </div>
                             </div>
+
+                            {collaboratorBadges.length > 0 ? (
+                              <div className="flex flex-wrap gap-3">
+                                {collaboratorBadges.map((userBadge) => {
+                                  const badge = allBadges.find(item => item.id === userBadge.badge_id);
+                                  if (!badge) return null;
+
+                                  const toneAccent =
+                                    userBadge.tone === 'gold' ? 'border-amber-400 bg-amber-50' :
+                                    userBadge.tone === 'silver' ? 'border-slate-400 bg-slate-50' :
+                                    userBadge.tone === 'bronze' ? 'border-amber-700 bg-orange-50' :
+                                    userBadge.tone === 'loss_2' ? 'border-rose-600 bg-rose-100' :
+                                    'border-rose-400 bg-rose-50';
+
+                                  return (
+                                    <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-2xl">{badge.icon_name}</span>
+                                        <div className="min-w-0">
+                                          <div className="text-xs font-black text-slate-900 truncate">{badge.name}</div>
+                                          <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                            {BADGE_TONE_LABELS[userBadge.tone]}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">
+                                Nenhum selo atribuído ainda.
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">
-                    Nenhum selo atribuído ainda.
-                  </div>
-                )}
+                ))}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </section>
     </div>

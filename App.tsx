@@ -203,6 +203,7 @@ const App: React.FC = () => {
                       users={users}
                       companies={companies}
                       productiveUnits={productiveUnits}
+                      importSources={importSources}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />
