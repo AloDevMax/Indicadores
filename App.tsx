@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -19,14 +18,13 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
-import { Profile, Badge, Company, BadgeSubmission, UserBadge } from './types';
+import { Profile, Badge, Company, ProductiveUnit, BadgeSubmission, UserBadge } from './types';
 
-// Initial Mock Data to seed the "connection"
 const INITIAL_BADGES: Badge[] = [
-  { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '📋', category: 'Qualidade', points: 50 },
-  { id: '2', name: 'Segurança em Primeiro Lugar', description: 'Zero incidentes por 30 dias consecutivos', icon_name: '🦺', category: 'Segurança', points: 30 },
-  { id: '3', name: 'Ninja da Eficiência', description: 'Reduziu desperdícios em 15% na produção', icon_name: '🥷', category: 'Eficiência', points: 40 },
-  { id: '4', name: 'Herói do Cliente', description: 'Recebeu 5 feedbacks positivos de clientes', icon_name: '🦸', category: 'Serviço', points: 20 },
+  { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
+  { id: '2', name: 'Segurança em Primeiro Lugar', description: 'Zero incidentes por 30 dias consecutivos', icon_name: '\u{1F9BA}', category: 'Segurança', points: 30 },
+  { id: '3', name: 'Ninja da Eficiência', description: 'Reduziu desperdícios em 15% na produção', icon_name: '\u{1F977}', category: 'Eficiência', points: 40 },
+  { id: '4', name: 'Herói do Cliente', description: 'Recebeu 5 feedbacks positivos de clientes', icon_name: '\u{1F9B8}', category: 'Serviço', points: 20 },
 ];
 
 const INITIAL_COMPANIES: Company[] = [
@@ -34,11 +32,17 @@ const INITIAL_COMPANIES: Company[] = [
   { id: 'c2', name: 'Builders Ltda' },
 ];
 
+const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
+  { id: 'pu1', name: 'Fábrica Campinas', company_id: 'c1' },
+  { id: 'pu2', name: 'Centro de Distribuição SP', company_id: 'c1' },
+  { id: 'pu3', name: 'Obra Matriz', company_id: 'c2' },
+];
+
 const INITIAL_USERS: Profile[] = [
   { id: 'admin-1', email: 'admin@test.com', password: 'admin123', full_name: 'Comandante Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString() },
-  { id: 'u1', email: 'joao@acme.com', password: 'joao123', full_name: 'João Silva', role: 'user', company_id: 'c1', level: 5, xp: 5200, created_at: '2023-01-01' },
-  { id: 'u2', email: 'ana@acme.com', password: 'ana123', full_name: 'Ana Costa', role: 'user', company_id: 'c1', level: 3, xp: 3100, created_at: '2023-02-15' },
-  { id: 'u3', email: 'bob@builders.com', password: 'bob123', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', level: 10, xp: 10500, created_at: '2022-11-20' },
+  { id: 'u1', email: 'joao@acme.com', password: 'joao123', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01' },
+  { id: 'u2', email: 'ana@acme.com', password: 'ana123', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
+  { id: 'u3', email: 'bob@builders.com', password: 'bob123', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
 ];
 
 const App: React.FC = () => {
@@ -48,9 +52,9 @@ const App: React.FC = () => {
   const [adminViewMode, setAdminViewMode] = useState<'management' | 'personal'>('management');
   const [isSolicitationOpen, setIsSolicitationOpen] = useState(false);
 
-  // Unified State (The "Connection")
   const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
   const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES);
+  const [productiveUnits, setProductiveUnits] = useState<ProductiveUnit[]>(INITIAL_PRODUCTIVE_UNITS);
   const [users, setUsers] = useState<Profile[]>(INITIAL_USERS);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
@@ -59,7 +63,6 @@ const App: React.FC = () => {
     const savedUser = localStorage.getItem('quest_user');
     if (savedUser) {
       const parsed = JSON.parse(savedUser);
-      // Ensure we use the latest version from our state
       const updatedUser = users.find(u => u.id === parsed.id) || parsed;
       setUser(updatedUser);
     }
@@ -68,7 +71,6 @@ const App: React.FC = () => {
 
   const handleLogin = (email: string, password: string) => {
     const normalizedEmail = email.toLowerCase().trim();
-
     const existingUser = users.find(u => u.email.toLowerCase() === normalizedEmail);
 
     if (!existingUser) {
@@ -135,62 +137,62 @@ const App: React.FC = () => {
     <HashRouter>
       <div className="min-h-screen bg-slate-50 flex flex-col">
         {user && <Navbar user={user} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
-        
+
         <div className="flex flex-1 overflow-hidden relative">
           {user && (
-            <Sidebar 
-              user={user} 
-              isOpen={isSidebarOpen} 
-              onClose={() => setIsSidebarOpen(false)} 
+            <Sidebar
+              user={user}
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
               setAdminViewMode={setAdminViewMode}
             />
           )}
-          
+
           <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-300 ${user ? 'md:ml-64 pb-24 md:pb-8' : ''}`}>
             <Routes>
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
-                  user 
-                    ? (user.role === 'admin' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />) 
+                  user
+                    ? (user.role === 'admin' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Login onLogin={handleLogin} />
-                } 
+                }
               />
               <Route
                 path="/register"
                 element={user ? <Navigate to="/" /> : <Register onRegister={handleRegister} />}
               />
-              <Route 
-                path="/dashboard" 
+              <Route
+                path="/dashboard"
                 element={
                   user ? (
-                    <Dashboard 
-                      user={user} 
+                    <Dashboard
+                      user={user}
                       allBadges={badges}
                       userBadges={userBadges}
                       submissions={submissions}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />
-                } 
+                }
               />
-              <Route 
-                path="/badges" 
+              <Route
+                path="/badges"
                 element={
                   user ? (
-                    <UserBadgesPage 
-                      user={user} 
+                    <UserBadgesPage
+                      user={user}
                       allBadges={badges}
                       userBadges={userBadges}
                       submissions={submissions}
                     />
                   ) : <Navigate to="/" />
-                } 
+                }
               />
-              <Route 
-                path="/ranking" 
-                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} /> : <Navigate to="/" />} 
+              <Route
+                path="/ranking"
+                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} /> : <Navigate to="/" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/" />} />
@@ -200,17 +202,19 @@ const App: React.FC = () => {
               <Route path="/library" element={user ? <Library /> : <Navigate to="/" />} />
               <Route path="/companies" element={user ? <CompaniesPage /> : <Navigate to="/" />} />
               <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" />} />
-              <Route 
-                path="/admin/*" 
+              <Route
+                path="/admin/*"
                 element={
                   user?.role === 'admin' ? (
-                    <AdminPanel 
-                      activeMode={adminViewMode} 
-                      setActiveMode={setAdminViewMode} 
+                    <AdminPanel
+                      activeMode={adminViewMode}
+                      setActiveMode={setAdminViewMode}
                       badges={badges}
                       setBadges={setBadges}
                       companies={companies}
                       setCompanies={setCompanies}
+                      productiveUnits={productiveUnits}
+                      setProductiveUnits={setProductiveUnits}
                       users={users}
                       setUsers={setUsers}
                       userBadges={userBadges}
@@ -220,28 +224,28 @@ const App: React.FC = () => {
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />
-                } 
+                }
               />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </main>
 
           {user && (
-            <BottomNav 
-              user={user} 
-              adminViewMode={adminViewMode} 
+            <BottomNav
+              user={user}
+              adminViewMode={adminViewMode}
               onOpenSolicitation={() => setIsSolicitationOpen(true)}
             />
           )}
 
           {user && (
-            <SolicitationModal 
-              isOpen={isSolicitationOpen} 
-              onClose={() => setIsSolicitationOpen(false)} 
-              user={user} 
-              allBadges={badges} 
-              userBadges={userBadges} 
-              onAddSubmission={handleAddSubmission} 
+            <SolicitationModal
+              isOpen={isSolicitationOpen}
+              onClose={() => setIsSolicitationOpen(false)}
+              user={user}
+              allBadges={badges}
+              userBadges={userBadges}
+              onAddSubmission={handleAddSubmission}
             />
           )}
         </div>

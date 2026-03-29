@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, BadgeSubmission, UserBadge } from '../types';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge } from '../types';
 import BadgeCard from '../components/BadgeCard';
 
 interface AdminPanelProps {
@@ -12,6 +12,8 @@ interface AdminPanelProps {
   setBadges: React.Dispatch<React.SetStateAction<Badge[]>>;
   companies: Company[];
   setCompanies: React.Dispatch<React.SetStateAction<Company[]>>;
+  productiveUnits: ProductiveUnit[];
+  setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -44,6 +46,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setBadges,
   companies,
   setCompanies,
+  productiveUnits,
+  setProductiveUnits,
   users,
   setUsers,
   userBadges,
@@ -73,6 +77,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [isProductiveUnitModalOpen, setIsProductiveUnitModalOpen] = useState(false);
+  const [editingProductiveUnit, setEditingProductiveUnit] = useState<ProductiveUnit | null>(null);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isBulkInviteModalOpen, setIsBulkInviteModalOpen] = useState(false);
@@ -91,6 +97,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
   const [bulkInviteCompanyId, setBulkInviteCompanyId] = useState('');
+  const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
@@ -99,6 +106,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [userSearch, setUserSearch] = useState('');
 
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
+  const [selectedProductiveUnitFilter, setSelectedProductiveUnitFilter] = useState<string>('');
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev => 
@@ -110,6 +118,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const adminProfile = users.find(u => u.role === 'admin') || users[0];
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
+  const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
 
   const handleReviewSubmission = (submissionId: string, status: 'approved' | 'rejected') => {
     const submission = submissions.find(s => s.id === submissionId);
@@ -179,15 +188,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsCompanyModalOpen(false);
   };
 
+  const handleSaveProductiveUnit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const companyId = formData.get('company_id') as string;
+
+    if (!companyId) {
+      alert('Selecione a empresa da unidade produtiva.');
+      return;
+    }
+
+    const productiveUnitData: ProductiveUnit = {
+      id: editingProductiveUnit?.id || Math.random().toString(36).substr(2, 9),
+      name: formData.get('name') as string,
+      company_id: companyId,
+    };
+
+    setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? productiveUnitData : unit) : [...prev, productiveUnitData]);
+    setIsProductiveUnitModalOpen(false);
+    setEditingProductiveUnit(null);
+  };
+
   const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const companyId = (formData.get('company_id') as string) || undefined;
+    const productiveUnitId = (formData.get('productive_unit_id') as string) || undefined;
+    const validProductiveUnitId = productiveUnitId && productiveUnits.some(unit => unit.id === productiveUnitId && unit.company_id === companyId)
+      ? productiveUnitId
+      : undefined;
+
     const userData: Profile = {
       id: editingUser?.id || Math.random().toString(36).substr(2, 9),
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
       role: formData.get('role') as 'admin' | 'user',
-      company_id: (formData.get('company_id') as string) || undefined,
+      company_id: companyId,
+      productive_unit_id: validProductiveUnitId,
       level: editingUser?.level || 1,
       xp: editingUser?.xp || 0,
       created_at: editingUser?.created_at || new Date().toISOString(),
@@ -209,12 +246,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const validProductiveUnitId = bulkInviteProductiveUnitId && productiveUnits.some(unit => unit.id === bulkInviteProductiveUnitId && unit.company_id === bulkInviteCompanyId)
+      ? bulkInviteProductiveUnitId
+      : undefined;
+
     const newUsers: Profile[] = emails.map(email => ({
       id: Math.random().toString(36).substr(2, 9),
       email,
       full_name: email.split('@')[0],
       role: 'user',
       company_id: bulkInviteCompanyId || undefined,
+      productive_unit_id: validProductiveUnitId,
       level: 1,
       xp: 0,
       created_at: new Date().toISOString(),
@@ -225,6 +267,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsBulkInviteModalOpen(false);
     setBulkInviteEmails('');
     setBulkInviteCompanyId('');
+    setBulkInviteProductiveUnitId('');
   };
 
   const handleDeleteUser = () => {
@@ -358,18 +401,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
       u.full_name.toLowerCase().includes(userSearch.toLowerCase()) &&
-      (selectedCompanyFilter === '' || u.company_id === selectedCompanyFilter)
+      (selectedCompanyFilter === '' || u.company_id === selectedCompanyFilter) &&
+      (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter)
     );
-  }, [users, userSearch, selectedCompanyFilter]);
-
-
+  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter]);
 
   const stats = useMemo(() => ({
     totalUsers: users.length,
     activeBadges: badges.length,
     pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
-    totalCompanies: companies.length
-  }), [users, badges, submissions, companies]);
+    totalCompanies: companies.length,
+    totalProductiveUnits: productiveUnits.length
+  }), [users, badges, submissions, companies, productiveUnits]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -395,7 +438,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {[
                   { label: 'Exploradores', val: stats.totalUsers, icon: '👥' },
                   { label: 'Selos Ativos', val: stats.activeBadges, icon: '🛡️' },
@@ -417,11 +460,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><span>🏢</span> Empresas no Ecossistema</h3>
                   <div className="space-y-4">
                     {companies.map(c => (
-                      <div key={c.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                        <span className="font-bold text-slate-900 text-sm">{c.name}</span>
-                        <span className="text-[10px] font-black text-indigo-600 uppercase">{users.filter(u => u.company_id === c.id).length} Exploradores</span>
+                  <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg space-y-5 group hover:border-indigo-200 transition-all">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
+                        <div>
+                          <div className="font-bold text-slate-900 text-sm tracking-tight">{c.name}</div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
+                        </div>
                       </div>
-                    ))}
+                      <button onClick={() => { setEditingCompany(c); setIsCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                    </div>
+                    <div className="space-y-3">
+                      {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
+                        <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
+                          <div>
+                            <div className="font-bold text-slate-900 text-sm">{unit.name}</div>
+                            <div className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
+                          </div>
+                          <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
+                        </div>
+                      )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
+                    </div>
+                  </div>
+                ))}
                   </div>
                 </div>
                 <div className="bg-indigo-900 p-8 rounded-[40px] shadow-2xl text-white">
@@ -481,11 +543,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="flex flex-wrap gap-2">
                   <select 
                     value={selectedCompanyFilter}
-                    onChange={(e) => setSelectedCompanyFilter(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedCompanyFilter(e.target.value);
+                      setSelectedProductiveUnitFilter('');
+                    }}
                     className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
                     <option value="">Todas as Empresas</option>
                     {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                  <select 
+                    value={selectedProductiveUnitFilter}
+                    onChange={(e) => setSelectedProductiveUnitFilter(e.target.value)}
+                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
+                  >
+                    <option value="">Todas as Unidades</option>
+                    {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
                   </select>
                   <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
                   <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Explorador</button>
@@ -495,7 +568,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <tr>
-                      <th className="px-10 py-6">Nome / Empresa</th>
+                      <th className="px-10 py-6">Nome / Empresa / Unidade</th>
                       <th className="px-10 py-6">Nível / XP</th>
                       <th className="px-10 py-6 text-right">Opções</th>
                     </tr>
@@ -503,11 +576,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <tbody className="divide-y divide-slate-50">
                     {filteredUsers.map(u => {
                       const comp = companies.find(c => c.id === u.company_id);
+                      const unit = productiveUnits.find(item => item.id === u.productive_unit_id);
                       return (
                         <tr key={u.id} className="group hover:bg-slate-50/50">
                           <td className="px-10 py-6">
                             <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
                             <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
+                            <div className="text-[10px] text-cyan-600 font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
                             <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
                           </td>
                           <td className="px-10 py-6">
@@ -628,7 +703,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
-                <button onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
+                  <button onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {companies.map(c => (
@@ -695,12 +773,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Empresa de Destino</label>
                 <select 
                   value={bulkInviteCompanyId}
-                  onChange={(e) => setBulkInviteCompanyId(e.target.value)}
+                  onChange={(e) => {
+                    setBulkInviteCompanyId(e.target.value);
+                    setBulkInviteProductiveUnitId('');
+                  }}
                   className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all appearance-none"
                   required
                 >
                   <option value="">Selecionar empresa...</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Unidade Produtiva</label>
+                <select
+                  value={bulkInviteProductiveUnitId}
+                  onChange={(e) => setBulkInviteProductiveUnitId(e.target.value)}
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all appearance-none"
+                >
+                  <option value="">Selecionar unidade...</option>
+                  {getUnitsByCompany(bulkInviteCompanyId).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -737,7 +829,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail Corporativo</label>
                 <input name="email" type="email" defaultValue={editingUser?.email} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" placeholder="Ex: joao@empresa.com" required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
@@ -750,6 +842,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <select name="company_id" defaultValue={editingUser?.company_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="">Nenhuma (Independente)</option>
                     {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva</label>
+                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
+                    <option value="">Nenhuma</option>
+                    {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -844,6 +943,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
                 <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'atualizar' : 'cadastrar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isProductiveUnitModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'editar unidade produtiva' : 'nova unidade produtiva'}</h2>
+            <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">empresa</label>
+                <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
+                  <option value="">Selecionar empresa...</option>
+                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da unidade</label>
+                <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'atualizar' : 'cadastrar'}</button>
               </div>
             </form>
           </div>

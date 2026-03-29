@@ -17,6 +17,7 @@ export interface Profile {
   full_name: string;
   role: Role;
   company_id?: string;
+  productive_unit_id?: string;
   level: number;
   xp: number;
   created_at: string;
@@ -27,6 +28,12 @@ export interface Profile {
 export interface Company {
   id: string;
   name: string;
+}
+
+export interface ProductiveUnit {
+  id: string;
+  name: string;
+  company_id: string;
 }
 
 export interface Badge {
