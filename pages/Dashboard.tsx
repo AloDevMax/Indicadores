@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge } from '../types';
+import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
@@ -9,6 +9,9 @@ interface DashboardProps {
   userBadges: UserBadge[];
   badgeLegends: BadgeLegendSettings;
   submissions: BadgeSubmission[];
+  users: Profile[];
+  companies: Company[];
+  productiveUnits: ProductiveUnit[];
   onOpenSolicitation: () => void;
   onVerifyEmail?: () => void;
 }
@@ -19,6 +22,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   userBadges,
   badgeLegends,
   submissions,
+  users,
+  companies,
+  productiveUnits,
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
@@ -28,6 +34,18 @@ const Dashboard: React.FC<DashboardProps> = ({
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
+  const visibleCollaborators = useMemo(() => {
+    const base = users.filter(profile => profile.role === 'user');
+
+    if (isAdmin) return base;
+
+    return base.filter(profile => {
+      if (profile.id === user.id) return true;
+      if (user.productive_unit_id) return profile.productive_unit_id === user.productive_unit_id;
+      if (user.company_id) return profile.company_id === user.company_id;
+      return profile.id === user.id;
+    });
+  }, [isAdmin, user.id, user.company_id, user.productive_unit_id, users]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] space-y-8 md:space-y-12 animate-in fade-in duration-500 pb-24 md:pb-8">
@@ -151,6 +169,74 @@ const Dashboard: React.FC<DashboardProps> = ({
                 tone={badgeAward?.tone}
                 date={badgeAward?.awarded_at}
               />
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-6">
+        <div className="px-1">
+          <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight">selos por colaborador</h3>
+          <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">
+            {isAdmin ? 'visão geral da operação' : 'visão da sua empresa ou unidade'}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {visibleCollaborators.map((collaborator) => {
+            const collaboratorBadges = userBadges.filter(ub => ub.user_id === collaborator.id);
+            const collaboratorMetrics = getUserMonthlyBadgeMetrics(collaborator.id, userBadges);
+            const companyName = companies.find(company => company.id === collaborator.company_id)?.name || 'Independente';
+            const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name || 'Sem unidade produtiva';
+
+            return (
+              <div key={collaborator.id} className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 className="text-lg font-black text-slate-900">{collaborator.full_name}</h4>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mt-2">{companyName}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-cyan-600 mt-1">{unitName}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">saldo do mês</div>
+                  </div>
+                </div>
+
+                {collaboratorBadges.length > 0 ? (
+                  <div className="flex flex-wrap gap-3">
+                    {collaboratorBadges.map((userBadge) => {
+                      const badge = allBadges.find(item => item.id === userBadge.badge_id);
+                      if (!badge) return null;
+
+                      const toneAccent =
+                        userBadge.tone === 'gold' ? 'border-amber-400 bg-amber-50' :
+                        userBadge.tone === 'silver' ? 'border-slate-400 bg-slate-50' :
+                        userBadge.tone === 'bronze' ? 'border-amber-700 bg-orange-50' :
+                        userBadge.tone === 'loss_2' ? 'border-rose-600 bg-rose-100' :
+                        'border-rose-400 bg-rose-50';
+
+                      return (
+                        <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">{badge.icon_name}</span>
+                            <div className="min-w-0">
+                              <div className="text-xs font-black text-slate-900 truncate">{badge.name}</div>
+                              <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                {BADGE_TONE_LABELS[userBadge.tone]}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">
+                    Nenhum selo atribuído ainda.
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone } from '../types';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
@@ -17,6 +17,8 @@ interface AdminPanelProps {
   setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
   badgeLegends: BadgeLegendSettings;
   setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
+  importSources: ImportSourceConfig[];
+  setImportSources: React.Dispatch<React.SetStateAction<ImportSourceConfig[]>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -26,18 +28,14 @@ interface AdminPanelProps {
   onOpenSolicitation?: () => void;
 }
 
-interface ExcelRow {
-  explorador: string;
-  empresa: string;
-  selo: string;
-  premio: string;
-}
-
 interface ImportPreview {
-  row: ExcelRow;
+  row: Record<string, string>;
   user?: Profile;
   badge?: Badge;
   company?: Company;
+  productiveUnit?: ProductiveUnit;
+  tone: BadgeTone;
+  sourceName: string;
   status: 'valid' | 'invalid';
   reason?: string;
 }
@@ -53,6 +51,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setProductiveUnits,
   badgeLegends,
   setBadgeLegends,
+  importSources,
+  setImportSources,
   users,
   setUsers,
   userBadges,
@@ -106,14 +106,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isImportSourceModalOpen, setIsImportSourceModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
   const [importPreviews, setImportPreviews] = useState<ImportPreview[]>([]);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
+  const [selectedImportSourceId, setSelectedImportSourceId] = useState<string>(importSources[0]?.id || '');
+  const [editingImportSource, setEditingImportSource] = useState<ImportSourceConfig | null>(null);
   
   const [userSearch, setUserSearch] = useState('');
 
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
   const [selectedProductiveUnitFilter, setSelectedProductiveUnitFilter] = useState<string>('');
+
+  React.useEffect(() => {
+    if (!selectedImportSourceId && importSources[0]) {
+      setSelectedImportSourceId(importSources[0].id);
+    }
+  }, [importSources, selectedImportSourceId]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev => 
@@ -127,6 +136,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
   const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
   const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(adminProfile.id, userBadges);
+  const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0];
+
+  const normalizeCell = (value: unknown) => value?.toString().trim() || '';
+  const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
+
+  const parseTone = (value: unknown): BadgeTone => {
+    const normalized = normalizeCompare(value);
+    if (normalized.includes('ouro') || normalized === 'gold') return 'gold';
+    if (normalized.includes('prata') || normalized === 'silver') return 'silver';
+    if (normalized.includes('bronze')) return 'bronze';
+    if (normalized.includes('loss_2') || normalized.includes('perda 2') || normalized.includes('perda2') || normalized.includes('vermelho intenso')) return 'loss_2';
+    if (normalized.includes('loss_1') || normalized.includes('perda 1') || normalized.includes('perda1') || normalized.includes('vermelho')) return 'loss_1';
+    return 'bronze';
+  };
+
+  const getSourceCell = (row: Record<string, unknown>, field: ImportSourceField, source: ImportSourceConfig) => {
+    const columnName = source.columns[field];
+    const matchedKey = Object.keys(row).find(key => normalizeCompare(key) === normalizeCompare(columnName));
+    return matchedKey ? normalizeCell(row[matchedKey]) : '';
+  };
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
     const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
@@ -218,6 +247,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? productiveUnitData : unit) : [...prev, productiveUnitData]);
     setIsProductiveUnitModalOpen(false);
     setEditingProductiveUnit(null);
+  };
+
+  const handleSaveImportSource = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    const importSourceData: ImportSourceConfig = {
+      id: editingImportSource?.id || Math.random().toString(36).substr(2, 9),
+      name: normalizeCell(formData.get('name')),
+      description: normalizeCell(formData.get('description')),
+      columns: {
+        company: normalizeCell(formData.get('company_column')),
+        productive_unit: normalizeCell(formData.get('productive_unit_column')),
+        user: normalizeCell(formData.get('user_column')),
+        badge: normalizeCell(formData.get('badge_column')),
+        tone: normalizeCell(formData.get('tone_column')) || 'marcacao',
+        award: normalizeCell(formData.get('award_column')) || 'premio',
+      },
+    };
+
+    setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? importSourceData : source) : [...prev, importSourceData]);
+    setSelectedImportSourceId(importSourceData.id);
+    setIsImportSourceModalOpen(false);
+    setEditingImportSource(null);
   };
 
   const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
@@ -342,32 +395,64 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
   const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !activeImportSource) return;
 
     const reader = new FileReader();
     reader.onload = (evt) => {
       const bstr = evt.target?.result;
       const wb = XLSX.read(bstr, { type: 'binary' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json(ws) as ExcelRow[];
+      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
 
       const previews: ImportPreview[] = data.map(row => {
-        const exploradorStr = row['explorador']?.toString().toLowerCase().trim();
-        const empresaStr = row['empresa']?.toString().toLowerCase().trim();
-        const seloStr = row['selo']?.toString().toLowerCase().trim();
-        const premio = row['premio']?.toString().toUpperCase().trim();
+        const companyValue = getSourceCell(row, 'company', activeImportSource);
+        const unitValue = getSourceCell(row, 'productive_unit', activeImportSource);
+        const userValue = getSourceCell(row, 'user', activeImportSource);
+        const badgeValue = getSourceCell(row, 'badge', activeImportSource);
+        const toneValue = getSourceCell(row, 'tone', activeImportSource);
+        const awardValue = getSourceCell(row, 'award', activeImportSource).toUpperCase();
 
-        const userFound = users.find(u => u.full_name.toLowerCase().includes(exploradorStr) || u.email.toLowerCase().includes(exploradorStr));
-        const badgeFound = badges.find(b => b.name.toLowerCase().includes(seloStr));
+        const companyFound = companies.find(company => normalizeCompare(company.name) === normalizeCompare(companyValue));
+        const productiveUnitFound = productiveUnits.find(unit =>
+          normalizeCompare(unit.name) === normalizeCompare(unitValue) &&
+          (!companyFound || unit.company_id === companyFound.id)
+        );
+        const userFound = users.find(user =>
+          (normalizeCompare(user.full_name) === normalizeCompare(userValue) || normalizeCompare(user.email) === normalizeCompare(userValue)) &&
+          (!companyFound || user.company_id === companyFound.id) &&
+          (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
+        );
+        const badgeFound = badges.find(badge => normalizeCompare(badge.name) === normalizeCompare(badgeValue));
+        const tone = parseTone(toneValue);
 
         let status: 'valid' | 'invalid' = 'valid';
         let reason = '';
 
-        if (!userFound) { status = 'invalid'; reason = 'explorador não encontrado'; }
-        else if (!badgeFound) { status = 'invalid'; reason = 'selo não encontrado'; }
-        else if (premio !== 'S') { status = 'invalid'; reason = 'premio não autorizado (N)'; }
+        if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
+        else if (!productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
+        else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
+        else if (!badgeFound) { status = 'invalid'; reason = 'selo nao encontrado'; }
+        else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
 
-        return { row: { explorador: exploradorStr, empresa: empresaStr, selo: seloStr, premio }, user: userFound, badge: badgeFound, status, reason };
+        return {
+          row: {
+            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+            explorador: userValue,
+            empresa: companyValue,
+            unidade_produtiva: unitValue,
+            selo: badgeValue,
+            premio: awardValue,
+            marcacao: toneValue || tone,
+          },
+          user: userFound,
+          badge: badgeFound,
+          company: companyFound,
+          productiveUnit: productiveUnitFound,
+          tone,
+          sourceName: activeImportSource.name,
+          status,
+          reason,
+        };
       });
 
       setImportPreviews(previews);
@@ -381,7 +466,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (valid.length === 0) return;
 
     valid.forEach(p => {
-      upsertUserBadge(p.user!.id, p.badge!.id, 'bronze');
+      upsertUserBadge(p.user!.id, p.badge!.id, p.tone);
     });
 
     alert(`${valid.length} importacoes concluidas.`);
@@ -607,9 +692,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Exploradores</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <select
+                    value={selectedImportSourceId}
+                    onChange={(e) => setSelectedImportSourceId(e.target.value)}
+                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
+                  >
+                    {importSources.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}
+                  </select>
+                  <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
+                    Fonte Excel
+                  </button>
                   <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>📈</span> Importar Excel</button>
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>????</span> Importar Excel</button>
                 </div>
               </header>
 
@@ -637,6 +732,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="space-y-8">
+                  {activeImportSource && (
+                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl space-y-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
+                          <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource.name}</p>
+                        </div>
+                        <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
+                          editar mapeamento
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descricao cadastrada.'}</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {(Object.entries(activeImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
+                          <div key={field} className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
+                            <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1005,6 +1122,56 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
                 <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'atualizar' : 'cadastrar'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isImportSourceModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingImportSource ? 'Editar fonte Excel' : 'Nova fonte Excel'}</h2>
+            <form onSubmit={handleSaveImportSource} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Fonte</label>
+                  <input name="name" defaultValue={editingImportSource?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DescriÃ§Ã£o</label>
+                  <input name="description" defaultValue={editingImportSource?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Empresa</label>
+                  <input name="company_column" defaultValue={editingImportSource?.columns.company || 'empresa'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Unidade</label>
+                  <input name="productive_unit_column" defaultValue={editingImportSource?.columns.productive_unit || 'unidade_produtiva'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Colaborador</label>
+                  <input name="user_column" defaultValue={editingImportSource?.columns.user || 'explorador'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Selo</label>
+                  <input name="badge_column" defaultValue={editingImportSource?.columns.badge || 'selo'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna MarcaÃ§Ã£o</label>
+                  <input name="tone_column" defaultValue={editingImportSource?.columns.tone || 'marcacao'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna AutorizaÃ§Ã£o</label>
+                  <input name="award_column" defaultValue={editingImportSource?.columns.award || 'premio'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
+                </div>
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="button" onClick={() => { setIsImportSourceModalOpen(false); setEditingImportSource(null); }} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Salvar Fonte</button>
               </div>
             </form>
           </div>

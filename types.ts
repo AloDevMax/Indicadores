@@ -2,6 +2,7 @@
 export type Role = 'admin' | 'user';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
+export type ImportSourceField = 'company' | 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
 
 export interface Notification {
   id: string;
@@ -61,6 +62,13 @@ export interface BadgeLegendSettings {
   gold: string;
   loss_1: string;
   loss_2: string;
+}
+
+export interface ImportSourceConfig {
+  id: string;
+  name: string;
+  description?: string;
+  columns: Record<ImportSourceField, string>;
 }
 
 export interface BadgeSubmission {

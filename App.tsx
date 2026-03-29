@@ -18,7 +18,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
-import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge } from './types';
+import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig } from './types';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -53,6 +53,22 @@ const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
   loss_2: 'Vermelho intenso: perda de 2 selos',
 };
 
+const INITIAL_IMPORT_SOURCES: ImportSourceConfig[] = [
+  {
+    id: 'source-default',
+    name: 'Planilha Operacional',
+    description: 'Modelo base para importar empresa, unidade, colaborador e selo.',
+    columns: {
+      company: 'empresa',
+      productive_unit: 'unidade_produtiva',
+      user: 'explorador',
+      badge: 'selo',
+      tone: 'marcacao',
+      award: 'premio',
+    },
+  },
+];
+
 const App: React.FC = () => {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,6 +83,7 @@ const App: React.FC = () => {
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings>(INITIAL_BADGE_LEGENDS);
   const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
+  const [importSources, setImportSources] = useState<ImportSourceConfig[]>(INITIAL_IMPORT_SOURCES);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('quest_user');
@@ -183,6 +200,9 @@ const App: React.FC = () => {
                       userBadges={userBadges}
                       badgeLegends={badgeLegends}
                       submissions={submissions}
+                      users={users}
+                      companies={companies}
+                      productiveUnits={productiveUnits}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />
@@ -229,6 +249,8 @@ const App: React.FC = () => {
                       setProductiveUnits={setProductiveUnits}
                       badgeLegends={badgeLegends}
                       setBadgeLegends={setBadgeLegends}
+                      importSources={importSources}
+                      setImportSources={setImportSources}
                       users={users}
                       setUsers={setUsers}
                       userBadges={userBadges}
