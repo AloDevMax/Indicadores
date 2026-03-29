@@ -1,0 +1,185 @@
+
+import React, { useMemo, useState } from 'react';
+import { Profile, Badge, UserBadge, BadgeSubmission } from '../types';
+import BadgeCard from '../components/BadgeCard';
+
+interface UserBadgesPageProps {
+  user: Profile;
+  allBadges: Badge[];
+  userBadges: UserBadge[];
+  submissions: BadgeSubmission[];
+}
+
+const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBadges, submissions }) => {
+  const [monthFilter, setMonthFilter] = useState<string>('all');
+
+  const myUnlockedBadges = useMemo(() => 
+    userBadges.filter(ub => ub.user_id === user.id), 
+    [userBadges, user.id]
+  );
+
+  // Extrair meses únicos disponíveis para o filtro
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    myUnlockedBadges.forEach(ub => {
+      const date = new Date(ub.awarded_at);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      months.add(yearMonth);
+    });
+    return Array.from(months).sort().reverse(); // Mais recentes primeiro
+  }, [myUnlockedBadges]);
+
+  const filteredUnlockedBadges = useMemo(() => {
+    if (monthFilter === 'all') return myUnlockedBadges;
+    return myUnlockedBadges.filter(ub => {
+      const date = new Date(ub.awarded_at);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      return yearMonth === monthFilter;
+    });
+  }, [myUnlockedBadges, monthFilter]);
+
+  const unlockedIds = useMemo(() => 
+    filteredUnlockedBadges.map(ub => ub.badge_id), 
+    [filteredUnlockedBadges]
+  );
+
+  const mySubmissions = useMemo(() => 
+    submissions.filter(s => s.user_id === user.id).sort((a, b) => 
+      new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+    ), 
+    [submissions, user.id]
+  );
+
+  const formatMonthLabel = (yearMonth: string) => {
+    const [year, month] = yearMonth.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  };
+
+  return (
+    <div className="space-y-12 animate-in fade-in duration-500 pb-20">
+      <header>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">meu inventário</h1>
+        <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">coleção completa de conquistas e status</p>
+      </header>
+
+      {/* Conquistados */}
+      <section className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">🏆</span>
+            <h2 className="text-xl font-black text-slate-900">selos conquistados</h2>
+            <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">
+              {filteredUnlockedBadges.length} exibidos
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">filtrar período:</label>
+            <select 
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="px-4 py-2 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-slate-600 outline-none focus:ring-2 focus:ring-indigo-600 transition-all cursor-pointer"
+            >
+              <option value="all">todos os tempos</option>
+              {availableMonths.map(month => (
+                <option key={month} value={month}>{formatMonthLabel(month)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+          {allBadges.filter(b => unlockedIds.includes(b.id)).map(badge => (
+            <BadgeCard 
+              key={badge.id} 
+              badge={badge} 
+              unlocked={true} 
+              date={myUnlockedBadges.find(ub => ub.badge_id === badge.id)?.awarded_at} 
+            />
+          ))}
+          {unlockedIds.length === 0 && (
+            <div className="col-span-full py-12 text-center bg-white rounded-[32px] border border-dashed border-slate-200">
+              <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">
+                {monthFilter === 'all' 
+                  ? 'você ainda não conquistou selos. continue explorando!' 
+                  : 'nenhum selo conquistado neste período.'}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Histórico de Solicitações */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📨</span>
+          <h2 className="text-xl font-black text-slate-900">histórico de solicitações</h2>
+        </div>
+        <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-5">data</th>
+                  <th className="px-6 py-5">selo</th>
+                  <th className="px-6 py-5">status</th>
+                  <th className="px-6 py-5 hidden md:table-cell">evidência</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {mySubmissions.map(sub => (
+                  <tr key={sub.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-5 text-xs font-bold text-slate-500">
+                      {new Date(sub.submitted_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="font-black text-slate-900 text-sm uppercase">{sub.badge_name}</div>
+                    </td>
+                    <td className="px-6 py-5">
+                      <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
+                        sub.status === 'pending' ? 'bg-amber-100 text-amber-700' : 
+                        sub.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {sub.status === 'pending' ? 'em análise' : sub.status === 'approved' ? 'aprovado' : 'recusado'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 hidden md:table-cell">
+                      <p className="text-[10px] text-slate-400 font-medium max-w-xs truncate italic">"{sub.description}"</p>
+                    </td>
+                  </tr>
+                ))}
+                {mySubmissions.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">
+                      nenhuma solicitação enviada até o momento.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Selos Disponíveis (ainda não conquistados) */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🔒</span>
+          <h2 className="text-xl font-black text-slate-900">próximos objetivos</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+          {allBadges.filter(b => !userBadges.some(ub => ub.user_id === user.id && ub.badge_id === b.id)).map(badge => (
+            <BadgeCard 
+              key={badge.id} 
+              badge={badge} 
+              unlocked={false} 
+            />
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+};
+
+export default UserBadgesPage;
