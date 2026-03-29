@@ -1,28 +1,30 @@
-import React from 'react';
+﻿import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Profile } from '../types';
+import { Profile, UserBadge } from '../types';
+import { getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 interface SidebarProps {
   user: Profile;
+  userBadges: UserBadge[];
   isOpen: boolean;
   onClose: () => void;
   adminViewMode?: 'management' | 'personal';
   setAdminViewMode?: (_mode: 'management' | 'personal') => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  user, 
-  isOpen, 
-  onClose, 
+const Sidebar: React.FC<SidebarProps> = ({
+  user,
+  userBadges,
+  isOpen,
+  onClose,
   adminViewMode = 'management',
-  setAdminViewMode 
+  setAdminViewMode
 }) => {
-  if (!user) return null; // Retorna nada até o usuário carregar
-  const isAdmin = user?.role === 'admin'; 
+  if (!user) return null;
 
-
-  // Determine if we should show user menu even if admin
-  const showUserMenu = !isAdmin || (isAdmin && adminViewMode === 'personal');
+  const isAdmin = user.role === 'admin';
+  const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
+  const showUserMenu = !isAdmin || adminViewMode === 'personal';
 
   const userLinks = [
     { to: '/dashboard', label: 'Meu Progresso', icon: '📈' },
@@ -42,15 +44,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;
-
-  const activeClass = "bg-indigo-600 text-white shadow-lg shadow-indigo-100";
-  const inactiveClass = "text-slate-500 hover:bg-slate-100 hover:text-slate-900";
+  const activeClass = 'bg-indigo-600 text-white shadow-lg shadow-indigo-100';
+  const inactiveClass = 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
   return (
     <>
-      {/* Backdrop for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[90] md:hidden"
           onClick={onClose}
         />
@@ -61,24 +61,21 @@ const Sidebar: React.FC<SidebarProps> = ({
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         <div className="flex flex-col h-full p-6 overflow-y-auto">
-          
-          {/* Mobile Header in Sidebar */}
           <div className="md:hidden flex items-center justify-between mb-8">
             <span className="text-xl font-black text-indigo-600 tracking-tighter">LabQuest</span>
             <button onClick={onClose} className="text-slate-300 hover:text-slate-900 text-2xl">&times;</button>
           </div>
 
-          {/* Admin Mode Toggle */}
           {isAdmin && setAdminViewMode && (
             <div className="mb-8 p-1.5 bg-slate-100 rounded-2xl flex gap-1 shadow-inner">
-              <button 
+              <button
                 onClick={() => setAdminViewMode('management')}
                 title="Gestão Operacional"
                 className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <span className="text-lg">📊</span>
               </button>
-              <button 
+              <button
                 onClick={() => setAdminViewMode('personal')}
                 title="Minha Jornada"
                 className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
@@ -100,7 +97,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                 key={link.to}
                 to={link.to}
                 end={link.to === '/admin' || link.to === '/dashboard'}
-                onClick={() => { if(window.innerWidth < 768) onClose(); }}
+                onClick={() => {
+                  if (window.innerWidth < 768) onClose();
+                }}
                 className={({ isActive }) => `
                   flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all
                   ${isActive ? activeClass : inactiveClass}
@@ -124,9 +123,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
               <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500" style={{ width: `${(user.xp % 1000) / 10}%` }}></div>
+                <div className="h-full bg-indigo-500" style={{ width: `${Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100))}%` }}></div>
               </div>
-              <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-tighter">Progressão do Nível: {Math.floor((user.xp % 1000) / 10)}%</p>
+              <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-tighter">
+                Saldo do mês: {monthlyMetrics.monthlyScore} • {monthlyMetrics.positiveCount} selos
+              </p>
             </div>
           </div>
         </div>

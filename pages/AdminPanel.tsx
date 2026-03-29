@@ -2,8 +2,9 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge } from '../types';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone } from '../types';
 import BadgeCard from '../components/BadgeCard';
+import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 interface AdminPanelProps {
   activeMode: 'management' | 'personal';
@@ -14,6 +15,8 @@ interface AdminPanelProps {
   setCompanies: React.Dispatch<React.SetStateAction<Company[]>>;
   productiveUnits: ProductiveUnit[];
   setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
+  badgeLegends: BadgeLegendSettings;
+  setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -48,6 +51,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setCompanies,
   productiveUnits,
   setProductiveUnits,
+  badgeLegends,
+  setBadgeLegends,
   users,
   setUsers,
   userBadges,
@@ -69,6 +74,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [selectedAwardBadge, setSelectedAwardBadge] = useState<string>('');
+  const [selectedAwardTone, setSelectedAwardTone] = useState<BadgeTone>('bronze');
   
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
   const [isDeleteBadgeModalOpen, setIsDeleteBadgeModalOpen] = useState(false);
@@ -102,6 +108,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
   const [importPreviews, setImportPreviews] = useState<ImportPreview[]>([]);
+  const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
   
   const [userSearch, setUserSearch] = useState('');
 
@@ -119,6 +126,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const adminProfile = users.find(u => u.role === 'admin') || users[0];
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
   const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
+  const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(adminProfile.id, userBadges);
+
+  const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+    const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
+
+    if (existingAward) {
+      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? { ...ub, tone, awarded_at: new Date().toISOString(), awarded_by: adminProfile.id } : ub));
+      return;
+    }
+
+    const newAward: UserBadge = {
+      id: Math.random().toString(36).substr(2, 9),
+      user_id: targetUserId,
+      badge_id: badgeId,
+      awarded_at: new Date().toISOString(),
+      awarded_by: adminProfile.id,
+      tone,
+    };
+
+    setUserBadges(prev => [...prev, newAward]);
+  };
+
+  const handleLegendChange = (tone: BadgeTone, value: string) => {
+    setBadgeLegends(prev => ({ ...prev, [tone]: value }));
+  };
 
   const handleReviewSubmission = (submissionId: string, status: 'approved' | 'rejected') => {
     const submission = submissions.find(s => s.id === submissionId);
@@ -127,28 +159,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
 
     if (status === 'approved') {
-      const badge = badges.find(b => b.id === submission.badge_id);
-      
-      const newAward: UserBadge = {
-        id: Math.random().toString(36).substr(2, 9),
-        user_id: submission.user_id,
-        badge_id: submission.badge_id,
-        awarded_at: new Date().toISOString(),
-        awarded_by: adminProfile.id
-      };
-      
-      setUserBadges(prev => [...prev, newAward]);
-
-      if (badge) {
-        setUsers(prev => prev.map(u => {
-          if (u.id === submission.user_id) {
-            const newXp = (u.xp || 0) + badge.points;
-            const newLevel = Math.floor(newXp / 1000) + 1;
-            return { ...u, xp: newXp, level: newLevel };
-          }
-          return u;
-        }));
-      }
+      upsertUserBadge(submission.user_id, submission.badge_id, 'bronze');
     }
     
     alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
@@ -286,45 +297,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleAwardBadges = () => {
     if (selectedUsers.length === 0 || !selectedAwardBadge) return;
     const badge = badges.find(b => b.id === selectedAwardBadge);
-    
-    const newAwards: UserBadge[] = selectedUsers.map(userId => ({
-      id: Math.random().toString(36).substr(2, 9),
-      user_id: userId,
-      badge_id: selectedAwardBadge,
-      awarded_at: new Date().toISOString(),
-      awarded_by: adminProfile.id
-    }));
+    selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
 
-    setUserBadges(prev => [...prev, ...newAwards]);
-    
     if (badge) {
       setUsers(prev => prev.map(u => {
-        if (selectedUsers.includes(u.id)) {
-          const newXp = (u.xp || 0) + badge.points;
-          const newLevel = Math.floor(newXp / 1000) + 1;
-          const updatedUser = {
-            ...u,
-            xp: newXp,
-            level: newLevel,
-            notifications: [
-              ...(u.notifications || []),
-              {
-                id: Math.random().toString(36).slice(2, 10),
-                title: 'Selo concedido',
-                message: `Parabéns ${u.full_name}, você recebeu o selo ${badge.name}!`,
-                sent_at: new Date().toISOString(),
-                read: false,
-              }
-            ]
-          };
+        if (!selectedUsers.includes(u.id)) return u;
 
-          if (sendEmailOnAward && u.email_verified) {
-            sendEmailNotification(u.email, 'Selo concedido', `Olá ${u.full_name}, você recebeu o selo ${badge.name}!`);
-          }
+        const updatedUser = {
+          ...u,
+          notifications: [
+            ...(u.notifications || []),
+            {
+              id: Math.random().toString(36).slice(2, 10),
+              title: 'Selo concedido',
+              message: `Parabens ${u.full_name}, voce recebeu o selo ${badge.name} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
+              sent_at: new Date().toISOString(),
+              read: false,
+            }
+          ]
+        };
 
-          return updatedUser;
+        if (sendEmailOnAward && u.email_verified) {
+          sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge.name} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
         }
-        return u;
+
+        return updatedUser;
       }));
     }
 
@@ -333,43 +330,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setSelectedAwardBadge('');
   };
 
-  const handleAssignBadgeToUser = (targetUserId: string, badgeId: string) => {
-    const alreadyAssigned = userBadges.some(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
-    const badge = badges.find(item => item.id === badgeId);
-
-    if (alreadyAssigned || !badge) return;
-
-    const newAward: UserBadge = {
-      id: Math.random().toString(36).substr(2, 9),
-      user_id: targetUserId,
-      badge_id: badgeId,
-      awarded_at: new Date().toISOString(),
-      awarded_by: adminProfile.id,
-    };
-
-    setUserBadges(prev => [...prev, newAward]);
-    setUsers(prev => prev.map(user => {
-      if (user.id !== targetUserId) return user;
-      const newXp = (user.xp || 0) + badge.points;
-      return { ...user, xp: newXp, level: Math.floor(newXp / 1000) + 1 };
-    }));
+  const handleAssignBadgeToUser = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+    upsertUserBadge(targetUserId, badgeId, tone);
   };
 
   const handleRemoveBadgeFromUser = (targetUserId: string, badgeId: string) => {
-    const badge = badges.find(item => item.id === badgeId);
-    if (!badge) return;
-
     const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
     if (!badgeAward) return;
 
     setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
-    setUsers(prev => prev.map(user => {
-      if (user.id !== targetUserId) return user;
-      const newXp = Math.max(0, (user.xp || 0) - badge.points);
-      return { ...user, xp: newXp, level: Math.floor(newXp / 1000) + 1 };
-    }));
   };
-
   const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -411,26 +381,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (valid.length === 0) return;
 
     valid.forEach(p => {
-      const newAward: UserBadge = {
-        id: Math.random().toString(36).substr(2, 9),
-        user_id: p.user!.id,
-        badge_id: p.badge!.id,
-        awarded_at: new Date().toISOString(),
-        awarded_by: adminProfile.id
-      };
-      setUserBadges(prev => [...prev, newAward]);
-      
-      setUsers(prev => prev.map(u => {
-        if (u.id === p.user!.id) {
-          const newXp = (u.xp || 0) + p.badge!.points;
-          const newLevel = Math.floor(newXp / 1000) + 1;
-          return { ...u, xp: newXp, level: newLevel };
-        }
-        return u;
-      }));
+      upsertUserBadge(p.user!.id, p.badge!.id, 'bronze');
     });
 
-    alert(`${valid.length} importações concluídas.`);
+    alert(`${valid.length} importacoes concluidas.`);
     setIsImportModalOpen(false);
   };
 
@@ -606,7 +560,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <tr>
                       <th className="px-10 py-6">Nome / Empresa / Unidade</th>
-                      <th className="px-10 py-6">Nível / XP</th>
+                      <th className="px-10 py-6">NíResumo do M?s</th>
                       <th className="px-10 py-6 text-right">Opções</th>
                     </tr>
                   </thead>
@@ -614,6 +568,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {filteredUsers.map(u => {
                       const comp = companies.find(c => c.id === u.company_id);
                       const unit = productiveUnits.find(item => item.id === u.productive_unit_id);
+                      const metrics = getUserMonthlyBadgeMetrics(u.id, userBadges);
                       return (
                         <tr key={u.id} className="group hover:bg-slate-50/50">
                           <td className="px-10 py-6">
@@ -623,9 +578,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
                           </td>
                           <td className="px-10 py-6">
-                            <div className="flex items-center gap-3">
-                              <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">NV {u.level}</span>
-                              <span className="text-[10px] font-black text-slate-400 uppercase">{u.xp} XP</span>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <span className="bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-black uppercase">Saldo {metrics.monthlyScore}</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase">{metrics.positiveCount} selos</span>
+                              <span className="text-[10px] font-black text-rose-500 uppercase">{metrics.lossCount} perdas</span>
                             </div>
                           </td>
                           <td className="px-10 py-6 text-right">
@@ -689,8 +645,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <span className="text-3xl">{badge.icon_name}</span>
                           <div>
                             <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge.name}</div>
-                            <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.points} XP</div>
+                            <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
                           </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcacao do mes</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
+                        <button
+                          key={tone}
+                          onClick={() => setSelectedAwardTone(tone)}
+                          className={`px-4 py-4 rounded-2xl border-2 text-left transition-all ${selectedAwardTone === tone ? 'border-indigo-600 bg-indigo-50 shadow-lg' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                        >
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
+                          <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
                         </button>
                       ))}
                     </div>
@@ -712,10 +683,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {view === 'badges' && (
             <div className="space-y-8 animate-in fade-in">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-4 flex-wrap">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Biblioteca de Selos</h2>
                 <button onClick={() => { setEditingBadge(null); setIsBadgeModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
               </div>
+
+              <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setIsLegendCollapsed(prev => !prev)}
+                  className="w-full flex items-center justify-between px-6 py-5 text-left"
+                >
+                  <div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Legenda das Cores</div>
+                    <div className="text-sm font-bold text-slate-900 mt-1">Bronze, prata, ouro e perdas em vermelho</div>
+                  </div>
+                  <span className="text-xs font-black uppercase tracking-widest text-indigo-600">{isLegendCollapsed ? 'Expandir' : 'Minimizar'}</span>
+                </button>
+                {!isLegendCollapsed && (
+                  <div className="border-t border-slate-100 px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
+                      <label key={tone} className="space-y-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</span>
+                        <input
+                          value={badgeLegends[tone]}
+                          onChange={(e) => handleLegendChange(tone, e.target.value)}
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {badges.map(badge => (
                   <div key={badge.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-all">
@@ -723,12 +722,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">{badge.icon_name}</div>
                       <div>
                         <div className="font-bold text-slate-900 text-sm">{badge.name}</div>
-                        <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.points} XP • {badge.category}</div>
+                        <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingBadge(badge); setIsBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
-                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                      <button onClick={() => { setEditingBadge(badge); setIsBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">??</button>
+                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">???</button>
                     </div>
                   </div>
                 ))}
@@ -773,14 +772,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
               <div className="relative group">
                 <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-indigo-200">🛡️</div>
-                <div className="absolute -bottom-3 -right-3 bg-yellow-400 text-slate-900 w-12 h-12 rounded-2xl flex items-center justify-center font-black border-4 border-white text-lg">{adminProfile.level}</div>
+                <div className="absolute -bottom-3 -right-3 bg-yellow-400 text-slate-900 min-w-[56px] h-12 px-3 rounded-2xl flex items-center justify-center font-black border-4 border-white text-sm">{adminMonthlyMetrics.monthlyScore}</div>
               </div>
               <div className="flex-1 w-full space-y-4">
                 <div className="flex justify-between items-end">
-                  <h3 className="text-2xl font-black text-slate-900">Nível {adminProfile.level}</h3>
-                  <div className="text-sm font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl">{adminProfile.xp} XP</div>
+                  <h3 className="text-2xl font-black text-slate-900">NíSaldo do m?s</h3>
+                  <div className="text-sm font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl">{adminMonthlyMetrics.positiveCount} selos / {adminMonthlyMetrics.lossCount} perdas</div>
                 </div>
-                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white"><div className="h-full bg-indigo-600" style={{ width: '65%' }}></div></div>
+                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white"><div className="h-full bg-indigo-600" style={{ width: `${Math.min(100, Math.max(0, (adminMonthlyMetrics.positiveCount / 3) * 100))}%` }}></div></div>
               </div>
             </div>
             <div className="bg-indigo-600 p-10 rounded-[40px] shadow-xl shadow-indigo-200 text-white flex flex-col justify-center items-center text-center space-y-2">
@@ -792,9 +791,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="space-y-8">
             <h3 className="text-2xl font-black text-slate-900 tracking-tight">Minha Galeria</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {badges.map(badge => (
-                <BadgeCard key={badge.id} badge={badge} unlocked={userBadges.some(ub => ub.user_id === adminProfile.id && ub.badge_id === badge.id)} date={userBadges.find(ub => ub.user_id === adminProfile.id && ub.badge_id === badge.id)?.awarded_at} />
-              ))}
+              {badges.map(badge => {
+                const badgeAward = userBadges.find(ub => ub.user_id === adminProfile.id && ub.badge_id === badge.id);
+                return <BadgeCard key={badge.id} badge={badge} unlocked={Boolean(badgeAward)} tone={badgeAward?.tone} date={badgeAward?.awarded_at} />;
+              })}
             </div>
           </div>
         </div>
@@ -929,7 +929,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recompensa (XP)</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de apoio</label>
                   <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-center text-slate-900" required />
                 </div>
                 <div className="space-y-2">
@@ -1042,71 +1042,74 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* User Badges Viewing Modal */}
-      {viewingUserBadges && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-6xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
-              <div>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight">cartela de selos de {viewingUserBadges.full_name}</h2>
-                <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">
-                  {companies.find(c => c.id === viewingUserBadges.company_id)?.name || 'Independente'} ? {productiveUnits.find(unit => unit.id === viewingUserBadges.productive_unit_id)?.name || 'Sem unidade produtiva'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-2xl text-center min-w-[120px]">
-                  <div className="text-xl font-black">{userBadges.filter(ub => ub.user_id === viewingUserBadges.id).length}</div>
-                  <div className="text-[10px] font-black uppercase tracking-widest">selos</div>
-                </div>
-                <div className="bg-cyan-50 text-cyan-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
-                  <div className="text-xl font-black">{viewingUserBadges.xp}</div>
-                  <div className="text-[10px] font-black uppercase tracking-widest">xp atual</div>
-                </div>
-              </div>
-            </div>
-            <div className="overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {badges.map(badge => {
-                const badgeAward = userBadges.find(ub => ub.user_id === viewingUserBadges.id && ub.badge_id === badge.id);
-                const isAssigned = Boolean(badgeAward);
+      {viewingUserBadges && (() => {
+        const companyName = companies.find(c => c.id === viewingUserBadges.company_id)?.name || 'Independente';
+        const unitName = productiveUnits.find(unit => unit.id === viewingUserBadges.productive_unit_id)?.name || 'Sem unidade produtiva';
+        const metrics = getUserMonthlyBadgeMetrics(viewingUserBadges.id, userBadges);
 
-                return (
-                  <div key={badge.id} className={`p-6 rounded-[32px] border transition-all ${isAssigned ? 'bg-white border-indigo-200 shadow-lg' : 'bg-slate-50 border-slate-100'}`}>
-                    <div className="flex items-start gap-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-inner ${isAssigned ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400'}`}>
-                        {badge.icon_name || '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-bold text-slate-900 text-sm">{badge.name}</div>
-                          <span className={`px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${isAssigned ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
-                            {isAssigned ? 'ativo' : 'dispon?vel'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-slate-500 mt-2">{badge.description}</p>
-                        <div className="flex items-center justify-between mt-4">
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.points} XP ? {badge.category}</span>
-                          {badgeAward && <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(badgeAward.awarded_at).toLocaleDateString()}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-5">
-                      {isAssigned ? (
-                        <button onClick={() => handleRemoveBadgeFromUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">
-                          remover da cartela
-                        </button>
-                      ) : (
-                        <button onClick={() => handleAssignBadgeToUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-indigo-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 transition-all">
-                          conceder ? cartela
-                        </button>
-                      )}
-                    </div>
+        return (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <div className="bg-white w-full max-w-6xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Cartela de selos de {viewingUserBadges.full_name}</h2>
+                  <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">
+                    {companyName} - {unitName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                    <div className="text-xl font-black">{metrics.monthlyScore}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">saldo do mes</div>
                   </div>
-                );
-              })}
+                  <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                    <div className="text-xl font-black">{metrics.positiveCount}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">selos ativos</div>
+                  </div>
+                  <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                    <div className="text-xl font-black">{metrics.lossCount}</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">perdas</div>
+                  </div>
+                </div>
+              </div>
+              <div className="overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {badges.map(badge => {
+                  const badgeAward = userBadges.find(ub => ub.user_id === viewingUserBadges.id && ub.badge_id === badge.id);
+                  const isAssigned = Boolean(badgeAward);
+
+                  return (
+                    <div key={badge.id} className="p-6 rounded-[32px] border border-slate-100 bg-slate-50/70">
+                      <BadgeCard badge={badge} unlocked={isAssigned} tone={badgeAward?.tone} date={badgeAward?.awarded_at} />
+                      <div className="mt-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-2">
+                          {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
+                            <button
+                              key={tone}
+                              onClick={() => handleAssignBadgeToUser(viewingUserBadges.id, badge.id, tone)}
+                              className={`px-3 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${badgeAward?.tone === tone ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            >
+                              {BADGE_TONE_LABELS[tone]}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                          {badgeLegends[badgeAward?.tone || 'bronze']}
+                        </p>
+                        {isAssigned && (
+                          <button onClick={() => handleRemoveBadgeFromUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">
+                            limpar da cartela
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">fechar</button>
             </div>
-            <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">fechar</button>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

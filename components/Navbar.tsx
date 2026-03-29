@@ -1,17 +1,20 @@
-
+﻿
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Profile } from '../types';
+import { Profile, UserBadge } from '../types';
+import { getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 interface NavbarProps {
   user: Profile;
+  userBadges: UserBadge[];
   onLogout: () => void;
   onToggleSidebar: () => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onToggleSidebar }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
   const isAdmin = user.role === 'admin';
+  const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
 
   return (
     <nav className={`bg-white border-b h-16 sticky top-0 z-[60] flex items-center transition-colors duration-300 ${isAdmin ? 'border-indigo-100' : 'border-slate-200'}`}>
@@ -40,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onToggleSidebar }) => {
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-xs font-black text-slate-900 leading-none">{user.full_name}</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              {isAdmin ? 'Comandante' : `Nível ${user.level}`}
+              {isAdmin ? 'Comandante' : `Saldo do mes ${monthlyMetrics.monthlyScore}`}
             </span>
           </div>
           <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
@@ -58,3 +61,4 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout, onToggleSidebar }) => {
 };
 
 export default Navbar;
+

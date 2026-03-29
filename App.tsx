@@ -18,7 +18,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
-import { Profile, Badge, Company, ProductiveUnit, BadgeSubmission, UserBadge } from './types';
+import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge } from './types';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -45,6 +45,14 @@ const INITIAL_USERS: Profile[] = [
   { id: 'u3', email: 'bob@builders.com', password: 'bob123', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
 ];
 
+const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
+  bronze: 'Bronze: 1 selo no mês',
+  silver: 'Prata: 2 selos no mês',
+  gold: 'Ouro: 3 selos ou mais no mês',
+  loss_1: 'Vermelho: perda de 1 selo',
+  loss_2: 'Vermelho intenso: perda de 2 selos',
+};
+
 const App: React.FC = () => {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +65,7 @@ const App: React.FC = () => {
   const [productiveUnits, setProductiveUnits] = useState<ProductiveUnit[]>(INITIAL_PRODUCTIVE_UNITS);
   const [users, setUsers] = useState<Profile[]>(INITIAL_USERS);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
+  const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings>(INITIAL_BADGE_LEGENDS);
   const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
 
   useEffect(() => {
@@ -136,12 +145,13 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-50 flex flex-col">
-        {user && <Navbar user={user} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
+        {user && <Navbar user={user} userBadges={userBadges} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
 
         <div className="flex flex-1 overflow-hidden relative">
           {user && (
             <Sidebar
               user={user}
+              userBadges={userBadges}
               isOpen={isSidebarOpen}
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
@@ -171,6 +181,7 @@ const App: React.FC = () => {
                       user={user}
                       allBadges={badges}
                       userBadges={userBadges}
+                      badgeLegends={badgeLegends}
                       submissions={submissions}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
@@ -185,6 +196,7 @@ const App: React.FC = () => {
                       user={user}
                       allBadges={badges}
                       userBadges={userBadges}
+                      badgeLegends={badgeLegends}
                       submissions={submissions}
                     />
                   ) : <Navigate to="/" />
@@ -192,7 +204,7 @@ const App: React.FC = () => {
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} /> : <Navigate to="/" />}
+                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/" />} />
@@ -215,6 +227,8 @@ const App: React.FC = () => {
                       setCompanies={setCompanies}
                       productiveUnits={productiveUnits}
                       setProductiveUnits={setProductiveUnits}
+                      badgeLegends={badgeLegends}
+                      setBadgeLegends={setBadgeLegends}
                       users={users}
                       setUsers={setUsers}
                       userBadges={userBadges}

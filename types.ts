@@ -1,6 +1,7 @@
 
 export type Role = 'admin' | 'user';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
 
 export interface Notification {
   id: string;
@@ -51,6 +52,15 @@ export interface UserBadge {
   badge_id: string;
   awarded_at: string;
   awarded_by: string;
+  tone: BadgeTone;
+}
+
+export interface BadgeLegendSettings {
+  bronze: string;
+  silver: string;
+  gold: string;
+  loss_1: string;
+  loss_2: string;
 }
 
 export interface BadgeSubmission {
