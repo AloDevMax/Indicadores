@@ -15,7 +15,6 @@ export interface Notification {
 export interface Profile {
   id: string;
   email: string;
-  password?: string;
   full_name: string;
   role: Role;
   company_id?: string;
@@ -76,6 +75,18 @@ export interface ImportBindingSnapshot {
   sourceName: string;
   matchedColumns: Partial<Record<ImportSourceField, string>>;
   importedAt: string;
+}
+
+export interface AppBootstrapPayload {
+  source: 'seed' | 'database';
+  badges: Badge[];
+  companies: Company[];
+  productiveUnits: ProductiveUnit[];
+  badgeLegends: BadgeLegendSettings;
+  importSources: ImportSourceConfig[];
+  users: Profile[];
+  userBadges: UserBadge[];
+  submissions: BadgeSubmission[];
 }
 
 export interface BadgeSubmission {

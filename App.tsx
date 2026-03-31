@@ -19,6 +19,7 @@ import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
 import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
+import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -39,10 +40,10 @@ const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
 ];
 
 const INITIAL_USERS: Profile[] = [
-  { id: 'admin-1', email: 'admin@test.com', password: 'admin123', full_name: 'Comandante Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString() },
-  { id: 'u1', email: 'joao@acme.com', password: 'joao123', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01' },
-  { id: 'u2', email: 'ana@acme.com', password: 'ana123', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
-  { id: 'u3', email: 'bob@builders.com', password: 'bob123', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
+  { id: 'admin-1', email: 'admin@test.com', full_name: 'Comandante Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
+  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01', email_verified: true },
+  { id: 'u2', email: 'ana@acme.com', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
+  { id: 'u3', email: 'bob@builders.com', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
 ];
 
 const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
@@ -87,69 +88,170 @@ const App: React.FC = () => {
   const [importBindingSnapshot, setImportBindingSnapshot] = useState<ImportBindingSnapshot | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('quest_user');
-    if (savedUser) {
-      const parsed = JSON.parse(savedUser);
-      const updatedUser = users.find(u => u.id === parsed.id) || parsed;
-      setUser(updatedUser);
-    }
-    setLoading(false);
-  }, [users]);
+    let isMounted = true;
 
-  const handleLogin = (email: string, password: string) => {
-    const normalizedEmail = email.toLowerCase().trim();
-    const existingUser = users.find(u => u.email.toLowerCase() === normalizedEmail);
+    const initializeBootstrap = async () => {
+      try {
+        const [bootstrap, currentUser] = await Promise.all([
+          fetchBootstrapData(),
+          fetchCurrentUser(),
+        ]);
+        if (!isMounted) return;
 
-    if (!existingUser) {
-      return { success: false, message: 'Usuário não encontrado. Faça cadastro primeiro.' };
-    }
+        if (bootstrap) {
+          setBadges(bootstrap.badges);
+          setCompanies(bootstrap.companies);
+          setProductiveUnits(bootstrap.productiveUnits);
+          setBadgeLegends(bootstrap.badgeLegends);
+          setImportSources(bootstrap.importSources);
+          setUsers(bootstrap.users);
+          setUserBadges(bootstrap.userBadges);
+          setSubmissions(bootstrap.submissions);
+        }
 
-    if (existingUser.password !== password) {
-      return { success: false, message: 'Senha incorreta para este email.' };
-    }
-
-    setUser(existingUser);
-    localStorage.setItem('quest_user', JSON.stringify(existingUser));
-    setAdminViewMode('management');
-    return { success: true };
-  };
-
-  const handleRegister = (email: string, password: string, full_name: string) => {
-    const normalizedEmail = email.toLowerCase().trim();
-
-    if (users.some(u => u.email.toLowerCase() === normalizedEmail)) {
-      return { success: false, message: 'Email já cadastrado. Faça login.' };
-    }
-
-    const newUser: Profile = {
-      id: Math.random().toString(36).substr(2, 9),
-      email: normalizedEmail,
-      password,
-      full_name: full_name.trim() || normalizedEmail.split('@')[0],
-      role: normalizedEmail.includes('admin') ? 'admin' : 'user',
-      level: 1,
-      xp: 0,
-      created_at: new Date().toISOString(),
+        if (currentUser) {
+          setUser(currentUser);
+          setUsers(prev =>
+            prev.some(existingUser => existingUser.id === currentUser.id)
+              ? prev.map(existingUser => (existingUser.id === currentUser.id ? { ...existingUser, ...currentUser } : existingUser))
+              : [...prev, currentUser],
+          );
+        }
+      } catch (error) {
+        console.warn('Falha ao carregar dados iniciais da API. Mantendo fallback local.', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
 
-    setUsers(prev => [...prev, newUser]);
-    setUser(newUser);
-    localStorage.setItem('quest_user', JSON.stringify(newUser));
-    setAdminViewMode('management');
+    initializeBootstrap();
 
-    return { success: true };
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const authenticatedUser = await loginWithApi(email, password);
+      setUser(authenticatedUser);
+      setUsers(prev =>
+        prev.some(existingUser => existingUser.id === authenticatedUser.id)
+          ? prev.map(existingUser => (existingUser.id === authenticatedUser.id ? { ...existingUser, ...authenticatedUser } : existingUser))
+          : [...prev, authenticatedUser],
+      );
+      setAdminViewMode('management');
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
+      };
+    }
   };
 
-  const handleLogout = () => {
+  const handleRegister = async (email: string, password: string, full_name: string) => {
+    try {
+      const registeredUser = await registerWithApi(email, password, full_name);
+      setUser(registeredUser);
+      setUsers(prev =>
+        prev.some(existingUser => existingUser.id === registeredUser.id)
+          ? prev.map(existingUser => (existingUser.id === registeredUser.id ? { ...existingUser, ...registeredUser } : existingUser))
+          : [...prev, registeredUser],
+      );
+      setAdminViewMode('management');
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Falha no cadastro.',
+      };
+    }
+  };
+
+  const handleLogout = async () => {
+    await logoutWithApi();
     setUser(null);
-    localStorage.removeItem('quest_user');
     setIsSidebarOpen(false);
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  const handleAddSubmission = (submission: BadgeSubmission) => {
+  const handleAddSubmission = async (badgeId: string, description: string) => {
+    const submission = await createSubmissionWithApi(badgeId, description);
     setSubmissions(prev => [submission, ...prev]);
+  };
+
+  const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
+    const result = await reviewSubmissionWithApi(submissionId, status);
+    setSubmissions(prev => prev.map(submission => (
+      submission.id === submissionId ? { ...submission, ...result.submission } : submission
+    )));
+
+    if (result.awardedBadge) {
+      setUserBadges(prev => {
+        const filtered = prev.filter(
+          badge => !(badge.user_id === result.awardedBadge?.user_id && badge.badge_id === result.awardedBadge?.badge_id),
+        );
+        return [...filtered, result.awardedBadge];
+      });
+    }
+  };
+
+  const handleSaveBadge = async (badge: Badge) => saveBadgeWithApi(badge);
+
+  const handleDeleteBadge = async (badgeId: string) => {
+    await deleteBadgeWithApi(badgeId);
+  };
+
+  const handleSaveCompany = async (company: Company) => saveCompanyWithApi(company);
+
+  const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) =>
+    saveProductiveUnitWithApi(productiveUnit);
+
+  const handleSaveUser = async (profile: Profile) => saveUserWithApi(profile);
+
+  const handleBulkInviteUsers = async (emails: string[], companyId?: string, productiveUnitId?: string) =>
+    bulkInviteUsersWithApi(emails, companyId, productiveUnitId);
+
+  const handleDeleteUser = async (userId: string) => {
+    await deleteUserWithApi(userId);
+  };
+
+  const handleSaveImportSource = async (importSource: ImportSourceConfig) => saveImportSourceWithApi(importSource);
+
+  const handleAwardBadges = async (userIds: string[], badgeId: string, tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2') => {
+    const awardedBadges = await awardBadgesWithApi(userIds, badgeId, tone);
+    setUserBadges(prev => {
+      const filtered = prev.filter(existing =>
+        !awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
+      );
+      return [...filtered, ...awardedBadges];
+    });
+  };
+
+  const handleRemoveUserBadge = async (userId: string, badgeId: string) => {
+    await removeUserBadgeWithApi(userId, badgeId);
+    setUserBadges(prev => prev.filter(badge => !(badge.user_id === userId && badge.badge_id === badgeId)));
+  };
+
+  const handlePersistImport = async (
+    sourceId: string,
+    sourceName: string,
+    matchedColumns: Partial<Record<string, string>>,
+    rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2'; status: 'valid' | 'invalid'; reason?: string }>,
+  ) => {
+    const result = await persistImportRunWithApi(sourceId, sourceName, matchedColumns, rows);
+    setUserBadges(prev => {
+      const filtered = prev.filter(existing =>
+        !result.awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
+      );
+      return [...filtered, ...result.awardedBadges];
+    });
+    setImportBindingSnapshot(result.bindingSnapshot);
+    return result.summary.valid;
   };
 
   if (loading) {
@@ -261,6 +363,18 @@ const App: React.FC = () => {
                       setUserBadges={setUserBadges}
                       submissions={submissions}
                       setSubmissions={setSubmissions}
+                      onSaveBadge={handleSaveBadge}
+                      onDeleteBadge={handleDeleteBadge}
+                      onSaveCompany={handleSaveCompany}
+                      onSaveProductiveUnit={handleSaveProductiveUnit}
+                      onSaveUser={handleSaveUser}
+                      onBulkInviteUsers={handleBulkInviteUsers}
+                      onDeleteUser={handleDeleteUser}
+                      onSaveImportSource={handleSaveImportSource}
+                      onAwardBadges={handleAwardBadges}
+                      onRemoveUserBadge={handleRemoveUserBadge}
+                      onPersistImport={handlePersistImport}
+                      onReviewSubmission={handleReviewSubmission}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/" />

@@ -35,6 +35,23 @@ interface AdminPanelProps {
   setUserBadges: React.Dispatch<React.SetStateAction<UserBadge[]>>;
   submissions: BadgeSubmission[];
   setSubmissions: React.Dispatch<React.SetStateAction<BadgeSubmission[]>>;
+  onSaveBadge?: (_badge: Badge) => Promise<Badge>;
+  onDeleteBadge?: (_badgeId: string) => Promise<void>;
+  onSaveCompany?: (_company: Company) => Promise<Company>;
+  onSaveProductiveUnit?: (_productiveUnit: ProductiveUnit) => Promise<ProductiveUnit>;
+  onSaveUser?: (_user: Profile) => Promise<Profile>;
+  onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
+  onDeleteUser?: (_userId: string) => Promise<void>;
+  onSaveImportSource?: (_importSource: ImportSourceConfig) => Promise<ImportSourceConfig>;
+  onAwardBadges?: (_userIds: string[], _badgeId: string, _tone: BadgeTone) => Promise<void>;
+  onRemoveUserBadge?: (_userId: string, _badgeId: string) => Promise<void>;
+  onPersistImport?: (
+    _sourceId: string,
+    _sourceName: string,
+    _matchedColumns: Partial<Record<string, string>>,
+    _rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: BadgeTone; status: 'valid' | 'invalid'; reason?: string }>,
+  ) => Promise<number>;
+  onReviewSubmission?: (_submissionId: string, _status: 'approved' | 'rejected') => Promise<void>;
   onOpenSolicitation?: () => void;
 }
 
@@ -71,6 +88,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setUserBadges,
   submissions,
   setSubmissions,
+  onSaveBadge,
+  onDeleteBadge,
+  onSaveCompany,
+  onSaveProductiveUnit,
+  onSaveUser,
+  onBulkInviteUsers,
+  onDeleteUser,
+  onSaveImportSource,
+  onAwardBadges,
+  onRemoveUserBadge,
+  onPersistImport,
+  onReviewSubmission,
   onOpenSolicitation
 }) => {
   const location = useLocation();
@@ -285,9 +314,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setBadgeLegends(prev => ({ ...prev, [tone]: value }));
   };
 
-  const handleReviewSubmission = (submissionId: string, status: 'approved' | 'rejected') => {
+  const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
     const submission = submissions.find(s => s.id === submissionId);
     if (!submission) return;
+
+    if (onReviewSubmission) {
+      try {
+        await onReviewSubmission(submissionId, status);
+        alert(`SolicitaÃ§Ã£o ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Falha ao revisar solicitaÃ§Ã£o.');
+      }
+      return;
+    }
 
     setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
 
@@ -298,7 +337,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
   };
 
-  const handleSaveBadge = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const badgeData: Badge = {
@@ -309,30 +348,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       category: formData.get('category') as string,
       icon_name: (formData.get('icon_name') as string) || '✨',
     };
-    setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? badgeData : b) : [...prev, badgeData]);
+    const savedBadge = onSaveBadge ? await onSaveBadge(badgeData) : badgeData;
+    setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? savedBadge : b) : [...prev, savedBadge]);
     setIsBadgeModalOpen(false);
   };
 
-  const handleDeleteBadge = () => {
+  const handleDeleteBadge = async () => {
     if (badgeToDelete) {
+      if (onDeleteBadge) {
+        await onDeleteBadge(badgeToDelete.id);
+      }
       setBadges(prev => prev.filter(b => b.id !== badgeToDelete.id));
       setIsDeleteBadgeModalOpen(false);
       setBadgeToDelete(null);
     }
   };
 
-  const handleSaveCompany = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveCompany = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const companyData: Company = {
       id: editingCompany?.id || Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
     };
-    setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? companyData : c) : [...prev, companyData]);
+    const savedCompany = onSaveCompany ? await onSaveCompany(companyData) : companyData;
+    setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? savedCompany : c) : [...prev, savedCompany]);
     setIsCompanyModalOpen(false);
   };
 
-  const handleSaveProductiveUnit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveProductiveUnit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const companyId = formData.get('company_id') as string;
@@ -348,12 +392,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       company_id: companyId,
     };
 
-    setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? productiveUnitData : unit) : [...prev, productiveUnitData]);
+    const savedProductiveUnit = onSaveProductiveUnit ? await onSaveProductiveUnit(productiveUnitData) : productiveUnitData;
+    setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? savedProductiveUnit : unit) : [...prev, savedProductiveUnit]);
     setIsProductiveUnitModalOpen(false);
     setEditingProductiveUnit(null);
   };
 
-  const handleSaveImportSource = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveImportSource = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
@@ -371,13 +416,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       },
     };
 
-    setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? importSourceData : source) : [...prev, importSourceData]);
-    setSelectedImportSourceId(importSourceData.id);
+    const savedImportSource = onSaveImportSource ? await onSaveImportSource(importSourceData) : importSourceData;
+    setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? savedImportSource : source) : [...prev, savedImportSource]);
+    setSelectedImportSourceId(savedImportSource.id);
     setIsImportSourceModalOpen(false);
     setEditingImportSource(null);
   };
 
-  const handleSaveUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const companyId = (formData.get('company_id') as string) || undefined;
@@ -397,17 +443,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       xp: editingUser?.xp || 0,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
-    setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? userData : u) : [...prev, userData]);
+    const savedUser = onSaveUser ? await onSaveUser(userData) : userData;
+    setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
     setIsUserModalOpen(false);
     setEditingUser(null);
   };
 
-  const handleBulkInvite = (e: React.FormEvent) => {
+  const handleBulkInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     const emails = bulkInviteEmails
       .split(/[\n,;]/)
-      .map(e => e.trim())
-      .filter(e => e !== '' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+      .map(email => email.trim())
+      .filter(email => email !== '' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
 
     if (emails.length === 0) {
       alert('Por favor, insira e-mails válidos para o convite.');
@@ -418,32 +465,46 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       ? bulkInviteProductiveUnitId
       : undefined;
 
-    const newUsers: Profile[] = emails.map(email => ({
-      id: Math.random().toString(36).substr(2, 9),
-      email,
-      full_name: email.split('@')[0],
-      role: 'user',
-      company_id: bulkInviteCompanyId || undefined,
-      productive_unit_id: validProductiveUnitId,
-      level: 1,
-      xp: 0,
-      created_at: new Date().toISOString(),
-    }));
+    if (onBulkInviteUsers) {
+      const result = await onBulkInviteUsers(emails, bulkInviteCompanyId || undefined, validProductiveUnitId);
+      setUsers(prev => [...prev, ...result.createdUsers]);
+      alert(
+        result.skippedEmails.length > 0
+          ? `${result.createdUsers.length} convites persistidos. ${result.skippedEmails.length} e-mail(s) ja existiam e foram ignorados.`
+          : `${result.createdUsers.length} convites persistidos com sucesso para os novos exploradores!`,
+      );
+    } else {
+      const newUsers: Profile[] = emails.map(email => ({
+        id: Math.random().toString(36).substr(2, 9),
+        email,
+        full_name: email.split('@')[0],
+        role: 'user',
+        company_id: bulkInviteCompanyId || undefined,
+        productive_unit_id: validProductiveUnitId,
+        level: 1,
+        xp: 0,
+        created_at: new Date().toISOString(),
+      }));
 
-    setUsers(prev => [...prev, ...newUsers]);
-    alert(`${emails.length} convites enviados com sucesso para os novos exploradores!`);
+      setUsers(prev => [...prev, ...newUsers]);
+      alert(`${emails.length} convites enviados com sucesso para os novos exploradores!`);
+    }
+
     setIsBulkInviteModalOpen(false);
     setBulkInviteEmails('');
     setBulkInviteCompanyId('');
     setBulkInviteProductiveUnitId('');
   };
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     if (userToDelete) {
       if (userToDelete.id === adminProfile.id) {
         alert("Você não pode excluir seu próprio perfil administrativo.");
         setIsDeleteUserModalOpen(false);
         return;
+      }
+      if (onDeleteUser) {
+        await onDeleteUser(userToDelete.id);
       }
       setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       setIsDeleteUserModalOpen(false);
@@ -451,10 +512,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleAwardBadges = () => {
+  const handleAwardBadges = async () => {
     if (selectedUsers.length === 0 || !selectedAwardBadge) return;
     const badge = badges.find(b => b.id === selectedAwardBadge);
-    selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+
+    if (onAwardBadges) {
+      await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
+    } else {
+      selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+    }
 
     if (badge) {
       setUsers(prev => prev.map(u => {
@@ -487,13 +553,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setSelectedAwardBadge('');
   };
 
-  const handleAssignBadgeToUser = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+  const handleAssignBadgeToUser = async (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+    if (onAwardBadges) {
+      await onAwardBadges([targetUserId], badgeId, tone);
+      return;
+    }
     upsertUserBadge(targetUserId, badgeId, tone);
   };
 
-  const handleRemoveBadgeFromUser = (targetUserId: string, badgeId: string) => {
+  const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
     const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
     if (!badgeAward) return;
+
+    if (onRemoveUserBadge) {
+      await onRemoveUserBadge(targetUserId, badgeId);
+      return;
+    }
 
     setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
   };
@@ -550,15 +625,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsImportModalOpen(true);
   };
 
-  const finalizeImport = () => {
+  const finalizeImport = async () => {
     const valid = importPreviews.filter(p => p.status === 'valid');
     if (valid.length === 0) return;
 
-    valid.forEach(p => {
-      upsertUserBadge(p.user!.id, p.badge!.id, p.tone);
-    });
+    if (onPersistImport && activeImportSource) {
+      const importedCount = await onPersistImport(
+        activeImportSource.id,
+        activeImportSource.name,
+        importPreviews[0]?.matchedColumns || {},
+        importPreviews.map(preview => ({
+          row: preview.row,
+          user_id: preview.user?.id,
+          badge_id: preview.badge?.id,
+          tone: preview.tone,
+          status: preview.status,
+          reason: preview.reason,
+        })),
+      );
+      alert(`${importedCount} importacoes concluidas.`);
+    } else {
+      valid.forEach(p => {
+        upsertUserBadge(p.user!.id, p.badge!.id, p.tone);
+      });
+      alert(`${valid.length} importacoes concluidas.`);
+    }
 
-    alert(`${valid.length} importacoes concluidas.`);
     setIsImportModalOpen(false);
   };
 

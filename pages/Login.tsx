@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { Profile } from '../types';
 
 interface LoginResult {
   success: boolean;
@@ -8,7 +7,7 @@ interface LoginResult {
 }
 
 interface LoginProps {
-  onLogin: (email: string, password: string) => LoginResult;
+  onLogin: (email: string, password: string) => Promise<LoginResult>;
 }
 
 
@@ -17,12 +16,15 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
 
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const normalizedEmail = email.toLowerCase().trim();
 
-    const result = onLogin(normalizedEmail, password);
+    setLoading(true);
+    const result = await onLogin(normalizedEmail, password);
+    setLoading(false);
 
     if (!result.success) {
       setError(result.message || 'Credenciais inválidas.');
@@ -72,9 +74,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </div>
           <button 
             type="submit"
+            disabled={loading}
             className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase tracking-[0.2em] text-xs"
           >
-            iniciar jornada
+            {loading ? 'entrando...' : 'iniciar jornada'}
           </button>
           {error && <div className="text-red-600 font-bold text-sm text-center mt-2">{error}</div>}
         </form>
