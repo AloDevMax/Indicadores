@@ -4,10 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "build": "prisma generate && tsc",
+    "start": "node dist/index.js",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
@@ -30,11 +29,6 @@
     "eslint-plugin-react-refresh": "^0.5.0",
     "prisma": "^6.19.2",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  },
-  "scripts": {
-  "build": "prisma generate && tsc", 
-  "start": "node dist/index.js",
-  "postinstall": "prisma generate"
-}
+    "vite": "^6.4.1"
+  }
 }
