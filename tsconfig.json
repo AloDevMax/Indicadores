@@ -1,5 +1,8 @@
-{
   "compilerOptions": {
+  "outDir": "./dist",
+  "rootDir": "./src",
+  // ... outras opções}
+{
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
@@ -24,8 +27,8 @@
         "./*"
       ]
     },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
+    "allowImportingTsExtensions": false,
+    "noEmit": false
   }
 }
   
