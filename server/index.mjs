@@ -4,6 +4,8 @@ import { ZodError } from 'zod';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser } from './admin/repository.mjs';
+import path from 'path';
+import express from 'express';
 
 const port = Number(process.env.PORT || 4000);
 
@@ -16,6 +18,12 @@ const sendJson = (response, status, payload) => {
   });
   response.end(JSON.stringify(payload));
 };
+
+const app = express();
+
+const frontendPath = path.join(process.cwd(), 'dist'); 
+app.use(express.static(frontendPath));
+
 
 const readJsonBody = async (request) => {
   const chunks = [];
@@ -293,6 +301,10 @@ const server = http.createServer(async (request, response) => {
     console.error('[api] request failed', error);
     sendJson(response, 500, { error: 'Internal server error.' });
   }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 server.listen(port, () => {
