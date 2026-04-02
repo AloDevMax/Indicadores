@@ -1,14 +1,15 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "outDir": "./dist",
-    "rootDir": "./",         // Diz que a raiz é onde estão seus arquivos
+    "jsx": "react-jsx", // <-- ESSA É A LINHA QUE FALTA
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "noEmit": false,
+    "outDir": "./dist",
     "allowJs": true,
     "skipLibCheck": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": false
   },
   "include": ["index.ts", "App.tsx", "server/**/*", "utils/**/*"], // Liste o que deve ser compilado
   "exclude": ["node_modules", "dist", "generated"]
