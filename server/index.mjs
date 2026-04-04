@@ -197,9 +197,9 @@ app.post('/api/admin/companies', async (req, res) => {
      const user = await saveUser(req.body);
   res.status(200).json({ user });
 });
-    }
+    },
 
-app.post('/api/admin/users/bulk-invite', async (req, res) => {
+  app.post('/api/admin/users/bulk-invite', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.status(403).json({ error: 'Acesso restrito.' });
   
@@ -209,7 +209,7 @@ app.post('/api/admin/users/bulk-invite', async (req, res) => {
     productiveUnitId: req.body.productive_unit_id,
   });
   res.status(200).json(result);
-});
+  }));
 
 app.post('/api/admin/users/delete', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
