@@ -306,10 +306,10 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.get('*', (req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-server.listen(port, () => {
-  console.log(`[api] listening on http://localhost:${port}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Servidor rodando na porta ${port}`);
 });
