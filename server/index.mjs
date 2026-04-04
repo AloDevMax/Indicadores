@@ -6,6 +6,8 @@ import { awardBadges, createSubmission, persistImportRun, removeUserBadge, revie
 import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser } from './admin/repository.mjs';
 import path from 'path';
 import express from 'express';
+import { fileURLToPath } from 'url';
+import path from 'path';
 
 const port = Number(process.env.PORT || 4000);
 
@@ -21,7 +23,8 @@ const sendJson = (response, status, payload) => {
 
 const app = express();
 
-const frontendPath = path.join(process.cwd(), 'dist'); 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendPath = path.resolve(__dirname, '..'); 
 app.use(express.static(frontendPath));
 
 
