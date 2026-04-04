@@ -7,7 +7,7 @@ import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveI
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
-import path from 'path';
+
 
 const port = Number(process.env.PORT || 4000);
 
