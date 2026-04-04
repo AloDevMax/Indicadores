@@ -37,9 +37,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-
-const server = http.createServer(app);
-
   app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
