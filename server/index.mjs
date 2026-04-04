@@ -25,7 +25,6 @@ const app = express();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendPath = path.resolve(__dirname, '..'); 
-app.use(express.static(frontendPath));
 
 
 const readJsonBody = async (request) => {
@@ -283,12 +282,6 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
-    sendJson(response, 404, { error: 'Not found.' });
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      sendJson(response, 400, { error: 'JSON inválido.' });
-      return;
-    }
 
     if (error instanceof ZodError) {
       sendJson(response, 400, {
@@ -306,10 +299,17 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
+app.use(express.static(frontendPath));
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
+/*   catch (error) 
+    if (error instanceof SyntaxError) {
+      sendJson(response, 400, { error: 'JSON inválido.' });
+      return;
+    } */
 server.listen(port, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
