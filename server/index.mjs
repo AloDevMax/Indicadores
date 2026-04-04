@@ -306,7 +306,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-app.get('*', (req, res) => {
+server.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
