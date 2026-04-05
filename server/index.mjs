@@ -47,7 +47,7 @@ app.post('/api/auth/login', async (req, res) => {
   next();
 });
 
-    app.get('/api/health', (req, res) => {
+    app.get('/api/health', (_req, res) => { // O '_' avisa que o parâmetro existe mas é ignorado
   res.json({
     status: 'ok',
     databaseConfigured: Boolean(process.env.DATABASE_URL),
@@ -61,7 +61,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/bootstrap', async (req, res) => {
-  const data = await loadBootstrapData(); // Agora ela será lida!
+   const data = await loadBootstrapData(req.headers.authorization); 
   res.json(data);
 });
 
@@ -80,7 +80,7 @@ app.post('/api/auth/logout', async (req, res) => {
   res.status(result.status).json(result.body);
 });
 
-app.get('/api/ZodError', async (req, res) => { 
+app.get('/api/ZodError', async (_req, res) => { 
   try {
     throw new ZodError([{ message: 'Campo obrigatório', path: ['email'], code: 'invalid_type' }]);
   } catch (error) {
@@ -92,11 +92,6 @@ app.get('/api/ZodError', async (req, res) => {
   }
 });
 
-app.get('/api/awardsBadges', async (req, res) => {
-  const result = await awardBadges(); 
-  res.status(200).json(result);
-});
-
 app.post('/api/awardsBadges', async (req, res) => {
   const result = await awardBadges(req.body); 
   res.status(201).json(result);
@@ -104,7 +99,7 @@ app.post('/api/awardsBadges', async (req, res) => {
 
 app.post('/api/submissions', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200) return res.status(auth.status).json(auth.body)});
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
   const result = await createSubmission({
     userId: auth.body.user.id,
@@ -113,19 +108,22 @@ app.post('/api/submissions', async (req, res) => {
     proofUrl: req.body.proof_url
   });
 
-app.post('/api/submissions/:id/review', async (req, res) => {
+res.status(201).json(result);
+});
+
+app.post('/api/review', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-  if (authResult.status !== 200) return res.status(authResult.status).json(authResult.body)});
-res.status(200).json({ message: 'Revisão salva!' });
+  if (authResult.status !== 200) return res.status(authResult.status).json(authResult.body);
    
-  const result = await reviewSubmission({
-    submissionId: req.params.id, // O Express pega o ID da URL automaticamente
+   const result = await reviewSubmission({
+    submissionId: req.body.submissionId, // Use req.body se não for via URL
     reviewerId: authResult.body.user.id,
     status: req.body.status,
   });
-  
-  res.status(200).json(result);
 
+res.status(200).json({ result, message: 'Revisão salva!' });
+});
+  
 
     app.post('/api/admin/award-badges', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
