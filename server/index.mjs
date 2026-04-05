@@ -56,7 +56,7 @@ app.get('/api/bootstrap', async (req, res) => {
   res.json(data);
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -68,11 +68,15 @@ app.post('/api/awardsBadges', async (req, res) => {
   res.status(200).json(result);
 });
 
-const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+app.post('/api/admin/user-badges/remove', async (req, res) => {
   
-  const result = await removeUserBadge(req.body); // O import 'removeUserBadge' vai acender aqui!
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+
+  const result = await removeUserBadge(req.body);
   res.status(200).json(result);
+}); 
+
 
 app.post('/api/submissions', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
@@ -185,8 +189,7 @@ app.post('/api/admin/productive-units', async (req, res) => {
   res.status(201).json(result);
 });
 
-import { Request, Response, NextFunction } from 'express';
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err, _req, res, _next) => {
   if (err instanceof ZodError) {
     return res.status(400).json({ error: 'Erro de validação', details: err.errors });
   }
