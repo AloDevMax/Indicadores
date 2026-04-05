@@ -12,8 +12,6 @@ const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.PORT || 4000);
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const frontendPath = path.resolve(process.cwd(), 'dist');
 
 app.use(express.json());
