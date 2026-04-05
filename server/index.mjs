@@ -157,17 +157,16 @@ app.post('/api/admin/import-runs', async (req, res) => {
   const result = await persistImportRun({
     reviewerId: authResult.body.user.id,
     sourceId: req.body.source_id,
-    // ... restante dos dados
+    status: req.body.status,
+    details: req.body.details,
   });
   res.status(200).json(result);
 });
 
-
     app.post('/api/admin/badges', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-  }
+    return res.status(403).json({ error: 'Acesso restrito a administradores.' })};
 
    const badge = await saveBadge(req.body);
   res.status(200).json({ badge });
