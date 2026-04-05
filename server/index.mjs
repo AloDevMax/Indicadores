@@ -113,19 +113,19 @@ app.post('/api/submissions', async (req, res) => {
     proofUrl: req.body.proof_url
   });
 
-  res.status(201).json(result);
-
-    app.post('/api/submissions/:id/review', async (req, res) => {
+app.post('/api/submissions/:id/review', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-  if (authResult.status !== 200) return res.status(authResult.status).json(authResult.body);
-
+  if (authResult.status !== 200) return res.status(authResult.status).json(authResult.body)});
+res.status(200).json({ message: 'Revisão salva!' });
+   
   const result = await reviewSubmission({
     submissionId: req.params.id, // O Express pega o ID da URL automaticamente
     reviewerId: authResult.body.user.id,
     status: req.body.status,
   });
+  
   res.status(200).json(result);
-});
+
 
     app.post('/api/admin/award-badges', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
