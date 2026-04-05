@@ -103,18 +103,17 @@ app.post('/api/awardsBadges', async (req, res) => {
 });
 
 app.post('/api/submissions', async (req, res) => {
-  const result = await createSubmission(req.body); // Agora ela será lida!
-  res.status(201).json(result);
-});
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body)});
 
-  const submission = await createSubmission({
+  const result = await createSubmission({
     userId: auth.body.user.id,
     badgeId: req.body.badge_id,
     description: req.body.description,
-    proofUrl: req.body.proof_url,
+    proofUrl: req.body.proof_url
   });
 
-  res.status(201).json({ submission });
+  res.status(201).json(result);
 
     app.post('/api/submissions/:id/review', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
