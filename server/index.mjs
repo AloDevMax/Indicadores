@@ -4,15 +4,19 @@ import { ZodError } from 'zod';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser } from './admin/repository.mjs';
+import { fileURLToPath } from 'url';
 import path from 'path';
 import express from 'express';
-import { fileURLToPath } from 'url';
+
 
 const app = express();
 const server = http.createServer(app);
 const port = Number(process.env.PORT || 4000);
 
-const frontendPath = path.resolve(process.cwd(), 'dist');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const frontendPath = path.resolve(__dirname, '..');
 
 app.use(express.json());
 
@@ -56,8 +60,13 @@ app.post('/api/auth/login', async (req, res) => {
   res.status(result.status).json(result.body);
 });
 
-   app.post('/api/auth/login', async (req, res) => {
-  const result = await loginUser(req.body); // O Express já entrega o JSON pronto no req.body
+app.get('/api/bootstrap', async (req, res) => {
+  const data = await loadBootstrapData(); // Agora ela será lida!
+  res.json(data);
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const result = await loginUser(req.body); 
   res.status(result.status).json(result.body);
 });
 
@@ -71,9 +80,32 @@ app.post('/api/auth/logout', async (req, res) => {
   res.status(result.status).json(result.body);
 });
 
+app.get('/api/ZodError', async (req, res) => { 
+  try {
+    throw new ZodError([{ message: 'Campo obrigatório', path: ['email'], code: 'invalid_type' }]);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      res.status(400).json({ error: 'Erro de validação', details: error.errors });
+    } else {
+      res.status(500).json({ error: 'Erro interno no servidor' });
+    }
+  }
+});
+
+app.get('/api/awardsBadges', async (req, res) => {
+  const result = await awardBadges(); 
+  res.status(200).json(result);
+});
+
+app.post('/api/awardsBadges', async (req, res) => {
+  const result = await awardBadges(req.body); 
+  res.status(201).json(result);
+});
+
 app.post('/api/submissions', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+  const result = await createSubmission(req.body); // Agora ela será lida!
+  res.status(201).json(result);
+});
 
   const submission = await createSubmission({
     userId: auth.body.user.id,
@@ -83,7 +115,6 @@ app.post('/api/submissions', async (req, res) => {
   });
 
   res.status(201).json({ submission });
-});
 
     app.post('/api/submissions/:id/review', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
@@ -155,14 +186,22 @@ app.post('/api/admin/badges/delete', async (req, res) => {
   res.status(200).json(result);
 });
 
+
 app.post('/api/admin/companies', async (req, res) => {
+  // 1. Primeiro validamos o usuário pelo token
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
+
   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
   }
 
-  res.status(201).json({ message: 'Empresa criada!' });
+  // 2. AGORA sim salvamos a empresa com os dados do corpo (req.body)
+  const result = await saveCompany(req.body); 
+  
+  res.status(201).json(result);
 });
+
+  res.status(201).json({ message: 'Empresa criada!' });
 
     app.post('/api/admin/productive-units', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
