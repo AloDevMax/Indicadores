@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "jsx": "react-jsx", // <-- ESSA É A LINHA QUE FALTA
+    "jsx": "react-jsx",
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -12,8 +12,6 @@
     "esModuleInterop": true,
     "allowImportingTsExtensions": false
   },
-  "include": ["index.ts", "App.tsx", "server/**/*", "utils/**/*"], // Liste o que deve ser compilado
-  "exclude": ["node_modules", "dist", "generated"]
+  "include": ["server/**/*"],
+  "exclude": ["node_modules", "dist", "src", "App.tsx", "main.tsx", "*.tsx"]
 }
-
-  
