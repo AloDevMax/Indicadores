@@ -16,7 +16,7 @@ const port = Number(process.env.PORT || 4000);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const frontendPath = path.resolve(__dirname, '..');
+const frontendPath = path.resolve(process.cwd(), 'dist');
 
 app.use(express.json());
 
@@ -197,7 +197,7 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Erro interno no servidor' });
 });
 
-app.get('*', (_req, res) => {
+app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
