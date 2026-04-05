@@ -163,6 +163,14 @@ app.post('/api/admin/import-runs', async (req, res) => {
   res.status(200).json(result);
 });
 
+app.post('/api/admin/companies', async (req, res) => { 
+  const authResult = await requireAuthenticatedUser(req.headers.authorization);
+   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Acesso restrito a administradores.' });
+  }const result = await saveCompany(req.body);
+ res.status(201).json({ result, message: 'Empresa criada!' });
+}); 
+
     app.post('/api/admin/badges', async (req, res) => {
   const authResult = await requireAuthenticatedUser(req.headers.authorization);
   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
