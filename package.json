@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "prisma generate && tsc --project tsconfig.json && vite build",
-    "start": "node dist/server/index.js",
+    "start": "node dist/server/index.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
