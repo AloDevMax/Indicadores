@@ -32,9 +32,10 @@ API:
 
 1. Criar o banco PostgreSQL.
 2. Executar o conteúdo de `server/db/schema.sql`.
-3. Subir a API com `node server/index.mjs`.
-4. Configurar `VITE_API_BASE_URL` no frontend.
-5. Publicar o frontend.
+3. Configurar variáveis de ambiente no serviço Render.
+4. Subir a aplicação com `npm run build` e `npm start`.
+
+> Se você estiver usando `render.yaml`, o serviço já estará configurado para executar `npm run build` e iniciar com `npm start`.
 
 ## Próxima evolução recomendada
 

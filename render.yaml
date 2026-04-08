@@ -1,0 +1,18 @@
+services:
+  - type: web_service
+    name: indicadores-de-desempenho
+    env: node
+    plan: starter
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: "4000"
+      - key: VITE_API_BASE_URL
+        value: "https://indicadores-de-desempenho.onrender.com"
+      - key: DATABASE_URL
+        value: "postgresql://usuario:senha@host:porta/banco"
+      - key: DATABASE_SSL
+        value: "true"
+      - key: AUTH_SECRET
+        value: "troque-por-um-segredo-forte"
