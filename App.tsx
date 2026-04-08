@@ -18,6 +18,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
+import './index.css';
 import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
 import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
 
@@ -191,11 +192,11 @@ const App: React.FC = () => {
     )));
 
     if (result.awardedBadge) {
-      setUserBadges(prev => {
+      setUserBadges(prev => { 
         const filtered = prev.filter(
-          badge => !(badge.user_id === result.awardedBadge?.user_id && badge.badge_id === result.awardedBadge?.badge_id),
+          badge => !(result.awardedBadge && badge.user_id === result.awardedBadge.user_id && badge.badge_id === result.awardedBadge.badge_id),
         );
-        return [...filtered, result.awardedBadge];
+        return [...filtered, result.awardedBadge as UserBadge];
       });
     }
   };

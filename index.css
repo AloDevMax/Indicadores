@@ -1,0 +1,15 @@
+/* Global stylesheet placeholder */
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}

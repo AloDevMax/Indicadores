@@ -1,6 +1,7 @@
 import http from 'node:http';
 import express from 'express';
-import path from 'path';
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
@@ -18,6 +19,13 @@ const __dirname = path.dirname(__filename);
 
 const frontendPath = path.resolve(__dirname, '..');
 
+console.log("Caminho atual (CWD):", process.cwd());
+try {
+  const distContent = fs.readdirSync(path.resolve(process.cwd(), 'dist'), { recursive: true });
+  console.log("Arquivos encontrados na dist:", distContent);
+} catch (e) {
+  console.log("Erro ao ler a pasta dist:", e.message);
+}
 app.use(express.json());
 
 app.use((req, res, next) => {

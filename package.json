@@ -1,11 +1,11 @@
 {
-  "name": "labquest:-sistema-de-qualidade-gamificado",
+  "name": "labquest-sistema-de-qualidade-gamificado",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "prisma generate && tsc --project tsconfig.json && vite build",
+    "build": "prisma generate && vite build && tsc --project tsconfig.json",
     "start": "node dist/server/index.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -17,7 +17,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.0",
-    "xlsx": "0.18.5"
+    "xlsx": "0.18.5",
+    "zod": "^3.23.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
