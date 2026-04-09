@@ -5,23 +5,12 @@ const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 export const getApiBaseUrl = () => {
-  // Em desenvolvimento, usar proxy do Vite
-  if (import.meta.env.DEV) {
-    return '';
-  }
-  // Em produção, usar a URL configurada
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim() || process.env.VITE_API_BASE_URL?.trim();
-  return configured ? trimTrailingSlash(configured) : '';
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim() || '';
+  return trimTrailingSlash(configured);
 };
 
 const isApiAvailable = () => {
-  // Em desenvolvimento, sempre disponível (usa proxy)
-  if (import.meta.env.DEV) {
-    return true;
-  }
-  // Em produção, só se tiver URL configurada
-  const configured = import.meta.env.VITE_API_BASE_URL?.trim() || process.env.VITE_API_BASE_URL?.trim();
-  return Boolean(configured);
+  return true;
 };
 
 const createJsonHeaders = (token?: string) => ({
@@ -39,10 +28,6 @@ const readErrorMessage = async (response: Response) => {
 };
 
 const postJson = async <T>(path: string, body: unknown, token?: string): Promise<T> => {
-  if (!isApiAvailable()) {
-    throw new Error('API não está disponível. Configure VITE_API_BASE_URL para produção.');
-  }
-
   const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
@@ -59,10 +44,6 @@ const postJson = async <T>(path: string, body: unknown, token?: string): Promise
 
 export const fetchBootstrapData = async (): Promise<AppBootstrapPayload | null> => {
   const apiBaseUrl = getApiBaseUrl();
-
-  if (!apiBaseUrl) {
-    return null;
-  }
 
   const response = await fetch(`${apiBaseUrl}/api/bootstrap`);
 
