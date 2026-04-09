@@ -178,7 +178,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-4">
           <div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">fonte excel vinculada ao dashboard</div>
-            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource.name}</h3>
+            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name || 'Fonte sem nome'}</h3>
             {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
             {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">último vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
           </div>
@@ -307,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                       <div className="flex items-center gap-3">
                                         <span className="text-2xl">{badge.icon_name}</span>
                                         <div className="min-w-0">
-                                          <div className="text-xs font-black text-slate-900 truncate">{badge.name}</div>
+                                          <div className="text-xs font-black text-slate-900 truncate">{badge?.name || 'Badge sem nome'}</div>
                                           <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                                             {BADGE_TONE_LABELS[userBadge.tone]}
                                           </div>

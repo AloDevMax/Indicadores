@@ -141,7 +141,7 @@ const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegen
                   {getUserBadges(selectedUser.id).map(badge => (
                     <div key={badge.id} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
                       <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">{badge.icon_name}</div>
-                      <div><div className="font-bold text-slate-900 text-sm">{badge.name}</div><div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div></div>
+                      <div><div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div><div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div></div>
                     </div>
                   ))}
                 </div>

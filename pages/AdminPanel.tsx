@@ -184,11 +184,34 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
   };
 
-  const adminProfile = users.find(u => u.role === 'admin') || users[0];
+  const adminProfile = users.find(u => u.role === 'admin') || users[0] || null;
+  const safeAdminProfile: Profile = adminProfile || {
+    id: 'admin-local',
+    email: 'admin@local',
+    full_name: 'Administrador',
+    role: 'admin',
+    level: 0,
+    xp: 0,
+    created_at: new Date().toISOString(),
+    email_verified: true,
+  };
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
   const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
-  const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(adminProfile.id, userBadges);
-  const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0];
+  const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(safeAdminProfile.id, userBadges);
+  const fallbackImportSource: ImportSourceConfig = {
+    id: 'default-import-source',
+    name: 'Fonte sem nome',
+    description: 'Fonte padrão de importação',
+    columns: {
+      company: 'empresa',
+      productive_unit: 'unidade_produtiva',
+      user: 'explorador',
+      badge: 'selo',
+      tone: 'marcacao',
+      award: 'premio',
+    },
+  };
+  const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0] || fallbackImportSource;
 
   const normalizeCell = (value: unknown) => value?.toString().trim() || '';
   const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
@@ -243,9 +266,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const toneValue = getSourceCell(row, 'tone', source);
       const awardValue = getSourceCell(row, 'award', source).toUpperCase();
 
-      const companyFound = companies.find(company => normalizeCompare(company.name) === normalizeCompare(companyValue));
+      const companyFound = companies.find(company => normalizeCompare(company?.name || '') === normalizeCompare(companyValue));
       const productiveUnitFound = productiveUnits.find(unit =>
-        normalizeCompare(unit.name) === normalizeCompare(unitValue) &&
+        normalizeCompare(unit?.name || '') === normalizeCompare(unitValue) &&
         (!companyFound || unit.company_id === companyFound.id)
       );
       const userFound = users.find(user =>
@@ -253,7 +276,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         (!companyFound || user.company_id === companyFound.id) &&
         (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
       );
-      const badgeFound = badges.find(badge => normalizeCompare(badge.name) === normalizeCompare(badgeValue));
+      const badgeFound = badges.find(badge => normalizeCompare(badge?.name || '') === normalizeCompare(badgeValue));
       const tone = parseTone(toneValue);
 
       let status: 'valid' | 'invalid' = 'valid';
@@ -280,7 +303,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         company: companyFound,
         productiveUnit: productiveUnitFound,
         tone,
-        sourceName: source.name,
+        sourceName: source?.name || 'Fonte sem nome',
         matchedColumns,
         status,
         reason,
@@ -294,7 +317,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
 
     if (existingAward) {
-      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? { ...ub, tone, awarded_at: new Date().toISOString(), awarded_by: adminProfile.id } : ub));
+      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? { ...ub, tone, awarded_at: new Date().toISOString(), awarded_by: safeAdminProfile.id } : ub));
       return;
     }
 
@@ -303,7 +326,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       user_id: targetUserId,
       badge_id: badgeId,
       awarded_at: new Date().toISOString(),
-      awarded_by: adminProfile.id,
+      awarded_by: safeAdminProfile.id,
       tone,
     };
 
@@ -614,8 +637,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const firstPreview = previews[0];
     if (firstPreview) {
       setImportBindingSnapshot({
-        sourceId: mappedSource.id,
-        sourceName: mappedSource.name,
+        sourceId: mappedSource?.id || fallbackImportSource.id,
+        sourceName: mappedSource?.name || fallbackImportSource.name,
         matchedColumns: firstPreview.matchedColumns,
         importedAt: new Date().toISOString(),
       });
@@ -631,8 +654,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     if (onPersistImport && activeImportSource) {
       const importedCount = await onPersistImport(
-        activeImportSource.id,
-        activeImportSource.name,
+        activeImportSource.id || fallbackImportSource.id,
+        activeImportSource?.name || fallbackImportSource.name,
         importPreviews[0]?.matchedColumns || {},
         importPreviews.map(preview => ({
           row: preview.row,
@@ -646,7 +669,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       alert(`${importedCount} importacoes concluidas.`);
     } else {
       valid.forEach(p => {
-        upsertUserBadge(p.user!.id, p.badge!.id, p.tone);
+        if (p.user?.id && p.badge?.id) {
+          upsertUserBadge(p.user.id, p.badge.id, p.tone);
+        }
       });
       alert(`${valid.length} importacoes concluidas.`);
     }
@@ -722,7 +747,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
                         <div>
-                          <div className="font-bold text-slate-900 text-sm tracking-tight">{c.name}</div>
+                          <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
                         </div>
                       </div>
@@ -732,7 +757,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
                         <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                           <div>
-                            <div className="font-bold text-slate-900 text-sm">{unit.name}</div>
+                            <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
                             <div className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
                           </div>
                           <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
@@ -942,7 +967,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-indigo-50 border-indigo-600 shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
                           <span className="text-3xl">{badge.icon_name}</span>
                           <div>
-                            <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge.name}</div>
+                            <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge?.name || 'Badge sem nome'}</div>
                             <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
                           </div>
                         </button>
@@ -1019,7 +1044,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">{badge.icon_name}</div>
                       <div>
-                        <div className="font-bold text-slate-900 text-sm">{badge.name}</div>
+                        <div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div>
                         <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
                       </div>
                     </div>
@@ -1047,7 +1072,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg flex items-center justify-between group hover:border-indigo-200 transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
-                      <div className="font-bold text-slate-900 text-sm tracking-tight">{c.name}</div>
+                      <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                     </div>
                     <button onClick={() => { setEditingCompany(c); setIsCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                   </div>
@@ -1116,7 +1141,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   required
                 >
                   <option value="">Selecionar empresa...</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -1127,7 +1152,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all appearance-none"
                 >
                   <option value="">Selecionar unidade...</option>
-                  {getUnitsByCompany(bulkInviteCompanyId).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                  {getUnitsByCompany(bulkInviteCompanyId).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -1176,14 +1201,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
                   <select name="company_id" defaultValue={editingUser?.company_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="">Nenhuma (Independente)</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva</label>
                   <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="">Nenhuma</option>
-                    {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                    {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                 </div>
               </div>
@@ -1293,7 +1318,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">empresa</label>
                 <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
                   <option value="">Selecionar empresa...</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -1418,7 +1443,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <tr key={idx} className={`text-xs ${p.status === 'invalid' ? 'bg-rose-50/30' : ''}`}>
                       <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.explorador}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
                       <td className="px-6 py-4 text-slate-500 font-bold">{p.row.empresa}</td>
-                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.selo}</div>{p.badge && <div className="text-[9px] text-indigo-600 font-black uppercase">selo: {p.badge.name}</div>}</td>
+                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.selo}</div>{p.badge && <div className="text-[9px] text-indigo-600 font-black uppercase">selo: {p.badge?.name || 'Badge sem nome'}</div>}</td>
                       <td className="px-6 py-4">{p.status === 'valid' ? <span className="text-emerald-700 font-black uppercase">válido</span> : <span className="text-rose-700 font-black uppercase">{p.reason}</span>}</td>
                     </tr>
                   ))}
