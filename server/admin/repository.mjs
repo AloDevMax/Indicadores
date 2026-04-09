@@ -186,6 +186,7 @@ export const saveUser = async (user, password) => {
       xp: user.xp ?? 0,
       email_verified: user.email_verified ?? false,
       created_at: user.created_at || new Date().toISOString(),
+      password: password,
     };
     return upsertMemoryUser(normalized);
   }

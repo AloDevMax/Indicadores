@@ -269,12 +269,19 @@ export const publicUser = sanitizeUser;
 
 export const upsertMemoryUser = async (user) => {
   await seedUsers();
-  const passwordHash = await hashPassword('changeme123');
+
+  const { password: rawPassword, password_hash: providedPasswordHash, ...rest } = user;
+  const passwordHash = providedPasswordHash
+    ? providedPasswordHash
+    : rawPassword
+      ? await hashPassword(rawPassword)
+      : await hashPassword('changeme123');
+
   const normalized = {
-    ...user,
-    id: user.id || crypto.randomUUID(),
-    email_verified: user.email_verified ?? false,
-    created_at: user.created_at || new Date().toISOString(),
+    ...rest,
+    id: rest.id || crypto.randomUUID(),
+    email_verified: rest.email_verified ?? false,
+    created_at: rest.created_at || new Date().toISOString(),
   };
 
   const existingIndex = memory.users.findIndex((entry) => entry.id === normalized.id);
@@ -282,6 +289,7 @@ export const upsertMemoryUser = async (user) => {
     memory.users[existingIndex] = {
       ...memory.users[existingIndex],
       ...normalized,
+      password_hash: normalized.password_hash || memory.users[existingIndex].password_hash,
     };
   } else {
     memory.users.push({
