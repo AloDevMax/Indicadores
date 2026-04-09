@@ -10,33 +10,68 @@ This contains everything you need to run your app locally.
 
 **Prerequisites:**  Node.js
 
-
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
 
-## API scaffold
+### Development with API
 
-The project now includes a minimal Node API for Render in `server/`.
+To run both frontend and backend together:
 
-- health check: `GET /api/health`
-- bootstrap data: `GET /api/bootstrap`
-- auth register: `POST /api/auth/register`
-- auth login: `POST /api/auth/login`
-- auth me: `GET /api/auth/me`
-- auth logout: `POST /api/auth/logout`
-- create submission: `POST /api/submissions`
-- review submission: `POST /api/submissions/:id/review`
+1. Configure your database in `.env.local`
+2. Run: `npm run dev:full`
 
-Start it with:
+This will start:
+- Frontend (Vite): http://localhost:3000 (with API proxy to http://localhost:4001)
+- Backend API: http://localhost:4001
 
-`node server/index.mjs`
+**Note:** The frontend uses Vite's proxy during development, so API calls are automatically routed to the backend server. In production, configure `VITE_API_BASE_URL` to point to your deployed API.
 
-If `VITE_API_BASE_URL` is configured in the frontend, the app will try to load initial operational data from the API before falling back to local seed data.
+### Individual Development
 
-The frontend now uses the API authentication flow when `VITE_API_BASE_URL` is configured.
+- Frontend only: `npm run dev:client`
+- Backend only: `npm run dev:server` (requires build first: `npm run build`)
+
+## Stability Fixes
+
+The application includes several stability improvements to prevent white screen crashes:
+
+- **Error Boundary**: Catches React errors and displays a user-friendly error page
+- **State Safety**: Ensures all state variables have fallback values
+- **Hot Reload**: Improved Vite HMR configuration for better development experience
+- **API Fallbacks**: Graceful degradation when API is unavailable
+
+If you encounter a white screen:
+1. Check the browser console for errors
+2. The Error Boundary will show error details in development mode
+3. Refresh the page to recover from transient errors
+
+## Testing the Application
+
+### Login Credentials (Development)
+
+Use these credentials to test the login functionality:
+
+- **Email:** `admin@test.com`
+- **Password:** `any password` (development mode accepts any password for this email)
+
+### API Endpoints
+
+- Health check: `GET /api/health`
+- Login: `POST /api/auth/login`
+- Register: `POST /api/auth/register`
+- Bootstrap: `GET /api/bootstrap`
+
+### Troubleshooting
+
+If you get "Failed to fetch" errors:
+1. Ensure both frontend and backend servers are running
+2. Check that the Vite proxy is configured correctly
+3. Verify the API base URL in `.env.local`
+
+The application includes error boundaries and graceful fallbacks for better development experience.
 
 ## PostgreSQL
 

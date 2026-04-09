@@ -12,7 +12,17 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       allowedHosts: [
         'indicadores-de-desempenho.onrender.com'
-      ]
+      ],
+      hmr: {
+        overlay: true,
+      },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:4004',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
     },
     plugins: [react()],
     define: {

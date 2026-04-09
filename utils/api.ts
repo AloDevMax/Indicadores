@@ -5,6 +5,11 @@ const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 export const getApiBaseUrl = () => {
+  // Em desenvolvimento, usar proxy do Vite
+  if (import.meta.env.DEV) {
+    return '';
+  }
+  // Em produção, usar a URL configurada
   const configured = import.meta.env.VITE_API_BASE_URL?.trim() || process.env.VITE_API_BASE_URL?.trim();
   return configured ? trimTrailingSlash(configured) : '';
 };
@@ -26,7 +31,8 @@ const readErrorMessage = async (response: Response) => {
 const postJson = async <T>(path: string, body: unknown, token?: string): Promise<T> => {
   const apiBaseUrl = getApiBaseUrl();
 
-  if (!apiBaseUrl) {
+  // Em desenvolvimento com proxy, a URL pode ser vazia
+  if (!apiBaseUrl && !import.meta.env.DEV) {
     throw new Error('VITE_API_BASE_URL não configurada.');
   }
 

@@ -32,7 +32,14 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
-  const isAdmin = user.role === 'admin';
+  // Só renderiza quando os dados essenciais estiverem disponíveis
+  if (!allBadges || allBadges.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-bounce text-indigo-600 font-bold text-xl uppercase tracking-widest">Carregando conquistas...</div>
+      </div>
+    );
+  }
 
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
@@ -214,7 +221,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <section className="space-y-6">
         <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">galeria de conquistas</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          {allBadges.map((badge) => {
+          {(allBadges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
             return (
               <BadgeCard

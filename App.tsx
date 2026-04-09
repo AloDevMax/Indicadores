@@ -100,14 +100,14 @@ const App: React.FC = () => {
         if (!isMounted) return;
 
         if (bootstrap) {
-          setBadges(bootstrap.badges);
-          setCompanies(bootstrap.companies);
-          setProductiveUnits(bootstrap.productiveUnits);
-          setBadgeLegends(bootstrap.badgeLegends);
-          setImportSources(bootstrap.importSources);
-          setUsers(bootstrap.users);
-          setUserBadges(bootstrap.userBadges);
-          setSubmissions(bootstrap.submissions);
+          setBadges(bootstrap.badges || INITIAL_BADGES);
+          setCompanies(bootstrap.companies || INITIAL_COMPANIES);
+          setProductiveUnits(bootstrap.productiveUnits || INITIAL_PRODUCTIVE_UNITS);
+          setBadgeLegends(bootstrap.badgeLegends || INITIAL_BADGE_LEGENDS);
+          setImportSources(bootstrap.importSources || INITIAL_IMPORT_SOURCES);
+          setUsers(bootstrap.users || INITIAL_USERS);
+          setUserBadges(bootstrap.userBadges || []);
+          setSubmissions(bootstrap.submissions || []);
         }
 
         if (currentUser) {
@@ -120,6 +120,15 @@ const App: React.FC = () => {
         }
       } catch (error) {
         console.warn('Falha ao carregar dados iniciais da API. Mantendo fallback local.', error);
+        // Garantir que o estado tenha valores padrão em caso de erro
+        setBadges(INITIAL_BADGES);
+        setCompanies(INITIAL_COMPANIES);
+        setProductiveUnits(INITIAL_PRODUCTIVE_UNITS);
+        setBadgeLegends(INITIAL_BADGE_LEGENDS);
+        setImportSources(INITIAL_IMPORT_SOURCES);
+        setUsers(INITIAL_USERS);
+        setUserBadges([]);
+        setSubmissions([]);
       } finally {
         if (isMounted) {
           setLoading(false);

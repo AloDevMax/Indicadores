@@ -38,6 +38,16 @@ const TONE_STYLES: Record<BadgeTone, { card: string; icon: string; chip: string 
 };
 
 const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, tone = 'bronze' }) => {
+  // Proteção contra badge undefined
+  if (!badge) {
+    return (
+      <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
+        <div className="w-16 h-16 rounded-2xl mb-4 bg-slate-200 animate-pulse"></div>
+        <div className="h-4 bg-slate-200 rounded mb-2 animate-pulse"></div>
+        <div className="h-3 bg-slate-200 rounded animate-pulse"></div>
+      </div>
+    );
+  }
   const toneStyle = TONE_STYLES[tone];
 
   return (

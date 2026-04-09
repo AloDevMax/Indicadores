@@ -533,7 +533,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             {
               id: Math.random().toString(36).slice(2, 10),
               title: 'Selo concedido',
-              message: `Parabens ${u.full_name}, voce recebeu o selo ${badge.name} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
+              message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
               sent_at: new Date().toISOString(),
               read: false,
             }
@@ -541,7 +541,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         };
 
         if (sendEmailOnAward && u.email_verified) {
-          sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge.name} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
+          sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
         }
 
         return updatedUser;
@@ -807,7 +807,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
                     <option value="">Todas as Empresas</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                   </select>
                   <select 
                     value={selectedProductiveUnitFilter}
@@ -815,7 +815,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
                     <option value="">Todas as Unidades</option>
-                    {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+                    {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                   <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
                   <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Explorador</button>
@@ -879,7 +879,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     onChange={(e) => setSelectedImportSourceId(e.target.value)}
                     className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
-                    {importSources.map(source => <option key={source.id} value={source.id}>{source.name}</option>)}
+                    {importSources.map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
                   </select>
                   <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
                     Fonte Excel
@@ -918,7 +918,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center justify-between gap-4">
                         <div>
                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
-                          <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource.name}</p>
+                          <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource?.name || 'Fonte sem nome'}</p>
                         </div>
                         <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
                           editar mapeamento
