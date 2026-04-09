@@ -186,8 +186,8 @@ export const saveProductiveUnitWithApi = async (productiveUnit: ProductiveUnit) 
   return payload.productiveUnit;
 };
 
-export const saveUserWithApi = async (user: Profile) => {
-  const payload = await postJson<{ user: Profile }>('/api/admin/users', user, requireAuthToken());
+export const saveUserWithApi = async (user: Profile, password?: string) => {
+  const payload = await postJson<{ user: Profile }>('/api/admin/users', { ...user, password }, requireAuthToken());
   return payload.user;
 };
 

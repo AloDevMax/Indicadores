@@ -221,7 +221,7 @@ const App: React.FC = () => {
   const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) =>
     saveProductiveUnitWithApi(productiveUnit);
 
-  const handleSaveUser = async (profile: Profile) => saveUserWithApi(profile);
+  const handleSaveUser = async (profile: Profile, password?: string) => saveUserWithApi(profile, password);
 
   const handleBulkInviteUsers = async (emails: string[], companyId?: string, productiveUnitId?: string) =>
     bulkInviteUsersWithApi(emails, companyId, productiveUnitId);
@@ -348,7 +348,7 @@ const App: React.FC = () => {
               <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/" />} />
               <Route path="/library" element={user ? <Library /> : <Navigate to="/" />} />
               <Route path="/companies" element={user ? <CompaniesPage /> : <Navigate to="/" />} />
-              <Route path="/settings" element={user ? <Settings /> : <Navigate to="/" />} />
+              <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/" />} />
               <Route
                 path="/admin/*"
                 element={

@@ -115,7 +115,67 @@ export const saveProductiveUnit = async (productiveUnit) => {
   }
 };
 
-export const saveUser = async (user) => {
+export const updateUserProfile = async (userId, updates) => {
+  const client = await createPgClient();
+
+  if (!client) {
+    // For memory store, find and update the user
+    const userIndex = memory.users.findIndex(u => u.id === userId);
+    if (userIndex === -1) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    memory.users[userIndex] = {
+      ...memory.users[userIndex],
+      ...updates,
+      id: userId, // Ensure ID doesn't change
+    };
+
+    return sanitizeUser(memory.users[userIndex]);
+  }
+
+  try {
+    const updateFields = [];
+    const updateValues = [userId];
+    let paramIndex = 2;
+
+    if (updates.full_name !== undefined) {
+      updateFields.push(`full_name = $${paramIndex++}`);
+      updateValues.push(updates.full_name);
+    }
+
+    if (updates.email !== undefined) {
+      updateFields.push(`email = $${paramIndex++}`);
+      updateValues.push(updates.email);
+    }
+
+    if (updates.password !== undefined) {
+      const passwordHash = await hashPassword(updates.password);
+      updateFields.push(`password_hash = $${paramIndex++}`);
+      updateValues.push(passwordHash);
+    }
+
+    updateFields.push('updated_at = now()');
+
+    const result = await client.query(
+      `update users
+       set ${updateFields.join(', ')}
+       where id = $1
+       returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+      updateValues,
+    );
+
+    if (result.rows.length === 0) {
+      throw new Error('Usuário não encontrado.');
+    }
+
+    return result.rows[0];
+  } finally {
+    await client.end();
+  }
+};
+
+export const saveUser = async (user, password) => {
   const client = await createPgClient();
 
   if (!client) {
@@ -132,33 +192,47 @@ export const saveUser = async (user) => {
 
   try {
     if (user.id) {
+      // Update existing user
+      const updateFields = [
+        'email = $2',
+        'full_name = $3',
+        'role = $4',
+        'company_id = $5',
+        'productive_unit_id = $6',
+        'level = $7',
+        'xp = $8',
+        'updated_at = now()'
+      ];
+      const updateValues = [
+        user.id,
+        user.email,
+        user.full_name,
+        user.role,
+        user.company_id || null,
+        user.productive_unit_id || null,
+        user.level ?? 1,
+        user.xp ?? 0,
+      ];
+
+      // Add password update if provided
+      if (password) {
+        const passwordHash = await hashPassword(password);
+        updateFields.push('password_hash = $9');
+        updateValues.push(passwordHash);
+      }
+
       const result = await client.query(
         `update users
-         set email = $2,
-             full_name = $3,
-             role = $4,
-             company_id = $5,
-             productive_unit_id = $6,
-             level = $7,
-             xp = $8,
-             updated_at = now()
+         set ${updateFields.join(', ')}
          where id = $1
          returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
-        [
-          user.id,
-          user.email,
-          user.full_name,
-          user.role,
-          user.company_id || null,
-          user.productive_unit_id || null,
-          user.level ?? 1,
-          user.xp ?? 0,
-        ],
+        updateValues,
       );
       return result.rows[0];
     }
 
-    const passwordHash = await hashPassword('changeme123');
+    // Create new user
+    const passwordHash = password ? await hashPassword(password) : await hashPassword('changeme123');
     const result = await client.query(
       `insert into users (
         email,

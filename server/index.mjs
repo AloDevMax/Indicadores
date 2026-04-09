@@ -7,7 +7,7 @@ import { ZodError } from 'zod';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
 
 
 const app = express();
@@ -126,7 +126,7 @@ app.post('/api/admin/users', async (req, res) => {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
 
-  const user = await saveUser(req.body);
+  const user = await saveUser(req.body, req.body.password);
   res.status(201).json({ user });
 });
 
@@ -179,6 +179,28 @@ app.post('/api/admin/users/bulk-invite', async (req, res) => {
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
   const result = await bulkInviteUsers(req.body);
   res.status(200).json(result);
+});
+
+app.put('/api/user/profile', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
+  const currentUser = auth.body.user;
+  const { full_name, email, password } = req.body;
+
+  // Users can only update their own profile
+  const updates = {};
+  if (full_name !== undefined) updates.full_name = full_name;
+  if (email !== undefined) updates.email = email;
+  if (password !== undefined && password.trim()) updates.password = password;
+
+  try {
+    const savedUser = await updateUserProfile(currentUser.id, updates);
+    res.status(200).json({ user: savedUser });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ error: error.message || 'Erro ao atualizar perfil.' });
+  }
 });
 
 app.use((err, _req, res, _next) => {

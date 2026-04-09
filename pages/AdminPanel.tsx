@@ -39,7 +39,7 @@ interface AdminPanelProps {
   onDeleteBadge?: (_badgeId: string) => Promise<void>;
   onSaveCompany?: (_company: Company) => Promise<Company>;
   onSaveProductiveUnit?: (_productiveUnit: ProductiveUnit) => Promise<ProductiveUnit>;
-  onSaveUser?: (_user: Profile) => Promise<Profile>;
+  onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
   onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
   onDeleteUser?: (_userId: string) => Promise<void>;
   onSaveImportSource?: (_importSource: ImportSourceConfig) => Promise<ImportSourceConfig>;
@@ -487,8 +487,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       xp: editingUser?.xp || 0,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
+
+    const password = (formData.get('password') as string)?.trim();
+
     try {
-      const savedUser = onSaveUser ? await onSaveUser(userData) : userData;
+      const savedUser = onSaveUser ? await onSaveUser(userData, password) : userData;
       setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
       setIsUserModalOpen(false);
       setEditingUser(null);
@@ -1214,6 +1217,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail Corporativo</label>
                 <input name="email" type="email" defaultValue={editingUser?.email} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" placeholder="Ex: joao@empresa.com" required />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso {!editingUser && '(Opcional - padrão: changeme123)'}</label>
+                <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" placeholder={editingUser ? "Deixe vazio para manter atual" : "Digite uma senha"} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
