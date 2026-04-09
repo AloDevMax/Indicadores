@@ -477,7 +477,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       : undefined;
 
     const userData: Profile = {
-      id: editingUser?.id || Math.random().toString(36).substr(2, 9),
+      id: editingUser?.id || '',
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
       role: formData.get('role') as 'admin' | 'user',

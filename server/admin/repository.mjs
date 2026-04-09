@@ -192,7 +192,7 @@ export const saveUser = async (user, password) => {
 
   try {
     if (user.id) {
-      // Update existing user
+      // Update existing user if it already exists
       const updateFields = [
         'email = $2',
         'full_name = $3',
@@ -214,7 +214,6 @@ export const saveUser = async (user, password) => {
         user.xp ?? 0,
       ];
 
-      // Add password update if provided
       if (password) {
         const passwordHash = await hashPassword(password);
         updateFields.push('password_hash = $9');
@@ -228,10 +227,13 @@ export const saveUser = async (user, password) => {
          returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
         updateValues,
       );
-      return result.rows[0];
+
+      if (result.rows.length > 0) {
+        return result.rows[0];
+      }
+      // Fall through to create new user when the provided id does not exist.
     }
 
-    // Create new user
     const passwordHash = password ? await hashPassword(password) : await hashPassword('changeme123');
     const result = await client.query(
       `insert into users (
