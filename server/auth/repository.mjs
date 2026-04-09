@@ -130,7 +130,7 @@ export const findUserById = async (userId) => {
   }
 };
 
-export const createUser = async ({ email, passwordHash, fullName }) => {
+export const createUser = async ({ email, passwordHash, fullName, role = 'user' }) => {
   const normalizedEmail = email.toLowerCase().trim();
   const client = await createPgClient();
 
@@ -147,12 +147,12 @@ export const createUser = async ({ email, passwordHash, fullName }) => {
       email: normalizedEmail,
       password_hash: passwordHash,
       full_name: fullName,
-      role: 'user',
+      role,
       company_id: null,
       productive_unit_id: null,
-      level: 1,
-      xp: 0,
-      email_verified: false,
+      level: role === 'admin' ? 99 : 1,
+      xp: role === 'admin' ? 100000 : 0,
+      email_verified: role === 'admin',
       created_at: new Date().toISOString(),
     };
 
@@ -170,7 +170,7 @@ export const createUser = async ({ email, passwordHash, fullName }) => {
         level,
         xp,
         email_verified
-      ) values ($1, $2, $3, 'user', 1, 0, false)
+      ) values ($1, $2, $3, $4, $5, $6, $7)
       returning
         id,
         email,
@@ -182,7 +182,7 @@ export const createUser = async ({ email, passwordHash, fullName }) => {
         xp,
         email_verified,
         created_at`,
-      [normalizedEmail, passwordHash, fullName],
+      [normalizedEmail, passwordHash, fullName, role, role === 'admin' ? 99 : 1, role === 'admin' ? 100000 : 0, role === 'admin'],
     );
 
     return result.rows[0] || null;
