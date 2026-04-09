@@ -2,7 +2,7 @@
 import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, Company, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '../types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
-const trimTrailingSlash = (value: string) => value.replace(/\/++$/, '');
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 export const getApiBaseUrl = () => {
   const configured = import.meta.env.VITE_API_BASE_URL?.trim() || process.env.VITE_API_BASE_URL?.trim();
