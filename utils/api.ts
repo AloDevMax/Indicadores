@@ -14,6 +14,16 @@ export const getApiBaseUrl = () => {
   return configured ? trimTrailingSlash(configured) : '';
 };
 
+const isApiAvailable = () => {
+  // Em desenvolvimento, sempre disponível (usa proxy)
+  if (import.meta.env.DEV) {
+    return true;
+  }
+  // Em produção, só se tiver URL configurada
+  const configured = import.meta.env.VITE_API_BASE_URL?.trim() || process.env.VITE_API_BASE_URL?.trim();
+  return Boolean(configured);
+};
+
 const createJsonHeaders = (token?: string) => ({
   'Content-Type': 'application/json',
   ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -29,13 +39,11 @@ const readErrorMessage = async (response: Response) => {
 };
 
 const postJson = async <T>(path: string, body: unknown, token?: string): Promise<T> => {
-  const apiBaseUrl = getApiBaseUrl();
-
-  // Em desenvolvimento com proxy, a URL pode ser vazia
-  if (!apiBaseUrl && !import.meta.env.DEV) {
-    throw new Error('VITE_API_BASE_URL não configurada.');
+  if (!isApiAvailable()) {
+    throw new Error('API não está disponível. Configure VITE_API_BASE_URL para produção.');
   }
 
+  const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     headers: createJsonHeaders(token),

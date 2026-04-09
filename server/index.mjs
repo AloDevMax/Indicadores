@@ -12,7 +12,7 @@ import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveI
 
 const app = express();
 const server = http.createServer(app);
-const port = Number(process.env.PORT || 4000);
+const port = Number(process.env.PORT || 4004);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -172,11 +172,6 @@ app.post('/api/admin/productive-units', async (req, res) => {
   
   const productiveUnit = await saveProductiveUnit(req.body);
   res.status(201).json({ productiveUnit });
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Acesso restrito.' });
-  }
-  const result = await persistImportRun(req.body);
-  res.status(200).json(result);
 });
 
 app.post('/api/admin/users/bulk-invite', async (req, res) => {
@@ -184,13 +179,6 @@ app.post('/api/admin/users/bulk-invite', async (req, res) => {
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
   const result = await bulkInviteUsers(req.body);
   res.status(200).json(result);
-});
-
-app.post('/api/admin/productive-units', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
-  const result = await saveProductiveUnit(req.body);
-  res.status(201).json(result);
 });
 
 app.use((err, _req, res, _next) => {
@@ -209,44 +197,6 @@ server.listen(port, '0.0.0.0', () => {
   console.log(`🚀 Servidor pronto na porta ${port}`);
   console.log(`📁 Buscando arquivos do site em: ${frontendPath}`);
 });
-
-
-
-
-// app.post('/api/auth/login', async (req, res) => {
-//   try {
-//     const result = await loginUser(req.body);
-//     res.status(result.status).json(result.body);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Erro interno no servidor' });
-//   }
-// });
-
-//   app.use((req, res, next) => {
-//   res.header('Access-Control-Allow-Origin', '*');
-//   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-//   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-//   if (req.method === 'OPTIONS') return res.sendStatus(204);
-//   next();
-// });
-
-//     app.get('/api/health', (_req, res) => { // O '_' avisa que o parâmetro existe mas é ignorado
-//   res.json({
-//     status: 'ok',
-//     databaseConfigured: Boolean(process.env.DATABASE_URL),
-//     timestamp: new Date().toISOString(),
-//   });
-// });
-
-//    app.post('/api/auth/register', async (req, res) => {
-//   const result = await registerUser(req.body);
-//   res.status(result.status).json(result.body);
-// });
-
-// app.get('/api/bootstrap', async (req, res) => {
-//    const data = await loadBootstrapData(req.headers.authorization); 
-//   res.json(data);
-// });
 
 // app.post('/api/auth/login', async (req, res) => {
 //   const result = await loginUser(req.body); 
