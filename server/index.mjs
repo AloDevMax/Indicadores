@@ -68,11 +68,11 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.post('/api/awardsBadges', async (req, res) => {
+app.post('/api/admin/award-badges', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
-  
-  const result = await awardBadges(req.body); // O import 'awardBadges' vai acender aqui!
+
+  const result = await awardBadges(req.body);
   res.status(200).json(result);
 });
 
@@ -116,8 +116,8 @@ app.post('/api/admin/companies', async (req, res) => {
   if (auth.status !== 200 || auth.body.user.role !== 'admin') {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
-  const result = await saveCompany(req.body);
-  res.status(201).json({ result, message: 'Empresa criada!' });
+  const company = await saveCompany(req.body);
+  res.status(201).json({ company });
 });
 
 app.post('/api/admin/users', async (req, res) => {
@@ -125,9 +125,9 @@ app.post('/api/admin/users', async (req, res) => {
   if (auth.status !== 200 || auth.body.user.role !== 'admin') {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
-  
-  const result = await saveUser(req.body); 
-  res.status(201).json(result);
+
+  const user = await saveUser(req.body);
+  res.status(201).json({ user });
 });
 
 app.post('/api/admin/import-sources', async (req, res) => {
@@ -136,8 +136,8 @@ app.post('/api/admin/import-sources', async (req, res) => {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
 
-  const result = await saveImportSource(req.body); // O import 'saveImportSource' vai ficar colorido aqui!
-  res.status(201).json(result);
+  const importSource = await saveImportSource(req.body);
+  res.status(201).json({ importSource });
 });
 
 app.post('/api/admin/badges', async (req, res) => {
@@ -170,12 +170,8 @@ app.post('/api/admin/productive-units', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
   
-  const result = await saveProductiveUnit(req.body); 
-  res.status(201).json(result);
-});
-
-app.post('/api/admin/import-runs', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  const productiveUnit = await saveProductiveUnit(req.body);
+  res.status(201).json({ productiveUnit });
   if (auth.status !== 200 || auth.body.user.role !== 'admin') {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }

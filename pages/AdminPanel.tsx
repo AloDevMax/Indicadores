@@ -371,9 +371,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       category: formData.get('category') as string,
       icon_name: (formData.get('icon_name') as string) || '✨',
     };
-    const savedBadge = onSaveBadge ? await onSaveBadge(badgeData) : badgeData;
-    setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? savedBadge : b) : [...prev, savedBadge]);
-    setIsBadgeModalOpen(false);
+    try {
+      const savedBadge = onSaveBadge ? await onSaveBadge(badgeData) : badgeData;
+      setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? savedBadge : b) : [...prev, savedBadge]);
+      setIsBadgeModalOpen(false);
+      setEditingBadge(null);
+    } catch (error) {
+      console.error('Error saving badge:', error);
+      alert('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
   };
 
   const handleDeleteBadge = async () => {
@@ -394,9 +400,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingCompany?.id || Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
     };
-    const savedCompany = onSaveCompany ? await onSaveCompany(companyData) : companyData;
-    setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? savedCompany : c) : [...prev, savedCompany]);
-    setIsCompanyModalOpen(false);
+    try {
+      const savedCompany = onSaveCompany ? await onSaveCompany(companyData) : companyData;
+      setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? savedCompany : c) : [...prev, savedCompany]);
+      setIsCompanyModalOpen(false);
+    } catch (error) {
+      console.error('Error saving company:', error);
+      alert('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
   };
 
   const handleSaveProductiveUnit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -415,10 +426,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       company_id: companyId,
     };
 
-    const savedProductiveUnit = onSaveProductiveUnit ? await onSaveProductiveUnit(productiveUnitData) : productiveUnitData;
-    setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? savedProductiveUnit : unit) : [...prev, savedProductiveUnit]);
-    setIsProductiveUnitModalOpen(false);
-    setEditingProductiveUnit(null);
+    try {
+      const savedProductiveUnit = onSaveProductiveUnit ? await onSaveProductiveUnit(productiveUnitData) : productiveUnitData;
+      setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? savedProductiveUnit : unit) : [...prev, savedProductiveUnit]);
+      setIsProductiveUnitModalOpen(false);
+      setEditingProductiveUnit(null);
+    } catch (error) {
+      console.error('Error saving productive unit:', error);
+      alert('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
   };
 
   const handleSaveImportSource = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -439,11 +455,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       },
     };
 
-    const savedImportSource = onSaveImportSource ? await onSaveImportSource(importSourceData) : importSourceData;
-    setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? savedImportSource : source) : [...prev, savedImportSource]);
-    setSelectedImportSourceId(savedImportSource.id);
-    setIsImportSourceModalOpen(false);
-    setEditingImportSource(null);
+    try {
+      const savedImportSource = onSaveImportSource ? await onSaveImportSource(importSourceData) : importSourceData;
+      setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? savedImportSource : source) : [...prev, savedImportSource]);
+      setSelectedImportSourceId(savedImportSource.id);
+      setIsImportSourceModalOpen(false);
+      setEditingImportSource(null);
+    } catch (error) {
+      console.error('Error saving import source:', error);
+      alert('Erro ao salvar fonte de importação: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
   };
 
   const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -466,10 +487,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       xp: editingUser?.xp || 0,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
-    const savedUser = onSaveUser ? await onSaveUser(userData) : userData;
-    setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
-    setIsUserModalOpen(false);
-    setEditingUser(null);
+    try {
+      const savedUser = onSaveUser ? await onSaveUser(userData) : userData;
+      setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
+      setIsUserModalOpen(false);
+      setEditingUser(null);
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
   };
 
   const handleBulkInvite = async (e: React.FormEvent) => {
