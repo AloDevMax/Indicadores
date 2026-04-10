@@ -10,8 +10,6 @@ services:
         value: "4000"
       - key: VITE_API_BASE_URL
         value: "https://indicadores-de-desempenho.onrender.com"
-      - key: DATABASE_URL
-        value: "postgresql://base_de_dados_postergress_user:TlVaGOHS1vUyfTFC8Nns9yXP8qwHiU51@dpg-d75gl97fte5s73fcjrl0-a.oregon-postgres.render.com/base_de_dados_postergress"
       - key: DATABASE_SSL
         value: "true"
       - key: AUTH_SECRET
