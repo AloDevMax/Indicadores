@@ -2,21 +2,23 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(__dirname, '..');
+const pgPackagePath = path.resolve(projectRoot, 'node_modules', 'pg', 'package.json');
 
 console.log('🔍 Diagnóstico de Dependências\n');
-
-// Checando se pg está em node_modules
-const pgPath = new URL('../node_modules/pg/package.json', import.meta.url);
-
-console.log(`📍 Procurando pg em: ${pgPath}\n`);
+console.log(`📍 Procurando pg em: ${pgPackagePath}\n`);
 
 try {
-  const pgPackageJson = JSON.parse(fs.readFileSync(pgPath.pathname, 'utf-8'));
+  const pgPackageJson = JSON.parse(fs.readFileSync(pgPackagePath, 'utf-8'));
   console.log(`✅ Módulo pg está instalado!`);
   console.log(`   Versão: ${pgPackageJson.version}`);
   console.log(`   Descrição: ${pgPackageJson.description}\n`);
 } catch (error) {
-  console.error(`❌ Módulo pg NÃO foi encontrado em node_modules`);
+  console.error(`❌ Módulo pg NÃO foi encontrado`);
+  console.error(`   Caminho: ${pgPackagePath}`);
   console.error(`   Erro: ${error.message}\n`);
   console.error('💡 Solução: Execute npm install');
   process.exit(1);
