@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
 import BadgeCard from '../components/BadgeCard';
+import { ImageUpload } from '../components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 const IMPORT_FIELD_ALIASES: Record<ImportSourceField, string[]> = {
@@ -38,6 +39,7 @@ interface AdminPanelProps {
   onSaveBadge?: (_badge: Badge) => Promise<Badge>;
   onDeleteBadge?: (_badgeId: string) => Promise<void>;
   onSaveCompany?: (_company: Company) => Promise<Company>;
+  onDeleteCompany?: (_companyId: string) => Promise<void>;
   onSaveProductiveUnit?: (_productiveUnit: ProductiveUnit) => Promise<ProductiveUnit>;
   onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
   onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
@@ -91,6 +93,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onSaveBadge,
   onDeleteBadge,
   onSaveCompany,
+  onDeleteCompany,
   onSaveProductiveUnit,
   onSaveUser,
   onBulkInviteUsers,
@@ -123,7 +126,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [badgeToDelete, setBadgeToDelete] = useState<Badge | null>(null);
 
   const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
+  const [isDeleteCompanyModalOpen, setIsDeleteCompanyModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [isProductiveUnitModalOpen, setIsProductiveUnitModalOpen] = useState(false);
   const [editingProductiveUnit, setEditingProductiveUnit] = useState<ProductiveUnit | null>(null);
 
@@ -169,6 +174,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
   const [selectedProductiveUnitFilter, setSelectedProductiveUnitFilter] = useState<string>('');
+
+  // Image upload states
+  const [tempBadgeImageUrl, setTempBadgeImageUrl] = useState<string | undefined>();
+  const [tempCompanyLogoUrl, setTempCompanyLogoUrl] = useState<string | undefined>();
+  const [tempUserAvatarUrl, setTempUserAvatarUrl] = useState<string | undefined>();
+
+  // Helper functions to open modals and clear image states
+  const openBadgeModal = (badge?: Badge) => {
+    setEditingBadge(badge || null);
+    setTempBadgeImageUrl(badge?.image_url);
+    setIsBadgeModalOpen(true);
+  };
+
+  const closeBadgeModal = () => {
+    setIsBadgeModalOpen(false);
+    setEditingBadge(null);
+    setTempBadgeImageUrl(undefined);
+  };
+
+  const openCompanyModal = (company?: Company) => {
+    setEditingCompany(company || null);
+    setTempCompanyLogoUrl(company?.logo_url);
+    setIsCompanyModalOpen(true);
+  };
+
+  const closeCompanyModal = () => {
+    setIsCompanyModalOpen(false);
+    setEditingCompany(null);
+    setTempCompanyLogoUrl(undefined);
+  };
+
+  const openUserModal = (user?: Profile) => {
+    setEditingUser(user || null);
+    setTempUserAvatarUrl(user?.avatar_url);
+    setIsUserModalOpen(true);
+  };
+
+  const closeUserModal = () => {
+    setIsUserModalOpen(false);
+    setEditingUser(null);
+    setTempUserAvatarUrl(undefined);
+  };
 
   React.useEffect(() => {
     if (!selectedImportSourceId && importSources[0]) {
@@ -370,12 +417,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       points: Number(formData.get('points')),
       category: formData.get('category') as string,
       icon_name: (formData.get('icon_name') as string) || '✨',
+      image_url: tempBadgeImageUrl || editingBadge?.image_url,
     };
     try {
       const savedBadge = onSaveBadge ? await onSaveBadge(badgeData) : badgeData;
       setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? savedBadge : b) : [...prev, savedBadge]);
       setIsBadgeModalOpen(false);
       setEditingBadge(null);
+      setTempBadgeImageUrl(undefined);
     } catch (error) {
       console.error('Error saving badge:', error);
       alert('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -399,11 +448,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const companyData: Company = {
       id: editingCompany?.id || Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
+      logo_url: tempCompanyLogoUrl || editingCompany?.logo_url,
     };
     try {
       const savedCompany = onSaveCompany ? await onSaveCompany(companyData) : companyData;
       setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? savedCompany : c) : [...prev, savedCompany]);
       setIsCompanyModalOpen(false);
+      setTempCompanyLogoUrl(undefined);
     } catch (error) {
       console.error('Error saving company:', error);
       alert('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -480,6 +531,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingUser?.id || '',
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
+      avatar_url: tempUserAvatarUrl || editingUser?.avatar_url,
       role: formData.get('role') as 'admin' | 'user',
       company_id: companyId,
       productive_unit_id: validProductiveUnitId,
@@ -495,6 +547,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
       setIsUserModalOpen(false);
       setEditingUser(null);
+      setTempUserAvatarUrl(undefined);
     } catch (error) {
       console.error('Error saving user:', error);
       alert('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -561,6 +614,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
       setIsDeleteUserModalOpen(false);
       setUserToDelete(null);
+    }
+  };
+
+  const handleDeleteCompany = async () => {
+    if (companyToDelete) {
+      if (onDeleteCompany) {
+        await onDeleteCompany(companyToDelete.id);
+      }
+      setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
+      setIsDeleteCompanyModalOpen(false);
+      setCompanyToDelete(null);
     }
   };
 
@@ -780,7 +844,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
                         </div>
                       </div>
-                      <button onClick={() => { setEditingCompany(c); setIsCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                      <div className="flex gap-2">
+                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                      </div>
                     </div>
                     <div className="space-y-3">
                       {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
@@ -872,7 +939,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                   <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
-                  <button onClick={() => { setEditingUser(null); setIsUserModalOpen(true); }} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Explorador</button>
+                  <button onClick={() => openUserModal()} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Explorador</button>
                 </div>
               </div>
               <div className="bg-white rounded-[40px] border border-slate-100 shadow-xl overflow-hidden">
@@ -907,7 +974,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl">ver conquistas</button>
-                              <button onClick={() => { setEditingUser(u); setIsUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                              <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                               <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
                             </div>
                           </td>
@@ -1037,7 +1104,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Biblioteca de Selos</h2>
-                <button onClick={() => { setEditingBadge(null); setIsBadgeModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
+                <button onClick={() => openBadgeModal()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
               </div>
 
               <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
@@ -1078,7 +1145,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingBadge(badge); setIsBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">??</button>
+                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">??</button>
                       <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">???</button>
                     </div>
                   </div>
@@ -1093,7 +1160,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
                 <div className="flex gap-2">
                   <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
-                  <button onClick={() => { setEditingCompany(null); setIsCompanyModalOpen(true); }} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>
+                  <button onClick={() => openCompanyModal()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1103,7 +1170,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
                       <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                     </div>
-                    <button onClick={() => { setEditingCompany(c); setIsCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                      <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1245,8 +1315,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </select>
                 </div>
               </div>
+              <ImageUpload
+                label="Avatar do Perfil (Opcional)"
+                currentImageUrl={tempUserAvatarUrl || editingUser?.avatar_url}
+                onImageUpload={setTempUserAvatarUrl}
+                uploadEndpoint="user-avatar"
+                fieldName="avatar"
+              />
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => { setIsUserModalOpen(false); setEditingUser(null); }} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="button" onClick={closeUserModal} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
                 <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">{editingUser ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
@@ -1299,8 +1376,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
+              <ImageUpload
+                label="Imagem do Selo (Opcional)"
+                currentImageUrl={tempBadgeImageUrl || editingBadge?.image_url}
+                onImageUpload={setTempBadgeImageUrl}
+                uploadEndpoint="badge-image"
+                fieldName="image"
+              />
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsBadgeModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="button" onClick={closeBadgeModal} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
                 <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">{editingBadge ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
@@ -1333,11 +1417,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da organização</label>
                 <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
+              <ImageUpload
+                label="Logo da Empresa (Opcional)"
+                currentImageUrl={tempCompanyLogoUrl || editingCompany?.logo_url}
+                onImageUpload={setTempCompanyLogoUrl}
+                uploadEndpoint="company-logo"
+                fieldName="logo"
+              />
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
+                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
                 <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'atualizar' : 'cadastrar'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isDeleteCompanyModalOpen && companyToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">deletar empresa?</h2>
+            <p className="text-sm text-slate-600 mb-8">Tem certeza que deseja deletar <strong>{companyToDelete.name}</strong>? Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-4">
+              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">cancelar</button>
+              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">deletar</button>
+            </div>
           </div>
         </div>
       )}

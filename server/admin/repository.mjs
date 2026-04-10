@@ -3,6 +3,7 @@ import { createPgClient } from '../db/client.mjs';
 import { deleteMemoryUser, findUserByEmail, upsertMemoryUser } from '../auth/repository.mjs';
 import { hashPassword } from '../auth/crypto.mjs';
 import { seedData } from '../data/seed.mjs';
+import { deleteUploadedFile } from '../uploads/uploadService.mjs';
 
 export const memoryAdminStore = {
   badges: [...seedData.badges],
@@ -27,16 +28,17 @@ export const saveBadge = async (badge) => {
   try {
     const id = badge.id || randomId();
     const result = await client.query(
-      `insert into badges (id, name, description, category, icon_name, points)
-       values ($1, $2, $3, $4, $5, $6)
+      `insert into badges (id, name, description, category, icon_name, image_url, points)
+       values ($1, $2, $3, $4, $5, $6, $7)
        on conflict (id) do update
        set name = excluded.name,
            description = excluded.description,
            category = excluded.category,
            icon_name = excluded.icon_name,
+           image_url = excluded.image_url,
            points = excluded.points
-       returning id, name, description, category, icon_name, points`,
-      [id, badge.name, badge.description, badge.category, badge.icon_name, badge.points],
+       returning id, name, description, category, icon_name, image_url, points`,
+      [id, badge.name, badge.description, badge.category, badge.icon_name, badge.image_url || null, badge.points],
     );
     return result.rows[0];
   } finally {
@@ -48,11 +50,21 @@ export const deleteBadge = async (badgeId) => {
   const client = await createPgClient();
 
   if (!client) {
+    const badge = memoryAdminStore.badges.find(b => b.id === badgeId);
+    if (badge?.image_url) {
+      await deleteUploadedFile(badge.image_url);
+    }
     memoryAdminStore.badges = memoryAdminStore.badges.filter((badge) => badge.id !== badgeId);
     return { success: true };
   }
 
   try {
+    // Buscar imagem do selo antes de deletar
+    const result = await client.query('select image_url from badges where id = $1', [badgeId]);
+    if (result.rows[0]?.image_url) {
+      await deleteUploadedFile(result.rows[0].image_url);
+    }
+    
     await client.query('delete from badges where id = $1', [badgeId]);
     return { success: true };
   } finally {
@@ -74,14 +86,41 @@ export const saveCompany = async (company) => {
   try {
     const id = company.id || randomId();
     const result = await client.query(
-      `insert into companies (id, name)
-       values ($1, $2)
+      `insert into companies (id, name, logo_url)
+       values ($1, $2, $3)
        on conflict (id) do update
-       set name = excluded.name
-       returning id, name`,
-      [id, company.name],
+       set name = excluded.name,
+           logo_url = excluded.logo_url
+       returning id, name, logo_url`,
+      [id, company.name, company.logo_url || null],
     );
     return result.rows[0];
+  } finally {
+    await client.end();
+  }
+};
+
+export const deleteCompany = async (companyId) => {
+  const client = await createPgClient();
+
+  if (!client) {
+    const company = memoryAdminStore.companies.find(c => c.id === companyId);
+    if (company?.logo_url) {
+      await deleteUploadedFile(company.logo_url);
+    }
+    memoryAdminStore.companies = memoryAdminStore.companies.filter((company) => company.id !== companyId);
+    return { success: true };
+  }
+
+  try {
+    // Buscar logo da empresa antes de deletar
+    const result = await client.query('select logo_url from companies where id = $1', [companyId]);
+    if (result.rows[0]?.logo_url) {
+      await deleteUploadedFile(result.rows[0].logo_url);
+    }
+    
+    await client.query('delete from companies where id = $1', [companyId]);
+    return { success: true };
   } finally {
     await client.end();
   }
@@ -149,6 +188,11 @@ export const updateUserProfile = async (userId, updates) => {
       updateValues.push(updates.email);
     }
 
+    if (updates.avatar_url !== undefined) {
+      updateFields.push(`avatar_url = $${paramIndex++}`);
+      updateValues.push(updates.avatar_url);
+    }
+
     if (updates.password !== undefined) {
       const passwordHash = await hashPassword(updates.password);
       updateFields.push(`password_hash = $${paramIndex++}`);
@@ -161,7 +205,7 @@ export const updateUserProfile = async (userId, updates) => {
       `update users
        set ${updateFields.join(', ')}
        where id = $1
-       returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+       returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
       updateValues,
     );
 
@@ -215,9 +259,14 @@ export const saveUser = async (user, password) => {
         user.xp ?? 0,
       ];
 
+      if (user.avatar_url !== undefined) {
+        updateFields.push(`avatar_url = $${updateValues.length + 1}`);
+        updateValues.push(user.avatar_url);
+      }
+
       if (password) {
         const passwordHash = await hashPassword(password);
-        updateFields.push('password_hash = $9');
+        updateFields.push(`password_hash = $${updateValues.length + 1}`);
         updateValues.push(passwordHash);
       }
 
@@ -225,7 +274,7 @@ export const saveUser = async (user, password) => {
         `update users
          set ${updateFields.join(', ')}
          where id = $1
-         returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+         returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
         updateValues,
       );
 
@@ -243,19 +292,21 @@ export const saveUser = async (user, password) => {
         email,
         password_hash,
         full_name,
+        avatar_url,
         role,
         company_id,
         productive_unit_id,
         level,
         xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
-      returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
+      returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
       [
         userId,
         user.email,
         passwordHash,
         user.full_name,
+        user.avatar_url || null,
         user.role,
         user.company_id || null,
         user.productive_unit_id || null,
@@ -273,11 +324,20 @@ export const deleteUser = async (userId) => {
   const client = await createPgClient();
 
   if (!client) {
+    const user = (await findUserByEmail('')) || null;
+    // Para memory store, iterar pelos usuários para encontrar o avatar
+    const memoryUsers = await findUserByEmail('');
     await deleteMemoryUser(userId);
     return { success: true };
   }
 
   try {
+    // Buscar avatar do usuário antes de deletar
+    const result = await client.query('select avatar_url from users where id = $1', [userId]);
+    if (result.rows[0]?.avatar_url) {
+      await deleteUploadedFile(result.rows[0].avatar_url);
+    }
+    
     await client.query('delete from users where id = $1', [userId]);
     return { success: true };
   } finally {

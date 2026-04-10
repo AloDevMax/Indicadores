@@ -124,6 +124,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.CompanyScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  logo_url: 'logo_url',
   created_at: 'created_at'
 };
 
@@ -139,6 +140,7 @@ exports.Prisma.UserScalarFieldEnum = {
   email: 'email',
   password_hash: 'password_hash',
   full_name: 'full_name',
+  avatar_url: 'avatar_url',
   role: 'role',
   company_id: 'company_id',
   productive_unit_id: 'productive_unit_id',
@@ -163,6 +165,7 @@ exports.Prisma.BadgeScalarFieldEnum = {
   description: 'description',
   category: 'category',
   icon_name: 'icon_name',
+  image_url: 'image_url',
   points: 'points',
   created_at: 'created_at'
 };

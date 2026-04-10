@@ -58,10 +58,14 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
         : 'bg-slate-50 border-2 border-dashed border-slate-200 opacity-60 grayscale scale-95'}
     `}>
       <div className={`
-        w-16 h-16 rounded-2xl mb-4 flex items-center justify-center text-3xl
-        ${unlocked ? `${toneStyle.icon} animate-pulse` : 'bg-slate-200 text-slate-400'}
+        w-16 h-16 rounded-2xl mb-4 flex items-center justify-center text-3xl overflow-hidden
+        ${unlocked ? `${toneStyle.icon} ${!badge.image_url ? 'animate-pulse' : ''}` : 'bg-slate-200 text-slate-400'}
       `}>
-        {badge.icon_name || '✨'}
+        {badge.image_url ? (
+          <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+        ) : (
+          badge.icon_name || '✨'
+        )}
       </div>
 
       <h3 className={`font-bold text-lg mb-1 ${unlocked ? 'text-slate-900' : 'text-slate-500'}`}>

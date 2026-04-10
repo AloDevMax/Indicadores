@@ -2212,18 +2212,21 @@ export namespace Prisma {
   export type CompanyMinAggregateOutputType = {
     id: string | null
     name: string | null
+    logo_url: string | null
     created_at: Date | null
   }
 
   export type CompanyMaxAggregateOutputType = {
     id: string | null
     name: string | null
+    logo_url: string | null
     created_at: Date | null
   }
 
   export type CompanyCountAggregateOutputType = {
     id: number
     name: number
+    logo_url: number
     created_at: number
     _all: number
   }
@@ -2232,18 +2235,21 @@ export namespace Prisma {
   export type CompanyMinAggregateInputType = {
     id?: true
     name?: true
+    logo_url?: true
     created_at?: true
   }
 
   export type CompanyMaxAggregateInputType = {
     id?: true
     name?: true
+    logo_url?: true
     created_at?: true
   }
 
   export type CompanyCountAggregateInputType = {
     id?: true
     name?: true
+    logo_url?: true
     created_at?: true
     _all?: true
   }
@@ -2323,6 +2329,7 @@ export namespace Prisma {
   export type CompanyGroupByOutputType = {
     id: string
     name: string
+    logo_url: string | null
     created_at: Date
     _count: CompanyCountAggregateOutputType | null
     _min: CompanyMinAggregateOutputType | null
@@ -2346,6 +2353,7 @@ export namespace Prisma {
   export type CompanySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    logo_url?: boolean
     created_at?: boolean
     productive_units?: boolean | Company$productive_unitsArgs<ExtArgs>
     users?: boolean | Company$usersArgs<ExtArgs>
@@ -2355,22 +2363,25 @@ export namespace Prisma {
   export type CompanySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    logo_url?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["company"]>
 
   export type CompanySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    logo_url?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["company"]>
 
   export type CompanySelectScalar = {
     id?: boolean
     name?: boolean
+    logo_url?: boolean
     created_at?: boolean
   }
 
-  export type CompanyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "created_at", ExtArgs["result"]["company"]>
+  export type CompanyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "logo_url" | "created_at", ExtArgs["result"]["company"]>
   export type CompanyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     productive_units?: boolean | Company$productive_unitsArgs<ExtArgs>
     users?: boolean | Company$usersArgs<ExtArgs>
@@ -2388,6 +2399,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       name: string
+      logo_url: string | null
       created_at: Date
     }, ExtArgs["result"]["company"]>
     composites: {}
@@ -2816,6 +2828,7 @@ export namespace Prisma {
   interface CompanyFieldRefs {
     readonly id: FieldRef<"Company", 'String'>
     readonly name: FieldRef<"Company", 'String'>
+    readonly logo_url: FieldRef<"Company", 'String'>
     readonly created_at: FieldRef<"Company", 'DateTime'>
   }
     
@@ -4373,6 +4386,7 @@ export namespace Prisma {
     email: string | null
     password_hash: string | null
     full_name: string | null
+    avatar_url: string | null
     role: $Enums.Role | null
     company_id: string | null
     productive_unit_id: string | null
@@ -4388,6 +4402,7 @@ export namespace Prisma {
     email: string | null
     password_hash: string | null
     full_name: string | null
+    avatar_url: string | null
     role: $Enums.Role | null
     company_id: string | null
     productive_unit_id: string | null
@@ -4403,6 +4418,7 @@ export namespace Prisma {
     email: number
     password_hash: number
     full_name: number
+    avatar_url: number
     role: number
     company_id: number
     productive_unit_id: number
@@ -4430,6 +4446,7 @@ export namespace Prisma {
     email?: true
     password_hash?: true
     full_name?: true
+    avatar_url?: true
     role?: true
     company_id?: true
     productive_unit_id?: true
@@ -4445,6 +4462,7 @@ export namespace Prisma {
     email?: true
     password_hash?: true
     full_name?: true
+    avatar_url?: true
     role?: true
     company_id?: true
     productive_unit_id?: true
@@ -4460,6 +4478,7 @@ export namespace Prisma {
     email?: true
     password_hash?: true
     full_name?: true
+    avatar_url?: true
     role?: true
     company_id?: true
     productive_unit_id?: true
@@ -4562,6 +4581,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url: string | null
     role: $Enums.Role
     company_id: string | null
     productive_unit_id: string | null
@@ -4596,6 +4616,7 @@ export namespace Prisma {
     email?: boolean
     password_hash?: boolean
     full_name?: boolean
+    avatar_url?: boolean
     role?: boolean
     company_id?: boolean
     productive_unit_id?: boolean
@@ -4622,6 +4643,7 @@ export namespace Prisma {
     email?: boolean
     password_hash?: boolean
     full_name?: boolean
+    avatar_url?: boolean
     role?: boolean
     company_id?: boolean
     productive_unit_id?: boolean
@@ -4639,6 +4661,7 @@ export namespace Prisma {
     email?: boolean
     password_hash?: boolean
     full_name?: boolean
+    avatar_url?: boolean
     role?: boolean
     company_id?: boolean
     productive_unit_id?: boolean
@@ -4656,6 +4679,7 @@ export namespace Prisma {
     email?: boolean
     password_hash?: boolean
     full_name?: boolean
+    avatar_url?: boolean
     role?: boolean
     company_id?: boolean
     productive_unit_id?: boolean
@@ -4666,7 +4690,7 @@ export namespace Prisma {
     updated_at?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "password_hash" | "full_name" | "role" | "company_id" | "productive_unit_id" | "level" | "xp" | "email_verified" | "created_at" | "updated_at", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "password_hash" | "full_name" | "avatar_url" | "role" | "company_id" | "productive_unit_id" | "level" | "xp" | "email_verified" | "created_at" | "updated_at", ExtArgs["result"]["user"]>
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     company?: boolean | User$companyArgs<ExtArgs>
     productive_unit?: boolean | User$productive_unitArgs<ExtArgs>
@@ -4708,6 +4732,7 @@ export namespace Prisma {
       email: string
       password_hash: string
       full_name: string
+      avatar_url: string | null
       role: $Enums.Role
       company_id: string | null
       productive_unit_id: string | null
@@ -5153,6 +5178,7 @@ export namespace Prisma {
     readonly email: FieldRef<"User", 'String'>
     readonly password_hash: FieldRef<"User", 'String'>
     readonly full_name: FieldRef<"User", 'String'>
+    readonly avatar_url: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'Role'>
     readonly company_id: FieldRef<"User", 'String'>
     readonly productive_unit_id: FieldRef<"User", 'String'>
@@ -6889,6 +6915,7 @@ export namespace Prisma {
     description: string | null
     category: string | null
     icon_name: string | null
+    image_url: string | null
     points: number | null
     created_at: Date | null
   }
@@ -6899,6 +6926,7 @@ export namespace Prisma {
     description: string | null
     category: string | null
     icon_name: string | null
+    image_url: string | null
     points: number | null
     created_at: Date | null
   }
@@ -6909,6 +6937,7 @@ export namespace Prisma {
     description: number
     category: number
     icon_name: number
+    image_url: number
     points: number
     created_at: number
     _all: number
@@ -6929,6 +6958,7 @@ export namespace Prisma {
     description?: true
     category?: true
     icon_name?: true
+    image_url?: true
     points?: true
     created_at?: true
   }
@@ -6939,6 +6969,7 @@ export namespace Prisma {
     description?: true
     category?: true
     icon_name?: true
+    image_url?: true
     points?: true
     created_at?: true
   }
@@ -6949,6 +6980,7 @@ export namespace Prisma {
     description?: true
     category?: true
     icon_name?: true
+    image_url?: true
     points?: true
     created_at?: true
     _all?: true
@@ -7046,6 +7078,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url: string | null
     points: number
     created_at: Date
     _count: BadgeCountAggregateOutputType | null
@@ -7075,6 +7108,7 @@ export namespace Prisma {
     description?: boolean
     category?: boolean
     icon_name?: boolean
+    image_url?: boolean
     points?: boolean
     created_at?: boolean
     user_badges?: boolean | Badge$user_badgesArgs<ExtArgs>
@@ -7088,6 +7122,7 @@ export namespace Prisma {
     description?: boolean
     category?: boolean
     icon_name?: boolean
+    image_url?: boolean
     points?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["badge"]>
@@ -7098,6 +7133,7 @@ export namespace Prisma {
     description?: boolean
     category?: boolean
     icon_name?: boolean
+    image_url?: boolean
     points?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["badge"]>
@@ -7108,11 +7144,12 @@ export namespace Prisma {
     description?: boolean
     category?: boolean
     icon_name?: boolean
+    image_url?: boolean
     points?: boolean
     created_at?: boolean
   }
 
-  export type BadgeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "category" | "icon_name" | "points" | "created_at", ExtArgs["result"]["badge"]>
+  export type BadgeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "category" | "icon_name" | "image_url" | "points" | "created_at", ExtArgs["result"]["badge"]>
   export type BadgeInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user_badges?: boolean | Badge$user_badgesArgs<ExtArgs>
     submissions?: boolean | Badge$submissionsArgs<ExtArgs>
@@ -7133,6 +7170,7 @@ export namespace Prisma {
       description: string
       category: string
       icon_name: string
+      image_url: string | null
       points: number
       created_at: Date
     }, ExtArgs["result"]["badge"]>
@@ -7565,6 +7603,7 @@ export namespace Prisma {
     readonly description: FieldRef<"Badge", 'String'>
     readonly category: FieldRef<"Badge", 'String'>
     readonly icon_name: FieldRef<"Badge", 'String'>
+    readonly image_url: FieldRef<"Badge", 'String'>
     readonly points: FieldRef<"Badge", 'Int'>
     readonly created_at: FieldRef<"Badge", 'DateTime'>
   }
@@ -15912,6 +15951,7 @@ export namespace Prisma {
   export const CompanyScalarFieldEnum: {
     id: 'id',
     name: 'name',
+    logo_url: 'logo_url',
     created_at: 'created_at'
   };
 
@@ -15933,6 +15973,7 @@ export namespace Prisma {
     email: 'email',
     password_hash: 'password_hash',
     full_name: 'full_name',
+    avatar_url: 'avatar_url',
     role: 'role',
     company_id: 'company_id',
     productive_unit_id: 'productive_unit_id',
@@ -15963,6 +16004,7 @@ export namespace Prisma {
     description: 'description',
     category: 'category',
     icon_name: 'icon_name',
+    image_url: 'image_url',
     points: 'points',
     created_at: 'created_at'
   };
@@ -16277,6 +16319,7 @@ export namespace Prisma {
     NOT?: CompanyWhereInput | CompanyWhereInput[]
     id?: StringFilter<"Company"> | string
     name?: StringFilter<"Company"> | string
+    logo_url?: StringNullableFilter<"Company"> | string | null
     created_at?: DateTimeFilter<"Company"> | Date | string
     productive_units?: ProductiveUnitListRelationFilter
     users?: UserListRelationFilter
@@ -16285,6 +16328,7 @@ export namespace Prisma {
   export type CompanyOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
+    logo_url?: SortOrderInput | SortOrder
     created_at?: SortOrder
     productive_units?: ProductiveUnitOrderByRelationAggregateInput
     users?: UserOrderByRelationAggregateInput
@@ -16296,6 +16340,7 @@ export namespace Prisma {
     AND?: CompanyWhereInput | CompanyWhereInput[]
     OR?: CompanyWhereInput[]
     NOT?: CompanyWhereInput | CompanyWhereInput[]
+    logo_url?: StringNullableFilter<"Company"> | string | null
     created_at?: DateTimeFilter<"Company"> | Date | string
     productive_units?: ProductiveUnitListRelationFilter
     users?: UserListRelationFilter
@@ -16304,6 +16349,7 @@ export namespace Prisma {
   export type CompanyOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
+    logo_url?: SortOrderInput | SortOrder
     created_at?: SortOrder
     _count?: CompanyCountOrderByAggregateInput
     _max?: CompanyMaxOrderByAggregateInput
@@ -16316,6 +16362,7 @@ export namespace Prisma {
     NOT?: CompanyScalarWhereWithAggregatesInput | CompanyScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Company"> | string
     name?: StringWithAggregatesFilter<"Company"> | string
+    logo_url?: StringNullableWithAggregatesFilter<"Company"> | string | null
     created_at?: DateTimeWithAggregatesFilter<"Company"> | Date | string
   }
 
@@ -16381,6 +16428,7 @@ export namespace Prisma {
     email?: StringFilter<"User"> | string
     password_hash?: StringFilter<"User"> | string
     full_name?: StringFilter<"User"> | string
+    avatar_url?: StringNullableFilter<"User"> | string | null
     role?: EnumRoleFilter<"User"> | $Enums.Role
     company_id?: StringNullableFilter<"User"> | string | null
     productive_unit_id?: StringNullableFilter<"User"> | string | null
@@ -16406,6 +16454,7 @@ export namespace Prisma {
     email?: SortOrder
     password_hash?: SortOrder
     full_name?: SortOrder
+    avatar_url?: SortOrderInput | SortOrder
     role?: SortOrder
     company_id?: SortOrderInput | SortOrder
     productive_unit_id?: SortOrderInput | SortOrder
@@ -16434,6 +16483,7 @@ export namespace Prisma {
     NOT?: UserWhereInput | UserWhereInput[]
     password_hash?: StringFilter<"User"> | string
     full_name?: StringFilter<"User"> | string
+    avatar_url?: StringNullableFilter<"User"> | string | null
     role?: EnumRoleFilter<"User"> | $Enums.Role
     company_id?: StringNullableFilter<"User"> | string | null
     productive_unit_id?: StringNullableFilter<"User"> | string | null
@@ -16459,6 +16509,7 @@ export namespace Prisma {
     email?: SortOrder
     password_hash?: SortOrder
     full_name?: SortOrder
+    avatar_url?: SortOrderInput | SortOrder
     role?: SortOrder
     company_id?: SortOrderInput | SortOrder
     productive_unit_id?: SortOrderInput | SortOrder
@@ -16482,6 +16533,7 @@ export namespace Prisma {
     email?: StringWithAggregatesFilter<"User"> | string
     password_hash?: StringWithAggregatesFilter<"User"> | string
     full_name?: StringWithAggregatesFilter<"User"> | string
+    avatar_url?: StringNullableWithAggregatesFilter<"User"> | string | null
     role?: EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
     company_id?: StringNullableWithAggregatesFilter<"User"> | string | null
     productive_unit_id?: StringNullableWithAggregatesFilter<"User"> | string | null
@@ -16556,6 +16608,7 @@ export namespace Prisma {
     description?: StringFilter<"Badge"> | string
     category?: StringFilter<"Badge"> | string
     icon_name?: StringFilter<"Badge"> | string
+    image_url?: StringNullableFilter<"Badge"> | string | null
     points?: IntFilter<"Badge"> | number
     created_at?: DateTimeFilter<"Badge"> | Date | string
     user_badges?: UserBadgeListRelationFilter
@@ -16568,6 +16621,7 @@ export namespace Prisma {
     description?: SortOrder
     category?: SortOrder
     icon_name?: SortOrder
+    image_url?: SortOrderInput | SortOrder
     points?: SortOrder
     created_at?: SortOrder
     user_badges?: UserBadgeOrderByRelationAggregateInput
@@ -16583,6 +16637,7 @@ export namespace Prisma {
     description?: StringFilter<"Badge"> | string
     category?: StringFilter<"Badge"> | string
     icon_name?: StringFilter<"Badge"> | string
+    image_url?: StringNullableFilter<"Badge"> | string | null
     points?: IntFilter<"Badge"> | number
     created_at?: DateTimeFilter<"Badge"> | Date | string
     user_badges?: UserBadgeListRelationFilter
@@ -16595,6 +16650,7 @@ export namespace Prisma {
     description?: SortOrder
     category?: SortOrder
     icon_name?: SortOrder
+    image_url?: SortOrderInput | SortOrder
     points?: SortOrder
     created_at?: SortOrder
     _count?: BadgeCountOrderByAggregateInput
@@ -16613,6 +16669,7 @@ export namespace Prisma {
     description?: StringWithAggregatesFilter<"Badge"> | string
     category?: StringWithAggregatesFilter<"Badge"> | string
     icon_name?: StringWithAggregatesFilter<"Badge"> | string
+    image_url?: StringNullableWithAggregatesFilter<"Badge"> | string | null
     points?: IntWithAggregatesFilter<"Badge"> | number
     created_at?: DateTimeWithAggregatesFilter<"Badge"> | Date | string
   }
@@ -17130,6 +17187,7 @@ export namespace Prisma {
   export type CompanyCreateInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitCreateNestedManyWithoutCompanyInput
     users?: UserCreateNestedManyWithoutCompanyInput
@@ -17138,6 +17196,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitUncheckedCreateNestedManyWithoutCompanyInput
     users?: UserUncheckedCreateNestedManyWithoutCompanyInput
@@ -17146,6 +17205,7 @@ export namespace Prisma {
   export type CompanyUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUpdateManyWithoutCompanyNestedInput
     users?: UserUpdateManyWithoutCompanyNestedInput
@@ -17154,6 +17214,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUncheckedUpdateManyWithoutCompanyNestedInput
     users?: UserUncheckedUpdateManyWithoutCompanyNestedInput
@@ -17162,18 +17223,21 @@ export namespace Prisma {
   export type CompanyCreateManyInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
   }
 
   export type CompanyUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type CompanyUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
@@ -17234,6 +17298,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -17257,6 +17322,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -17280,6 +17346,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -17303,6 +17370,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -17326,6 +17394,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -17341,6 +17410,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -17354,6 +17424,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -17425,6 +17496,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     user_badges?: UserBadgeCreateNestedManyWithoutBadgeInput
@@ -17437,6 +17509,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     user_badges?: UserBadgeUncheckedCreateNestedManyWithoutBadgeInput
@@ -17449,6 +17522,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     user_badges?: UserBadgeUpdateManyWithoutBadgeNestedInput
@@ -17461,6 +17535,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     user_badges?: UserBadgeUncheckedUpdateManyWithoutBadgeNestedInput
@@ -17473,6 +17548,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
   }
@@ -17483,6 +17559,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17493,6 +17570,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -18048,6 +18126,21 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type DateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -18071,6 +18164,11 @@ export namespace Prisma {
     none?: UserWhereInput
   }
 
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
   export type ProductiveUnitOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -18082,18 +18180,21 @@ export namespace Prisma {
   export type CompanyCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    logo_url?: SortOrder
     created_at?: SortOrder
   }
 
   export type CompanyMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    logo_url?: SortOrder
     created_at?: SortOrder
   }
 
   export type CompanyMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    logo_url?: SortOrder
     created_at?: SortOrder
   }
 
@@ -18113,6 +18214,24 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
@@ -18179,21 +18298,6 @@ export namespace Prisma {
     not?: NestedEnumRoleFilter<$PrismaModel> | $Enums.Role
   }
 
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type IntFilter<$PrismaModel = never> = {
     equals?: number | IntFieldRefInput<$PrismaModel>
     in?: number[] | ListIntFieldRefInput<$PrismaModel>
@@ -18256,11 +18360,6 @@ export namespace Prisma {
     none?: ImportRunWhereInput
   }
 
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
-  }
-
   export type AuthSessionOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -18290,6 +18389,7 @@ export namespace Prisma {
     email?: SortOrder
     password_hash?: SortOrder
     full_name?: SortOrder
+    avatar_url?: SortOrder
     role?: SortOrder
     company_id?: SortOrder
     productive_unit_id?: SortOrder
@@ -18310,6 +18410,7 @@ export namespace Prisma {
     email?: SortOrder
     password_hash?: SortOrder
     full_name?: SortOrder
+    avatar_url?: SortOrder
     role?: SortOrder
     company_id?: SortOrder
     productive_unit_id?: SortOrder
@@ -18325,6 +18426,7 @@ export namespace Prisma {
     email?: SortOrder
     password_hash?: SortOrder
     full_name?: SortOrder
+    avatar_url?: SortOrder
     role?: SortOrder
     company_id?: SortOrder
     productive_unit_id?: SortOrder
@@ -18363,24 +18465,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumRoleFilter<$PrismaModel>
     _max?: NestedEnumRoleFilter<$PrismaModel>
-  }
-
-  export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -18467,6 +18551,7 @@ export namespace Prisma {
     description?: SortOrder
     category?: SortOrder
     icon_name?: SortOrder
+    image_url?: SortOrder
     points?: SortOrder
     created_at?: SortOrder
   }
@@ -18481,6 +18566,7 @@ export namespace Prisma {
     description?: SortOrder
     category?: SortOrder
     icon_name?: SortOrder
+    image_url?: SortOrder
     points?: SortOrder
     created_at?: SortOrder
   }
@@ -18491,6 +18577,7 @@ export namespace Prisma {
     description?: SortOrder
     category?: SortOrder
     icon_name?: SortOrder
+    image_url?: SortOrder
     points?: SortOrder
     created_at?: SortOrder
   }
@@ -18985,6 +19072,10 @@ export namespace Prisma {
     set?: string
   }
 
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
@@ -19371,10 +19462,6 @@ export namespace Prisma {
     update?: ImportRunUpdateWithWhereUniqueWithoutImportedByInput | ImportRunUpdateWithWhereUniqueWithoutImportedByInput[]
     updateMany?: ImportRunUpdateManyWithWhereWithoutImportedByInput | ImportRunUpdateManyWithWhereWithoutImportedByInput[]
     deleteMany?: ImportRunScalarWhereInput | ImportRunScalarWhereInput[]
-  }
-
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
   }
 
   export type AuthSessionUncheckedUpdateManyWithoutUserNestedInput = {
@@ -19869,6 +19956,20 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedDateTimeFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -19908,6 +20009,34 @@ export namespace Prisma {
     not?: NestedIntFilter<$PrismaModel> | number
   }
 
+  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
   export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
     equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
@@ -19940,20 +20069,6 @@ export namespace Prisma {
     not?: NestedEnumRoleFilter<$PrismaModel> | $Enums.Role
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type NestedBoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -19981,34 +20096,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumRoleFilter<$PrismaModel>
     _max?: NestedEnumRoleFilter<$PrismaModel>
-  }
-
-  export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableWithAggregatesFilter<$PrismaModel> | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedStringNullableFilter<$PrismaModel>
-    _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -20239,6 +20326,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -20261,6 +20349,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     productive_unit_id?: string | null
     level?: number
@@ -20338,6 +20427,7 @@ export namespace Prisma {
     email?: StringFilter<"User"> | string
     password_hash?: StringFilter<"User"> | string
     full_name?: StringFilter<"User"> | string
+    avatar_url?: StringNullableFilter<"User"> | string | null
     role?: EnumRoleFilter<"User"> | $Enums.Role
     company_id?: StringNullableFilter<"User"> | string | null
     productive_unit_id?: StringNullableFilter<"User"> | string | null
@@ -20351,6 +20441,7 @@ export namespace Prisma {
   export type CompanyCreateWithoutProductive_unitsInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     users?: UserCreateNestedManyWithoutCompanyInput
   }
@@ -20358,6 +20449,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateWithoutProductive_unitsInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     users?: UserUncheckedCreateNestedManyWithoutCompanyInput
   }
@@ -20372,6 +20464,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -20394,6 +20487,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     level?: number
@@ -20435,6 +20529,7 @@ export namespace Prisma {
   export type CompanyUpdateWithoutProductive_unitsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUpdateManyWithoutCompanyNestedInput
   }
@@ -20442,6 +20537,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateWithoutProductive_unitsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUncheckedUpdateManyWithoutCompanyNestedInput
   }
@@ -20465,6 +20561,7 @@ export namespace Prisma {
   export type CompanyCreateWithoutUsersInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitCreateNestedManyWithoutCompanyInput
   }
@@ -20472,6 +20569,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateWithoutUsersInput = {
     id: string
     name: string
+    logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitUncheckedCreateNestedManyWithoutCompanyInput
   }
@@ -20746,6 +20844,7 @@ export namespace Prisma {
   export type CompanyUpdateWithoutUsersInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUpdateManyWithoutCompanyNestedInput
   }
@@ -20753,6 +20852,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateWithoutUsersInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUncheckedUpdateManyWithoutCompanyNestedInput
   }
@@ -20994,6 +21094,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21016,6 +21117,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21054,6 +21156,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21076,6 +21179,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21190,6 +21294,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21212,6 +21317,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21250,6 +21356,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21272,6 +21379,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21294,6 +21402,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21316,6 +21425,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21344,6 +21454,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     submissions?: BadgeSubmissionCreateNestedManyWithoutBadgeInput
@@ -21355,6 +21466,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     submissions?: BadgeSubmissionUncheckedCreateNestedManyWithoutBadgeInput
@@ -21370,6 +21482,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21392,6 +21505,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21430,6 +21544,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21452,6 +21567,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21486,6 +21602,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     submissions?: BadgeSubmissionUpdateManyWithoutBadgeNestedInput
@@ -21497,6 +21614,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     submissions?: BadgeSubmissionUncheckedUpdateManyWithoutBadgeNestedInput
@@ -21518,6 +21636,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21540,6 +21659,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21562,6 +21682,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21584,6 +21705,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21612,6 +21734,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     user_badges?: UserBadgeCreateNestedManyWithoutBadgeInput
@@ -21623,6 +21746,7 @@ export namespace Prisma {
     description: string
     category: string
     icon_name: string
+    image_url?: string | null
     points?: number
     created_at?: Date | string
     user_badges?: UserBadgeUncheckedCreateNestedManyWithoutBadgeInput
@@ -21638,6 +21762,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21660,6 +21785,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21698,6 +21824,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21720,6 +21847,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21754,6 +21882,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     user_badges?: UserBadgeUpdateManyWithoutBadgeNestedInput
@@ -21765,6 +21894,7 @@ export namespace Prisma {
     description?: StringFieldUpdateOperationsInput | string
     category?: StringFieldUpdateOperationsInput | string
     icon_name?: StringFieldUpdateOperationsInput | string
+    image_url?: NullableStringFieldUpdateOperationsInput | string | null
     points?: IntFieldUpdateOperationsInput | number
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     user_badges?: UserBadgeUncheckedUpdateManyWithoutBadgeNestedInput
@@ -21786,6 +21916,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21808,6 +21939,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -21830,6 +21962,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -21852,6 +21985,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -21890,6 +22024,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -21912,6 +22047,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -22015,6 +22151,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     level?: number
     xp?: number
@@ -22037,6 +22174,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     productive_unit_id?: string | null
@@ -22142,6 +22280,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -22164,6 +22303,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
@@ -22281,6 +22421,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     productive_unit_id?: string | null
     level?: number
@@ -22315,6 +22456,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -22337,6 +22479,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
     level?: IntFieldUpdateOperationsInput | number
@@ -22359,6 +22502,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     productive_unit_id?: NullableStringFieldUpdateOperationsInput | string | null
     level?: IntFieldUpdateOperationsInput | number
@@ -22373,6 +22517,7 @@ export namespace Prisma {
     email: string
     password_hash: string
     full_name: string
+    avatar_url?: string | null
     role: $Enums.Role
     company_id?: string | null
     level?: number
@@ -22387,6 +22532,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     level?: IntFieldUpdateOperationsInput | number
     xp?: IntFieldUpdateOperationsInput | number
@@ -22409,6 +22555,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     level?: IntFieldUpdateOperationsInput | number
@@ -22431,6 +22578,7 @@ export namespace Prisma {
     email?: StringFieldUpdateOperationsInput | string
     password_hash?: StringFieldUpdateOperationsInput | string
     full_name?: StringFieldUpdateOperationsInput | string
+    avatar_url?: NullableStringFieldUpdateOperationsInput | string | null
     role?: EnumRoleFieldUpdateOperationsInput | $Enums.Role
     company_id?: NullableStringFieldUpdateOperationsInput | string | null
     level?: IntFieldUpdateOperationsInput | number

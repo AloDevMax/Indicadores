@@ -30,9 +30,9 @@ export const loadBootstrapData = async () => {
   try {
     const [badges, companies, productiveUnits, badgeLegends, importSources, users, notifications, userBadges, submissions] = await Promise.all([
       client.query(
-        'select id, name, description, icon_name, category, points from badges order by created_at asc',
+        'select id, name, description, icon_name, category, points, image_url from badges order by created_at asc',
       ),
-      client.query('select id, name from companies order by name asc'),
+      client.query('select id, name, logo_url from companies order by name asc'),
       client.query(
         'select id, name, company_id from productive_units order by company_id asc, name asc',
       ),
@@ -59,6 +59,7 @@ export const loadBootstrapData = async () => {
           id,
           email,
           full_name,
+          avatar_url,
           role,
           company_id,
           productive_unit_id,

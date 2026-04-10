@@ -16,6 +16,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
+  avatar_url?: string;
   role: Role;
   company_id?: string;
   productive_unit_id?: string;
@@ -29,6 +30,7 @@ export interface Profile {
 export interface Company {
   id: string;
   name: string;
+  logo_url?: string;
 }
 
 export interface ProductiveUnit {
@@ -43,6 +45,7 @@ export interface Badge {
   description: string;
   category: string;
   icon_name: string;
+  image_url?: string;
   points: number;
 }
 

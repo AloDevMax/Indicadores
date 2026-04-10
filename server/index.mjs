@@ -9,7 +9,8 @@ import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
+import { uploadRouter } from './uploads/uploadRoutes.mjs';
 
 
 const app = express();
@@ -74,8 +75,13 @@ app.use((req, res, next) => {
   next();
 });
 
-
 app.use(express.static(frontendPath));
+
+// Servir uploads como arquivos estáticos
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+
+// Rotas de upload
+app.use('/api/upload', uploadRouter);
 
 app.post('/api/auth/login', async (req, res) => {
   const result = await loginUser(req.body);
@@ -228,6 +234,14 @@ app.post('/api/admin/users/delete', async (req, res) => {
   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
   
   const result = await deleteUser(req.body.id); 
+  res.status(200).json(result);
+});
+
+app.post('/api/admin/companies/delete', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+  
+  const result = await deleteCompany(req.body.id);
   res.status(200).json(result);
 });
 
