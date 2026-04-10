@@ -236,8 +236,10 @@ export const saveUser = async (user, password) => {
     }
 
     const passwordHash = password ? await hashPassword(password) : await hashPassword('changeme123');
+    const userId = crypto.randomUUID(); // Gera UUID no Node
     const result = await client.query(
       `insert into users (
+        id,
         email,
         password_hash,
         full_name,
@@ -247,9 +249,10 @@ export const saveUser = async (user, password) => {
         level,
         xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, false)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
       returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
       [
+        userId,
         user.email,
         passwordHash,
         user.full_name,
@@ -419,8 +422,10 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
     const passwordHash = await hashPassword('changeme123');
 
     for (const email of normalizedEmails) {
+      const userId = crypto.randomUUID(); // Gera UUID no Node
       const result = await client.query(
         `insert into users (
+          id,
           email,
           password_hash,
           full_name,
@@ -430,10 +435,11 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
           level,
           xp,
           email_verified
-        ) values ($1, $2, $3, 'user', $4, $5, 1, 0, false)
+        ) values ($1, $2, $3, $4, 'user', $5, $6, 1, 0, false)
         on conflict (email) do nothing
         returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
         [
+          userId,
           email,
           passwordHash,
           email.split('@')[0],

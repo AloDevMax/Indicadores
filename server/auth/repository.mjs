@@ -161,8 +161,10 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
   }
 
   try {
+    const userId = crypto.randomUUID(); // Gera UUID no Node
     const result = await client.query(
       `insert into users (
+        id,
         email,
         password_hash,
         full_name,
@@ -170,7 +172,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         level,
         xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
       returning
         id,
         email,
@@ -182,7 +184,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         xp,
         email_verified,
         created_at`,
-      [normalizedEmail, passwordHash, fullName, role, role === 'admin' ? 99 : 1, role === 'admin' ? 100000 : 0, role === 'admin'],
+      [userId, normalizedEmail, passwordHash, fullName, role, role === 'admin' ? 99 : 1, role === 'admin' ? 100000 : 0, role === 'admin'],
     );
 
     return result.rows[0] || null;
