@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
+import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
@@ -18,6 +19,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const frontendPath = path.resolve(__dirname, '..');
+
+// Verificar conexão com banco de dados na inicialização
+console.log('\n========================================');
+console.log('🔍 Verificando conexão com o banco de dados...');
+console.log('========================================\n');
+const dbConnected = await checkDatabaseConnection(false);
+
+if (!dbConnected) {
+  console.error('\n❌ ⚠️  [AVISO CRÍTICO]');
+  console.error('A aplicação está usando FALLBACK EM MEMÓRIA');
+  console.error('Dados adicionados ao site NÃO serão persistidos!\n');
+  if (process.env.NODE_ENV === 'production') {
+    console.error('💥 Isso é um ERRO CRÍTICO em produção!');
+    console.error('Verifique as credenciais do banco no arquivo render.yaml\n');
+  }
+}
+console.log('');
 
 console.log("Caminho atual (CWD):", process.cwd());
 try {

@@ -9,6 +9,8 @@
     "dev:client": "vite",
     "dev:server": "node dist/server/index.mjs",
     "db:push": "node scripts/dbPush.mjs",
+    "db:check": "node scripts/verifyDb.mjs",
+    "db:test": "node scripts/testDbConnection.mjs",
     "build": "npm run db:push && prisma generate && vite build && tsc --project tsconfig.json",
     "start": "node dist/server/index.mjs",
     "lint": "eslint .",
