@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
+import { createPgClient } from './db/client.mjs';
 import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
@@ -24,15 +25,34 @@ const frontendPath = path.resolve(__dirname, '..');
 console.log('\n========================================');
 console.log('🔍 Verificando conexão com o banco de dados...');
 console.log('========================================\n');
-const dbConnected = await checkDatabaseConnection(false);
+
+// Função com retry
+const checkConnectionWithRetry = async (maxAttempts = 3) => {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    console.log(`Tentativa ${attempt}/${maxAttempts}...`);
+    const connected = await checkDatabaseConnection(false);
+    if (connected) return true;
+    
+    if (attempt < maxAttempts) {
+      console.log(`Aguardando 2 segundos antes de próxima tentativa...\n`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+  return false;
+};
+
+const dbConnected = await checkConnectionWithRetry(3);
 
 if (!dbConnected) {
   console.error('\n❌ ⚠️  [AVISO CRÍTICO]');
   console.error('A aplicação está usando FALLBACK EM MEMÓRIA');
-  console.error('Dados adicionados ao site NÃO serão persistidos!\n');
+  console.error('Dados adicionados ao site NÃO serão persistidos após reiniciar!\n');
   if (process.env.NODE_ENV === 'production') {
-    console.error('💥 Isso é um ERRO CRÍTICO em produção!');
-    console.error('Verifique as credenciais do banco no arquivo render.yaml\n');
+    console.error('💥 Erro Crítico em Produção!');
+    console.error('Possíveis causas:');
+    console.error('  1. Módulo pg não está instalado (npm install falhou)');
+    console.error('  2. DATABASE_URL não está correto ou acessível');
+    console.error('  3. Banco PostgreSQL está offline\n');
   }
 }
 console.log('');
@@ -40,7 +60,7 @@ console.log('');
 console.log("Caminho atual (CWD):", process.cwd());
 try {
   const distContent = fs.readdirSync(path.resolve(process.cwd(), 'dist'), { recursive: true });
-  console.log("Arquivos encontrados na dist:", distContent);
+  console.log("Arquivos encontrados na dist:", distContent.length, "arquivos");
 } catch (e) {
   console.log("Erro ao ler a pasta dist:", e.message);
 }
@@ -82,8 +102,35 @@ app.get('/api/bootstrap', async (req, res) => {
   res.json(data);
 });
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: {
+      url: process.env.DATABASE_URL ? 'configurada' : 'não configurada',
+      ssl: process.env.DATABASE_SSL === 'true' ? 'ativado' : 'desativado',
+    },
+    environment: process.env.NODE_ENV || 'development',
+  };
+
+  // Tenta conectar ao banco para verificar se está disponível
+  try {
+    const client = await createPgClient();
+    if (client) {
+      const result = await client.query('SELECT NOW()');
+      health.database.connected = true;
+      health.database.timestamp = result.rows[0].now;
+      await client.end();
+    } else {
+      health.database.connected = false;
+      health.database.info = 'usando fallback em memória';
+    }
+  } catch (error) {
+    health.database.connected = false;
+    health.database.error = error.message;
+  }
+
+  res.json(health);
 });
 
 app.post('/api/admin/award-badges', async (req, res) => {
