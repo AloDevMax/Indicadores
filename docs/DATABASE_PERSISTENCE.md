@@ -52,14 +52,27 @@ envVars:
 - ✓ Host e porta estão corretos
 - ✓ Nome do banco de dados está correto
 
-#### 2️⃣ Regenerar a DATABASE_URL
+#### 2️⃣ Usar a Internal URL do Render (Recomendado para Render)
+
+Se você está usando **Render para ambos** (web service e database), use a **Internal Database URL**:
 
 **No Render Dashboard:**
-1. Vá para a instância PostgreSQL
-2. Copie a **Connection String** (PostgreSQL driver)
-3. Atualize a variável `DATABASE_URL` no serviço web com o valor completo
+1. Vá para o banco PostgreSQL
+2. Aba "Connections"
+3. Copie a **Internal Database URL** (não a pública)
+4. Atualize a variável `DATABASE_URL` no serviço web
 
-#### 3️⃣ Verificar Credenciais
+**Formato da Internal URL:**
+```
+postgresql://user:password@hostname:port/database
+```
+
+**Importante:** 
+- ✓ Copie exatamente como aparece no Render
+- ✓ Certifique-se que inclui a **porta** (geralmente 5432)
+- ✓ Coloque entre aspas no render.yaml: `value: "postgresql://..."`
+
+#### 3️⃣ Regenerar a DATABASE_URL (Se estiver fora do Render)
 
 **Opção 1: Usar o Script de Teste (Recomendado - sem dependências)**
 

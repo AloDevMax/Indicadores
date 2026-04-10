@@ -6,7 +6,15 @@ export const createPgClient = async () => {
   }
 
   try {
-    const { Client } = await import('pg');
+    let pgModule;
+    try {
+      pgModule = await import('pg');
+    } catch (importError) {
+      console.warn('[DATABASE] Pacote pg não disponível no momento (pode estar no build) - usando fallback');
+      return null;
+    }
+
+    const { Client } = pgModule;
     const client = new Client({
       connectionString: databaseUrl,
       ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
