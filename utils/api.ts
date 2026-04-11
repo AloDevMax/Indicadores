@@ -181,6 +181,18 @@ export const saveCompanyWithApi = async (company: Company) => {
   return payload.company;
 };
 
+export const fetchProductiveUnitsByCompanyId = async (companyId: string): Promise<ProductiveUnit[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const response = await fetch(`${apiBaseUrl}/api/companies/${companyId}/productive-units`);
+  
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar unidades produtivas com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { productiveUnits: ProductiveUnit[] };
+  return data.productiveUnits;
+};
+
 export const saveProductiveUnitWithApi = async (productiveUnit: ProductiveUnit) => {
   const payload = await postJson<{ productiveUnit: ProductiveUnit }>('/api/admin/productive-units', productiveUnit, requireAuthToken());
   return payload.productiveUnit;

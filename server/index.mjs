@@ -296,6 +296,27 @@ app.put('/api/user/profile', async (req, res) => {
   }
 });
 
+app.get('/api/companies/:companyId/productive-units', async (req, res) => {
+  try {
+    const client = await createPgClient();
+    
+    if (!client) {
+      const units = memoryAdminStore.productiveUnits.filter(u => u.company_id === req.params.companyId);
+      return res.json({ productiveUnits: units });
+    }
+
+    const result = await client.query(
+      'select id, name, company_id from productive_units where company_id = $1 order by name asc',
+      [req.params.companyId]
+    );
+    await client.end();
+    res.json({ productiveUnits: result.rows });
+  } catch (error) {
+    console.error('Error fetching productive units:', error);
+    res.status(500).json({ error: 'Erro ao buscar unidades produtivas' });
+  }
+});
+
 app.use((err, _req, res, _next) => {
   if (err instanceof ZodError) {
     return res.status(400).json({ error: 'Erro de validação', details: err.errors });

@@ -13,6 +13,7 @@ import Requests from './pages/Requests';
 import Explorers from './pages/Explorers';
 import Library from './pages/Library';
 import CompaniesPage from './pages/CompaniesPage';
+import CompanyUnitsPage from './pages/CompanyUnitsPage';
 import Settings from './pages/Settings';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
@@ -351,7 +352,9 @@ const App: React.FC = () => {
               <Route path="/requests" element={user ? <Requests /> : <Navigate to="/" />} />
               <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/" />} />
               <Route path="/library" element={user ? <Library /> : <Navigate to="/" />} />
-              <Route path="/companies" element={user ? <CompaniesPage /> : <Navigate to="/" />} />
+              <Route path="/companies" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/" />} />
+              <Route path="/empresas" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/" />} />
+              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={companies} /> : <Navigate to="/" />} />
               <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/" />} />
               <Route
                 path="/admin/*"
