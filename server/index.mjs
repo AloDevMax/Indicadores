@@ -242,19 +242,29 @@ app.post('/api/admin/users/delete', async (req, res) => {
 });
 
 app.post('/api/admin/companies/delete', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
-  
-  const result = await deleteCompany(req.body.id);
-  res.status(200).json(result);
+  try {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+    
+    const result = await deleteCompany(req.body.id);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error deleting company:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao deletar empresa' });
+  }
 });
 
 app.post('/api/admin/productive-units', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
-  
-  const productiveUnit = await saveProductiveUnit(req.body);
-  res.status(201).json({ productiveUnit });
+  try {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+    
+    const productiveUnit = await saveProductiveUnit(req.body);
+    res.status(201).json({ productiveUnit });
+  } catch (error) {
+    console.error('Error saving productive unit:', error);
+    res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao salvar unidade produtiva' });
+  }
 });
 
 app.post('/api/admin/users/bulk-invite', async (req, res) => {

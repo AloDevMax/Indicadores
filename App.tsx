@@ -20,7 +20,7 @@ import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
 import './index.css';
 import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
-import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
+import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteCompanyWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -216,6 +216,10 @@ const App: React.FC = () => {
     await deleteBadgeWithApi(badgeId);
   };
 
+  const handleDeleteCompany = async (companyId: string) => {
+    await deleteCompanyWithApi(companyId);
+  };
+
   const handleSaveCompany = async (company: Company) => saveCompanyWithApi(company);
 
   const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) =>
@@ -376,6 +380,7 @@ const App: React.FC = () => {
                       onSaveBadge={handleSaveBadge}
                       onDeleteBadge={handleDeleteBadge}
                       onSaveCompany={handleSaveCompany}
+                      onDeleteCompany={handleDeleteCompany}
                       onSaveProductiveUnit={handleSaveProductiveUnit}
                       onSaveUser={handleSaveUser}
                       onBulkInviteUsers={handleBulkInviteUsers}

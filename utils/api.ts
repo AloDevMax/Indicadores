@@ -207,6 +207,10 @@ export const deleteUserWithApi = async (id: string) => {
   await postJson('/api/admin/users/delete', { id }, requireAuthToken());
 };
 
+export const deleteCompanyWithApi = async (id: string) => {
+  await postJson('/api/admin/companies/delete', { id }, requireAuthToken());
+};
+
 export const saveImportSourceWithApi = async (importSource: ImportSourceConfig) => {
   const payload = await postJson<{ importSource: ImportSourceConfig }>(
     '/api/admin/import-sources',
