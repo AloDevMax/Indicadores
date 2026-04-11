@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -44,6 +44,7 @@ const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
 
 const INITIAL_USERS: Profile[] = [
   { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
+  { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
   { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01', email_verified: true },
   { id: 'u2', email: 'ana@acme.com', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
   { id: 'u3', email: 'bob@builders.com', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
@@ -270,6 +271,21 @@ const App: React.FC = () => {
     return result.summary.valid;
   };
 
+  const visibleCompanies = useMemo(() => {
+    if (!user || user.role !== 'admin') return companies;
+    return companies.filter((company) => company.id === user.company_id);
+  }, [companies, user]);
+
+  const visibleProductiveUnits = useMemo(() => {
+    if (!user || user.role !== 'admin') return productiveUnits;
+    return productiveUnits.filter((unit) => unit.company_id === user.company_id);
+  }, [productiveUnits, user]);
+
+  const visibleUsers = useMemo(() => {
+    if (!user || user.role !== 'admin') return users;
+    return users.filter((profile) => profile.company_id === user.company_id);
+  }, [users, user]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-indigo-50">
@@ -292,8 +308,8 @@ const App: React.FC = () => {
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
               setAdminViewMode={setAdminViewMode}
-              companies={companies}
-              productiveUnits={productiveUnits}
+              companies={visibleCompanies}
+              productiveUnits={visibleProductiveUnits}
             />
           )}
 
@@ -325,9 +341,9 @@ const App: React.FC = () => {
                       userBadges={userBadges}
                       badgeLegends={badgeLegends}
                       submissions={submissions}
-                      users={users}
-                      companies={companies}
-                      productiveUnits={productiveUnits}
+                      users={visibleUsers}
+                      companies={visibleCompanies}
+                      productiveUnits={visibleProductiveUnits}
                       importSources={importSources}
                       importBindingSnapshot={importBindingSnapshot}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
@@ -351,7 +367,7 @@ const App: React.FC = () => {
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/login" />}
+                element={user ? <Ranking users={visibleUsers} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/login" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/login" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/login" />} />
@@ -359,9 +375,9 @@ const App: React.FC = () => {
               <Route path="/requests" element={user ? <Requests /> : <Navigate to="/login" />} />
               <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/login" />} />
               <Route path="/library" element={user ? <Library /> : <Navigate to="/login" />} />
-              <Route path="/companies" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/login" />} />
-              <Route path="/empresas" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/login" />} />
-              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={companies} /> : <Navigate to="/login" />} />
+              <Route path="/companies" element={user ? <CompaniesPage companies={visibleCompanies} /> : <Navigate to="/login" />} />
+              <Route path="/empresas" element={user ? <CompaniesPage companies={visibleCompanies} /> : <Navigate to="/login" />} />
+              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={visibleCompanies} users={visibleUsers} currentUser={user} /> : <Navigate to="/login" />} />
               <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/login" />} />
               <Route
                 path="/admin/*"
@@ -372,16 +388,17 @@ const App: React.FC = () => {
                       setActiveMode={setAdminViewMode}
                       badges={badges}
                       setBadges={setBadges}
-                      companies={companies}
+                      currentUser={user}
+                      companies={visibleCompanies}
                       setCompanies={setCompanies}
-                      productiveUnits={productiveUnits}
+                      productiveUnits={visibleProductiveUnits}
                       setProductiveUnits={setProductiveUnits}
                       badgeLegends={badgeLegends}
                       setBadgeLegends={setBadgeLegends}
                       importSources={importSources}
                       setImportSources={setImportSources}
                       setImportBindingSnapshot={setImportBindingSnapshot}
-                      users={users}
+                      users={visibleUsers}
                       setUsers={setUsers}
                       userBadges={userBadges}
                       setUserBadges={setUserBadges}
@@ -434,3 +451,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

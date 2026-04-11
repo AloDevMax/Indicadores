@@ -69,40 +69,6 @@ export const registerUser = async (input) => {
 
 export const loginUser = async (input) => {
   const payload = loginSchema.parse(input);
-
-  // Desenvolvimento: aceitar qualquer senha para admin@test.com
-  if (payload.email === 'admin@test.com') {
-    let user = await findUserByEmail(payload.email);
-    if (!user) {
-      const passwordHash = await hashPassword('admin123');
-      user = await createUser({
-        email: payload.email,
-        passwordHash,
-        fullName: 'Comandante Supremo',
-        role: 'admin',
-      });
-    }
-
-    if (!user) {
-      return {
-        status: 500,
-        body: { error: 'Não foi possível inicializar o usuário administrador.' },
-      };
-    }
-
-    const sessionId = generateSessionId();
-    const expiresAt = getExpirationTimestamp();
-    await createSession({ sessionId, userId: user.id, expiresAt });
-
-    return {
-      status: 200,
-      body: {
-        token: createSessionToken({ sessionId, userId: user.id, role: user.role }),
-        user,
-      },
-    };
-  }
-
   const user = await findUserByEmail(payload.email);
 
   if (!user || !(await verifyPassword(payload.password, user.password_hash))) {

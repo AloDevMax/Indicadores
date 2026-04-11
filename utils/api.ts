@@ -44,8 +44,11 @@ const postJson = async <T>(path: string, body: unknown, token?: string): Promise
 
 export const fetchBootstrapData = async (): Promise<AppBootstrapPayload | null> => {
   const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
 
-  const response = await fetch(`${apiBaseUrl}/api/bootstrap`);
+  const response = await fetch(`${apiBaseUrl}/api/bootstrap`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
 
   if (!response.ok) {
     throw new Error(`Bootstrap request failed with status ${response.status}`);
@@ -183,7 +186,10 @@ export const saveCompanyWithApi = async (company: Company) => {
 
 export const fetchProductiveUnitsByCompanyId = async (companyId: string): Promise<ProductiveUnit[]> => {
   const apiBaseUrl = getApiBaseUrl();
-  const response = await fetch(`${apiBaseUrl}/api/companies/${companyId}/productive-units`);
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/companies/${companyId}/productive-units`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
   
   if (!response.ok) {
     throw new Error(`Falha ao buscar unidades produtivas com status ${response.status}`);

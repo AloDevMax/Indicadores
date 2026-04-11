@@ -6,12 +6,36 @@ import { createPgClient } from './client.mjs';
 
 const mapRows = (rows, mapper) => rows.map(mapper);
 
-export const loadBootstrapData = async () => {
+const filterDataForManager = (payload, currentUser) => {
+  if (!currentUser || currentUser.role !== 'admin' || !currentUser.company_id) {
+    return payload;
+  }
+
+  const companyId = currentUser.company_id;
+  const productiveUnits = payload.productiveUnits.filter((unit) => unit.company_id === companyId);
+  const productiveUnitIds = new Set(productiveUnits.map((unit) => unit.id));
+  const users = payload.users.filter((user) => user.company_id === companyId);
+  const userIds = new Set(users.map((user) => user.id));
+
+  return {
+    ...payload,
+    companies: payload.companies.filter((company) => company.id === companyId),
+    productiveUnits,
+    users,
+    userBadges: payload.userBadges.filter((badge) => userIds.has(badge.user_id)),
+    submissions: payload.submissions.filter((submission) => userIds.has(submission.user_id)),
+    importSources: payload.importSources,
+    badgeLegends: payload.badgeLegends,
+    badges: payload.badges,
+  };
+};
+
+export const loadBootstrapData = async (currentUser = null) => {
   const client = await createPgClient();
 
   if (!client) {
     const users = await listUsers();
-    return {
+    return filterDataForManager({
       source: 'seed',
       ...seedData,
       badges: memoryAdminStore.badges,
@@ -24,7 +48,7 @@ export const loadBootstrapData = async () => {
         ...submission,
         badge_name: memoryAdminStore.badges.find((badge) => badge.id === submission.badge_id)?.name || submission.badge_name,
       })),
-    };
+    }, currentUser);
   }
 
   try {
@@ -120,7 +144,7 @@ export const loadBootstrapData = async () => {
       return accumulator;
     }, new Map());
 
-    return {
+    return filterDataForManager({
       source: 'database',
       badges: badges.rows,
       companies: companies.rows,
@@ -145,7 +169,7 @@ export const loadBootstrapData = async () => {
           award: row.award_column,
         },
       })),
-    };
+    }, currentUser);
   } finally {
     await client.end();
   }

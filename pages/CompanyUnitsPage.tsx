@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchProductiveUnitsByCompanyId } from '../utils/api';
-import { ProductiveUnit, Company } from '../types';
+import { ProductiveUnit, Company, Profile } from '../types';
 
 interface CompanyUnitsPageProps {
   companies: Company[];
+  users: Profile[];
+  currentUser: Profile;
 }
 
-const CompanyUnitsPage: React.FC<CompanyUnitsPageProps> = ({ companies }) => {
+const CompanyUnitsPage: React.FC<CompanyUnitsPageProps> = ({ companies, users, currentUser }) => {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
   const [units, setUnits] = useState<ProductiveUnit[]>([]);
@@ -15,6 +17,10 @@ const CompanyUnitsPage: React.FC<CompanyUnitsPageProps> = ({ companies }) => {
   const [error, setError] = useState<string | null>(null);
 
   const company = companies.find(c => c.id === companyId);
+  const visibleUsers = useMemo(() => {
+    if (!companyId) return [];
+    return users.filter((user) => user.company_id === companyId);
+  }, [companyId, users]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -59,6 +65,9 @@ const CompanyUnitsPage: React.FC<CompanyUnitsPageProps> = ({ companies }) => {
 
       <h1 className="text-3xl font-bold text-gray-800 mb-2">{company.name}</h1>
       <h2 className="text-xl text-gray-600 mb-6">Unidades Produtivas</h2>
+      {currentUser.role === 'admin' && currentUser.company_id === companyId && (
+        <p className="text-sm text-gray-500 mb-6">Visão restrita aos colaboradores e unidades da sua empresa.</p>
+      )}
 
       {loading && <p className="text-gray-600">Carregando unidades...</p>}
       {error && <p className="text-red-600">{error}</p>}
@@ -73,6 +82,22 @@ const CompanyUnitsPage: React.FC<CompanyUnitsPageProps> = ({ companies }) => {
             <div key={unit.id} className="border border-gray-300 rounded-lg p-6 hover:shadow-lg transition">
               <h3 className="text-lg font-semibold text-gray-800 mb-2">{unit.name}</h3>
               <p className="text-sm text-gray-600">ID: {unit.id}</p>
+              <div className="mt-4 border-t border-gray-200 pt-4">
+                <p className="text-xs font-bold uppercase text-gray-400 mb-3">Colaboradores da unidade</p>
+                <div className="space-y-2">
+                  {visibleUsers
+                    .filter((user) => user.productive_unit_id === unit.id)
+                    .map((user) => (
+                      <div key={user.id} className="rounded-md bg-gray-50 px-3 py-2">
+                        <div className="text-sm font-semibold text-gray-800">{user.full_name}</div>
+                        <div className="text-xs text-gray-500">{user.email}</div>
+                      </div>
+                    ))}
+                  {visibleUsers.filter((user) => user.productive_unit_id === unit.id).length === 0 && (
+                    <p className="text-sm text-gray-500">Nenhum colaborador visível nesta unidade.</p>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

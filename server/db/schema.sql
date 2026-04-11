@@ -19,7 +19,7 @@ create table if not exists users (
   email text not null unique,
   password_hash text not null,
   full_name text not null,
-  role text not null check (role in ('admin', 'user')),
+  role text not null check (role in ('admin', 'user', 'developer')),
   company_id text references companies(id) on delete set null,
   productive_unit_id text references productive_units(id) on delete set null,
   level integer not null default 1,

@@ -30,9 +30,9 @@ const seedUsers = async () => {
     },
     {
       id: 'dev-1',
-      email: 'developer@test.com',
-      password_hash: await hashPassword('dev123'),
-      full_name: 'Dev Master',
+      email: 'alo.de.castro@hotmail.com',
+      password_hash: await hashPassword('2665398'),
+      full_name: 'Alo de Castro',
       role: 'developer',
       company_id: null,
       productive_unit_id: null,
@@ -149,6 +149,7 @@ export const findUserById = async (userId) => {
 
 export const createUser = async ({ email, passwordHash, fullName, role = 'user' }) => {
   const normalizedEmail = email.toLowerCase().trim();
+  const safeRole = role === 'developer' ? 'user' : role;
   const client = await createPgClient();
 
   if (!client) {
@@ -164,12 +165,12 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
       email: normalizedEmail,
       password_hash: passwordHash,
       full_name: fullName,
-      role,
+      role: safeRole,
       company_id: null,
       productive_unit_id: null,
-      level: role === 'admin' ? 99 : 1,
-      xp: role === 'admin' ? 100000 : 0,
-      email_verified: role === 'admin',
+      level: safeRole === 'admin' ? 99 : 1,
+      xp: safeRole === 'admin' ? 100000 : 0,
+      email_verified: safeRole === 'admin',
       created_at: new Date().toISOString(),
     };
 
@@ -201,7 +202,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         xp,
         email_verified,
         created_at`,
-      [userId, normalizedEmail, passwordHash, fullName, role, role === 'admin' ? 99 : 1, role === 'admin' ? 100000 : 0, role === 'admin'],
+      [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin' ? 99 : 1, safeRole === 'admin' ? 100000 : 0, safeRole === 'admin'],
     );
 
     return result.rows[0] || null;

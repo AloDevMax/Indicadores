@@ -26,6 +26,7 @@ const IMPORT_FIELD_LABELS: Record<ImportSourceField, string> = {
 };
 
 interface AdminPanelProps {
+  currentUser: Profile;
   activeMode: 'management' | 'personal';
   setActiveMode: (_mode: 'management' | 'personal') => void;
   badges: Badge[];
@@ -80,6 +81,7 @@ interface ImportPreview {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
+  currentUser,
   activeMode, 
   setActiveMode,
   badges,
@@ -115,6 +117,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenSolicitation
 }) => {
   const location = useLocation();
+  const isDeveloper = currentUser.role === 'developer';
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -867,10 +870,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      {isDeveloper && <div className="flex gap-2">
                         <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                         <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
-                      </div>
+                      </div>}
                     </div>
                     <div className="space-y-3">
                       {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
@@ -1206,7 +1209,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
                 <div className="flex gap-2">
                   <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
-                  <button onClick={() => openCompanyModal()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>
+                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1222,10 +1225,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                     </div>
-                    <div className="flex gap-2">
+                    {isDeveloper && <div className="flex gap-2">
                       <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                       <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
-                    </div>
+                    </div>}
                   </div>
                 ))}
               </div>
@@ -1350,7 +1353,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="user">Colaborador</option>
                     <option value="admin">Gestor</option>
-                    <option value="developer">Desenvolvedor</option>
                   </select>
                 </div>
                 <div className="space-y-2">
