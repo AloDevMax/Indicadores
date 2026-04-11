@@ -32,6 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
+  const isAdmin = ['admin', 'developer'].includes(user?.role);
   // Só renderiza quando os dados essenciais estiverem disponíveis
   if (!allBadges || allBadges.length === 0) {
     return (
