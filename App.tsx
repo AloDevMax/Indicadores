@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -303,8 +304,12 @@ const App: React.FC = () => {
                 element={
                   user
                     ? (user.role === 'admin' || user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
-                    : <Login onLogin={handleLogin} />
+                    : <Landing />
                 }
+              />
+              <Route
+                path="/login"
+                element={user ? <Navigate to="/" /> : <Login onLogin={handleLogin} />}
               />
               <Route
                 path="/register"
@@ -327,7 +332,7 @@ const App: React.FC = () => {
                       importBindingSnapshot={importBindingSnapshot}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
-                  ) : <Navigate to="/" />
+                  ) : <Navigate to="/login" />
                 }
               />
               <Route
@@ -341,23 +346,23 @@ const App: React.FC = () => {
                       badgeLegends={badgeLegends}
                       submissions={submissions}
                     />
-                  ) : <Navigate to="/" />
+                  ) : <Navigate to="/login" />
                 }
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/" />}
+                element={user ? <Ranking users={users} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/login" />}
               />
-              <Route path="/overview" element={user ? <Overview /> : <Navigate to="/" />} />
-              <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/" />} />
-              <Route path="/award-badges" element={user ? <AwardBadges /> : <Navigate to="/" />} />
-              <Route path="/requests" element={user ? <Requests /> : <Navigate to="/" />} />
-              <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/" />} />
-              <Route path="/library" element={user ? <Library /> : <Navigate to="/" />} />
-              <Route path="/companies" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/" />} />
-              <Route path="/empresas" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/" />} />
-              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={companies} /> : <Navigate to="/" />} />
-              <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/" />} />
+              <Route path="/overview" element={user ? <Overview /> : <Navigate to="/login" />} />
+              <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/login" />} />
+              <Route path="/award-badges" element={user ? <AwardBadges /> : <Navigate to="/login" />} />
+              <Route path="/requests" element={user ? <Requests /> : <Navigate to="/login" />} />
+              <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/login" />} />
+              <Route path="/library" element={user ? <Library /> : <Navigate to="/login" />} />
+              <Route path="/companies" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/login" />} />
+              <Route path="/empresas" element={user ? <CompaniesPage companies={companies} /> : <Navigate to="/login" />} />
+              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={companies} /> : <Navigate to="/login" />} />
+              <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/login" />} />
               <Route
                 path="/admin/*"
                 element={
@@ -397,7 +402,7 @@ const App: React.FC = () => {
                       onReviewSubmission={handleReviewSubmission}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
-                  ) : <Navigate to="/" />
+                  ) : <Navigate to="/login" />
                 }
               />
               <Route path="*" element={<Navigate to="/" />} />

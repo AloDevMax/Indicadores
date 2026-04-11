@@ -15,6 +15,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
   const navigate = useNavigate();
   const isAdmin = user.role === 'admin' || user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
+  const homeRoute = isAdmin ? '/admin' : '/dashboard';
 
   return (
     <nav className={`bg-white border-b h-16 sticky top-0 z-[60] flex items-center transition-colors duration-300 ${isAdmin ? 'border-indigo-100' : 'border-slate-200'}`}>
@@ -27,7 +28,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
           </button>
           
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to={homeRoute} className="flex items-center gap-2 group">
             <span className={`text-xl font-black tracking-tighter transition-colors ${isAdmin ? 'text-indigo-600' : 'text-slate-800'}`}>
               LabQuest
             </span>
@@ -61,4 +62,3 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
 };
 
 export default Navbar;
-

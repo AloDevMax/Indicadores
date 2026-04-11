@@ -80,7 +80,8 @@ export type ImportRunRow = $Result.DefaultSelection<Prisma.$ImportRunRowPayload>
 export namespace $Enums {
   export const Role: {
   admin: 'admin',
-  user: 'user'
+  user: 'user',
+  developer: 'developer'
 };
 
 export type Role = (typeof Role)[keyof typeof Role]

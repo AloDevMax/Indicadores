@@ -278,7 +278,8 @@ exports.Prisma.JsonNullValueFilter = {
 };
 exports.Role = exports.$Enums.Role = {
   admin: 'admin',
-  user: 'user'
+  user: 'user',
+  developer: 'developer'
 };
 
 exports.BadgeTone = exports.$Enums.BadgeTone = {

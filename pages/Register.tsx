@@ -118,7 +118,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
         </form>
 
         <p className="text-center text-sm text-slate-500 mt-4">
-          Já tem conta? <Link to="/" className="text-indigo-600 font-bold hover:text-indigo-700">Fazer login</Link>
+          Já tem conta? <Link to="/login" className="text-indigo-600 font-bold hover:text-indigo-700">Fazer login</Link>
         </p>
       </div>
     </div>
