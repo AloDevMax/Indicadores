@@ -89,8 +89,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div className="mt-8 pt-8 border-t border-slate-50 text-center relative z-10">
           <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">acesso rápido para testes:</p>
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => { setEmail('admin@test.com'); setPassword('admin123'); }} className="px-3 py-2 bg-slate-50 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-indigo-50 hover:text-indigo-600 transition-all">comandante</button>
-            <button onClick={() => { setEmail('joao@acme.com'); setPassword('joao123'); }} className="px-3 py-2 bg-slate-50 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-indigo-50 hover:text-indigo-600 transition-all">explorador</button>
+            <button onClick={() => { setEmail('admin@test.com'); setPassword('admin123'); }} className="px-3 py-2 bg-slate-50 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-indigo-50 hover:text-indigo-600 transition-all">gestor</button>
+            <button onClick={() => { setEmail('joao@acme.com'); setPassword('joao123'); }} className="px-3 py-2 bg-slate-50 rounded-xl text-[9px] font-black text-slate-500 uppercase hover:bg-indigo-50 hover:text-indigo-600 transition-all">colaborador</button>
           </div>
         </div>
       </div>

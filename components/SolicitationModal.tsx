@@ -49,7 +49,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
       setSelectedBadgeId('');
       setProofDescription('');
       setSelectedFile(null);
-      alert('Solicita��o enviada com sucesso! Sua conquista ser� revisada pelo Comandante.');
+      alert('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Falha ao enviar solicita��o.');
     } finally {

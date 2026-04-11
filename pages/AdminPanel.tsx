@@ -231,7 +231,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
   };
 
-  const adminProfile = users.find(u => u.role === 'admin') || users[0] || null;
+  const adminProfile = users.find(u => u.role === 'admin' || u.role === 'developer') || users[0] || null;
   const safeAdminProfile: Profile = adminProfile || {
     id: 'admin-local',
     email: 'admin@local',
@@ -576,7 +576,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       alert(
         result.skippedEmails.length > 0
           ? `${result.createdUsers.length} convites persistidos. ${result.skippedEmails.length} e-mail(s) ja existiam e foram ignorados.`
-          : `${result.createdUsers.length} convites persistidos com sucesso para os novos exploradores!`,
+          : `${result.createdUsers.length} convites persistidos com sucesso para os novos colaboradores!`,
       );
     } else {
       const newUsers: Profile[] = emails.map(email => ({
@@ -592,7 +592,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }));
 
       setUsers(prev => [...prev, ...newUsers]);
-      alert(`${emails.length} convites enviados com sucesso para os novos exploradores!`);
+      alert(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
     }
 
     setIsBulkInviteModalOpen(false);
@@ -664,7 +664,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }));
     }
 
-    alert(`${selectedUsers.length} exploradores foram premiados!`);
+    alert(`${selectedUsers.length} colaboradores foram premiados!`);
     setSelectedUsers([]);
     setSelectedAwardBadge('');
   };
@@ -815,7 +815,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {[
-                  { label: 'Exploradores', val: stats.totalUsers, icon: '👥' },
+                  { label: 'Colaboradores', val: stats.totalUsers, icon: '👥' },
                   { label: 'Selos Ativos', val: stats.activeBadges, icon: '🛡️' },
                   { label: 'Pendências', val: stats.pendingSubmissions, icon: '📨', color: 'text-amber-600' },
                   { label: 'Empresas', val: stats.totalCompanies, icon: '🏢', color: 'text-emerald-600' },
@@ -923,7 +923,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {view === 'users' && (
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Exploradores da Rede</h2>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Colaboradores da Rede</h2>
                 <div className="flex flex-wrap gap-2">
                   <select 
                     value={selectedCompanyFilter}
@@ -945,7 +945,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                   <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
-                  <button onClick={() => openUserModal()} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Explorador</button>
+                  <button onClick={() => openUserModal()} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
               </div>
               <div className="bg-white rounded-[40px] border border-slate-100 shadow-xl overflow-hidden">
@@ -1008,7 +1008,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Exploradores</h2>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -1030,10 +1030,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
                   <div className="mb-6 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. selecione exploradores</h3>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. selecione colaboradores</h3>
                     <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-indigo-600">{selectedUsers.length} selecionados</div>
                   </div>
-                  <input type="text" placeholder="Buscar explorador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-600" />
+                  <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-600" />
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                     {filteredUsers.map(u => (
                       <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-indigo-50 border-indigo-600 shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
@@ -1078,7 +1078,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {badges.map(badge => (
                         <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-indigo-50 border-indigo-600 shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
-                          <span className="text-3xl">{badge.icon_name}</span>
+                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
+                            {badge.image_url ? (
+                              <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{badge.icon_name}</span>
+                            )}
+                          </div>
                           <div>
                             <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge?.name || 'Badge sem nome'}</div>
                             <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
@@ -1155,15 +1161,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 {badges.map(badge => (
                   <div key={badge.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">{badge.icon_name}</div>
+                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
+                        {badge.image_url ? (
+                          <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span>{badge.icon_name}</span>
+                        )}
+                      </div>
                       <div>
                         <div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div>
                         <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div>
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">??</button>
-                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">???</button>
+                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
                     </div>
                   </div>
                 ))}
@@ -1207,7 +1219,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="space-y-12 animate-in fade-in duration-500">
           <header className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
             <div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Olá, Comandante {adminProfile.full_name.split(' ')[0]}</h2>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Olá, Gestor {adminProfile.full_name.split(' ')[0]}</h2>
               <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Sua Própria Jornada de Qualidade</p>
             </div>
             <button onClick={onOpenSolicitation} className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-indigo-700 shadow-xl flex items-center gap-3 transition-all active:scale-95">✨ Solicitar Meu Selo</button>
@@ -1301,7 +1313,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isUserModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingUser ? 'Editar Explorador' : 'Novo Explorador'}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
             <form onSubmit={handleSaveUser} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</label>
@@ -1319,8 +1331,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
-                    <option value="user">Explorador</option>
-                    <option value="admin">Comandante</option>
+                    <option value="user">Colaborador</option>
+                    <option value="admin">Gestor</option>
+                    <option value="developer">Desenvolvedor</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1383,15 +1396,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição da Missão</label>
                 <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 min-h-[100px] text-slate-900" required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de apoio</label>
-                  <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-center text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ícone (Emoji)</label>
-                  <input name="icon_name" defaultValue={editingBadge?.icon_name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-3xl text-center outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de apoio</label>
+                <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-center text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria Operacional</label>

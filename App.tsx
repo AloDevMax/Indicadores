@@ -42,7 +42,7 @@ const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
 ];
 
 const INITIAL_USERS: Profile[] = [
-  { id: 'admin-1', email: 'admin@test.com', full_name: 'Comandante Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
+  { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
   { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01', email_verified: true },
   { id: 'u2', email: 'ana@acme.com', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
   { id: 'u3', email: 'bob@builders.com', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
@@ -64,7 +64,7 @@ const INITIAL_IMPORT_SOURCES: ImportSourceConfig[] = [
     columns: {
       company: 'empresa',
       productive_unit: 'unidade_produtiva',
-      user: 'explorador',
+      user: 'colaborador',
       badge: 'selo',
       tone: 'marcacao',
       award: 'premio',
@@ -291,6 +291,8 @@ const App: React.FC = () => {
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
               setAdminViewMode={setAdminViewMode}
+              companies={companies}
+              productiveUnits={productiveUnits}
             />
           )}
 
@@ -300,7 +302,7 @@ const App: React.FC = () => {
                 path="/"
                 element={
                   user
-                    ? (user.role === 'admin' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
+                    ? (user.role === 'admin' || user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Login onLogin={handleLogin} />
                 }
               />
@@ -359,7 +361,7 @@ const App: React.FC = () => {
               <Route
                 path="/admin/*"
                 element={
-                  user?.role === 'admin' ? (
+                  user?.role === 'admin' || user?.role === 'developer' ? (
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}

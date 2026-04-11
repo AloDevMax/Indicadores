@@ -305,7 +305,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                                   return (
                                     <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
                                       <div className="flex items-center gap-3">
-                                        <span className="text-2xl">{badge.icon_name}</span>
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden bg-slate-100">
+                                          {badge.image_url ? (
+                                            <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                                          ) : (
+                                            <span>{badge.icon_name}</span>
+                                          )}
+                                        </div>
                                         <div className="min-w-0">
                                           <div className="text-xs font-black text-slate-900 truncate">{badge?.name || 'Badge sem nome'}</div>
                                           <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">

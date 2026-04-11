@@ -13,7 +13,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
 
   return (
@@ -43,7 +43,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-xs font-black text-slate-900 leading-none">{user.full_name}</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              {isAdmin ? 'Comandante' : `Saldo do mes ${monthlyMetrics.monthlyScore}`}
+              {isAdmin ? 'Gestor' : `Saldo do mes ${monthlyMetrics.monthlyScore}`}
             </span>
           </div>
           <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>

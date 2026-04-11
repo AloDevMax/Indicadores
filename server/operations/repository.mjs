@@ -138,7 +138,7 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
 
 export const reviewSubmission = async ({ submissionId, reviewerId, status }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || reviewer.role !== 'admin') {
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem revisar solicitações.');
   }
 
@@ -233,7 +233,7 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
 
 export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || reviewer.role !== 'admin') {
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem conceder badges.');
   }
 
@@ -289,7 +289,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
 
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || reviewer.role !== 'admin') {
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem remover badges.');
   }
 
@@ -323,7 +323,7 @@ export const persistImportRun = async ({
   rows,
 }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || reviewer.role !== 'admin') {
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem processar importações.');
   }
 

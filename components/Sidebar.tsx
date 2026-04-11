@@ -1,6 +1,6 @@
-﻿import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { Profile, UserBadge } from '../types';
+﻿import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Profile, UserBadge, Company, ProductiveUnit } from '../types';
 import { getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 interface SidebarProps {
@@ -10,6 +10,8 @@ interface SidebarProps {
   onClose: () => void;
   adminViewMode?: 'management' | 'personal';
   setAdminViewMode?: (_mode: 'management' | 'personal') => void;
+  companies?: Company[];
+  productiveUnits?: ProductiveUnit[];
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -18,13 +20,32 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onClose,
   adminViewMode = 'management',
-  setAdminViewMode
+  setAdminViewMode,
+  companies = [],
+  productiveUnits = []
 }) => {
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
+  
   if (!user) return null;
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
+  
+  const toggleExpandCompany = (companyId: string) => {
+    const newExpanded = new Set(expandedCompanies);
+    if (newExpanded.has(companyId)) {
+      newExpanded.delete(companyId);
+    } else {
+      newExpanded.add(companyId);
+    }
+    setExpandedCompanies(newExpanded);
+  };
+  
+  const getCompanyUnits = (companyId: string) => {
+    return productiveUnits.filter(u => u.company_id === companyId);
+  };
 
   const userLinks = [
     { to: '/dashboard', label: 'Meu Progresso', icon: '📈' },
@@ -37,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { to: '/ranking', label: 'Ranking Global', icon: '🥇' },
     { to: '/admin/award', label: 'Premiar Selos', icon: '🏆' },
     { to: '/admin/submissions', label: 'Solicitações', icon: '📨' },
-    { to: '/admin/users', label: 'Exploradores', icon: '👥' },
+    { to: '/admin/users', label: 'Colaboradores', icon: '👥' },
     { to: '/admin/badges', label: 'Biblioteca', icon: '🛡️' },
     { to: '/admin/companies', label: 'Empresas', icon: '🏢' },
     { to: '/admin/settings', label: 'Configurações', icon: '⚙️' },
@@ -87,28 +108,77 @@ const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="mb-4 px-4">
             <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-              {showUserMenu ? 'Menu do Explorador' : 'Gestão Operacional'}
+              {showUserMenu ? 'Menu do Colaborador' : 'Gestão Operacional'}
             </span>
           </div>
 
           <nav className="space-y-1">
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                end={link.to === '/admin' || link.to === '/dashboard'}
-                onClick={() => {
-                  if (window.innerWidth < 768) onClose();
-                }}
-                className={({ isActive }) => `
-                  flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all
-                  ${isActive ? activeClass : inactiveClass}
-                `}
-              >
-                <span className="text-lg">{link.icon}</span>
-                <span>{link.label}</span>
-              </NavLink>
-            ))}
+            {links.map((link) => {
+              if (link.label === 'Empresas' && !showUserMenu && companies.length > 0) {
+                return (
+                  <div key={link.to}>
+                    <button
+                      onClick={() => navigate(link.to)}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      <span className="text-lg">{link.icon}</span>
+                      <span className="flex-1 text-left">{link.label}</span>
+                    </button>
+                    <div className="ml-2 border-l-2 border-slate-100 pl-2 space-y-1">
+                      {companies.map((company) => {
+                        const units = getCompanyUnits(company.id);
+                        const isExpanded = expandedCompanies.has(company.id);
+                        return (
+                          <div key={company.id}>
+                            <button
+                              onClick={() => toggleExpandCompany(company.id)}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
+                            >
+                              <span className="text-sm">{isExpanded ? '▼' : '▶'}</span>
+                              <span className="flex-1 text-left truncate">{company.name}</span>
+                            </button>
+                            {isExpanded && units.length > 0 && (
+                              <div className="ml-4 space-y-1">
+                                {units.map((unit) => (
+                                  <button
+                                    key={unit.id}
+                                    onClick={() => {
+                                      navigate(`/empresas/${company.id}#${unit.id}`);
+                                      if (window.innerWidth < 768) onClose();
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all truncate"
+                                  >
+                                    <span className="text-sm">📍</span>
+                                    <span className="flex-1 text-left truncate">{unit.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              }
+              return (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  end={link.to === '/admin' || link.to === '/dashboard'}
+                  onClick={() => {
+                    if (window.innerWidth < 768) onClose();
+                  }}
+                  className={({ isActive }) => `
+                    flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all
+                    ${isActive ? activeClass : inactiveClass}
+                  `}
+                >
+                  <span className="text-lg">{link.icon}</span>
+                  <span>{link.label}</span>
+                </NavLink>
+              );
+            })}
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-50">

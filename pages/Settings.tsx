@@ -117,7 +117,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
-                    <p className="text-slate-900 font-bold">{user.role === 'admin' ? 'Comandante' : 'Explorador'}</p>
+                    <p className="text-slate-900 font-bold">{user.role === 'admin' ? 'Gestor' : (user.role === 'developer' ? 'Desenvolvedor' : 'Colaborador')}</p>
                   </div>
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nível</label>

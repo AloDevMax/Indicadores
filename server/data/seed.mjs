@@ -57,7 +57,7 @@ export const seedData = {
       columns: {
         company: 'empresa',
         productive_unit: 'unidade_produtiva',
-        user: 'explorador',
+        user: 'colaborador',
         badge: 'selo',
         tone: 'marcacao',
         award: 'premio',

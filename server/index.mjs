@@ -87,6 +87,9 @@ app.use('/uploads', express.static(uploadsPath));
 // Rotas de upload
 app.use('/api/upload', uploadRouter);
 
+// Helper para verificar se o usuário é admin ou desenvolvedor
+const isAdminOrDeveloper = (user) => user.role === 'admin' || user.role === 'developer';
+
 app.post('/api/auth/login', async (req, res) => {
   const result = await loginUser(req.body);
   res.status(result.status).json(result.body);
@@ -145,7 +148,7 @@ app.get('/api/health', async (_req, res) => {
 
 app.post('/api/admin/award-badges', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
 
   const result = await awardBadges(req.body);
   res.status(200).json(result);
@@ -154,7 +157,7 @@ app.post('/api/admin/award-badges', async (req, res) => {
 app.post('/api/admin/user-badges/remove', async (req, res) => {
   
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
 
   const result = await removeUserBadge(req.body);
   res.status(200).json(result);
@@ -188,7 +191,7 @@ app.post('/api/submissions/:id/review', async (req, res) => {
 
 app.post('/api/admin/companies', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
   const company = await saveCompany(req.body);
@@ -197,7 +200,7 @@ app.post('/api/admin/companies', async (req, res) => {
 
 app.post('/api/admin/users', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
 
@@ -207,7 +210,7 @@ app.post('/api/admin/users', async (req, res) => {
 
 app.post('/api/admin/import-sources', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
 
@@ -217,7 +220,7 @@ app.post('/api/admin/import-sources', async (req, res) => {
 
 app.post('/api/admin/badges', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
   const badge = await saveBadge(req.body);
@@ -226,7 +229,7 @@ app.post('/api/admin/badges', async (req, res) => {
 
 app.post('/api/admin/badges/delete', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') {
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
   const result = await deleteBadge(req.body.id);
@@ -235,7 +238,7 @@ app.post('/api/admin/badges/delete', async (req, res) => {
 
 app.post('/api/admin/users/delete', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
   
   const result = await deleteUser(req.body.id); 
   res.status(200).json(result);
@@ -244,7 +247,7 @@ app.post('/api/admin/users/delete', async (req, res) => {
 app.post('/api/admin/companies/delete', async (req, res) => {
   try {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
     
     const result = await deleteCompany(req.body.id);
     res.status(200).json(result);
@@ -257,7 +260,7 @@ app.post('/api/admin/companies/delete', async (req, res) => {
 app.post('/api/admin/productive-units', async (req, res) => {
   try {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
     
     const productiveUnit = await saveProductiveUnit(req.body);
     res.status(201).json({ productiveUnit });
@@ -269,7 +272,7 @@ app.post('/api/admin/productive-units', async (req, res) => {
 
 app.post('/api/admin/users/bulk-invite', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.sendStatus(403);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
   const result = await bulkInviteUsers(req.body);
   res.status(200).json(result);
 });
