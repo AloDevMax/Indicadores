@@ -838,7 +838,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg space-y-5 group hover:border-indigo-200 transition-all">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
+                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
+                          {c.logo_url ? (
+                            <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
+                          ) : (
+                            '🏢'
+                          )}
+                        </div>
                         <div>
                           <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
@@ -959,10 +965,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       return (
                         <tr key={u.id} className="group hover:bg-slate-50/50">
                           <td className="px-10 py-6">
-                            <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
-                            <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
-                            <div className="text-[10px] text-cyan-600 font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
-                            <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {u.avatar_url ? (
+                                  <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-lg">👤</span>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
+                                <div className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
+                                <div className="text-[10px] text-cyan-600 font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
+                                <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-10 py-6">
                             <div className="flex items-center gap-3 flex-wrap">
@@ -1165,9 +1182,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg flex items-center justify-between group hover:border-indigo-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner">🏢</div>
+                  <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg flex items-center justify-between group hover:border-indigo-200 transition-all flex-col md:flex-row gap-4">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
+                        {c.logo_url ? (
+                          <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
+                        ) : (
+                          '🏢'
+                        )}
+                      </div>
                       <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
                     </div>
                     <div className="flex gap-2">
