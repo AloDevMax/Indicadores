@@ -16,6 +16,15 @@ const IMPORT_FIELD_ALIASES: Record<ImportSourceField, string[]> = {
   award: ['premio', 'prêmio', 'autorizar', 'autorizacao', 'autorização', 'award'],
 };
 
+const IMPORT_FIELD_LABELS: Record<ImportSourceField, string> = {
+  company: 'Empresa',
+  productive_unit: 'Unidade produtiva',
+  user: 'Colaborador',
+  badge: 'Selo',
+  tone: 'Marcação',
+  award: 'Autorização',
+};
+
 interface AdminPanelProps {
   activeMode: 'management' | 'personal';
   setActiveMode: (_mode: 'management' | 'personal') => void;
@@ -285,6 +294,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
     return Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
   };
+
+  const renderSquareImage = (src: string, alt: string) => (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-contain p-2 bg-white"
+    />
+  );
 
   const suggestColumnForField = (headers: string[], field: ImportSourceField, source: ImportSourceConfig) => {
     const candidates = [source.columns[field], ...IMPORT_FIELD_ALIASES[field]].map(normalizeCompare);
@@ -840,7 +857,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
                           {c.logo_url ? (
-                            <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
+                            renderSquareImage(c.logo_url, c.name)
                           ) : (
                             '🏢'
                           )}
@@ -1020,10 +1037,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {importSources.map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
                   </select>
                   <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
-                    Fonte Excel
+                    Configurar fonte
                   </button>
                   <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>????</span> Importar Excel</button>
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
                 </div>
               </header>
 
@@ -1062,11 +1079,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           editar mapeamento
                         </button>
                       </div>
-                      <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descricao cadastrada.'}</p>
+                      <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descrição cadastrada.'}</p>
                       <div className="grid grid-cols-2 gap-3">
                         {(Object.entries(activeImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
                           <div key={field} className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</div>
                             <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
                           </div>
                         ))}
@@ -1080,7 +1097,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-indigo-50 border-indigo-600 shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
                           <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
                             {badge.image_url ? (
-                              <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                              renderSquareImage(badge.image_url, badge.name)
                             ) : (
                               <span>{badge.icon_name}</span>
                             )}
@@ -1094,7 +1111,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                   <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcacao do mes</h3>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcação do mês</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
                         <button
@@ -1115,8 +1132,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </label>
                   </div>
                   <div className="bg-indigo-900 p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
-                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">3. Confirmar Premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge}>Conceder Selos Agora 🏆</button>
+                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar premiação</h3>
+                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge}>Conceder selos agora</button>
                   </div>
                 </div>
               </div>
@@ -1163,7 +1180,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
                         {badge.image_url ? (
-                          <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                          renderSquareImage(badge.image_url, badge.name)
                         ) : (
                           <span>{badge.icon_name}</span>
                         )}
@@ -1198,7 +1215,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
                         {c.logo_url ? (
-                          <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
+                          renderSquareImage(c.logo_url, c.name)
                         ) : (
                           '🏢'
                         )}

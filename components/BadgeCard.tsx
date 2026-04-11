@@ -49,6 +49,7 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
     );
   }
   const toneStyle = TONE_STYLES[tone];
+  const hasCustomImage = Boolean(badge.image_url);
 
   return (
     <div className={`
@@ -59,10 +60,14 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
     `}>
       <div className={`
         w-16 h-16 rounded-2xl mb-4 flex items-center justify-center text-3xl overflow-hidden
-        ${unlocked ? `${toneStyle.icon} ${!badge.image_url ? 'animate-pulse' : ''}` : 'bg-slate-200 text-slate-400'}
+        ${unlocked ? `${toneStyle.icon} ${!hasCustomImage ? 'animate-pulse' : ''}` : 'bg-slate-200 text-slate-400'}
       `}>
-        {badge.image_url ? (
-          <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+        {hasCustomImage ? (
+          <img
+            src={badge.image_url}
+            alt={badge.name}
+            className="w-full h-full object-contain p-2 bg-white"
+          />
         ) : (
           badge.icon_name || '✨'
         )}
