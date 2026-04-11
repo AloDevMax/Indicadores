@@ -78,7 +78,11 @@ app.use((req, res, next) => {
 app.use(express.static(frontendPath));
 
 // Servir uploads como arquivos estáticos
-app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+const uploadsPath = path.join(__dirname, '..', 'public', 'uploads');
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+}
+app.use('/uploads', express.static(uploadsPath));
 
 // Rotas de upload
 app.use('/api/upload', uploadRouter);
