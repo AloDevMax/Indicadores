@@ -1034,8 +1034,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className={cn('flex gap-2 flex-wrap')}>
                   <select
-                    value={selectedImportSourceId}
-                    onChange={(e) => setSelectedImportSourceId(e.target.value)}
+                    value={selectedImportSourceId ?? ""}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                    setSelectedImportSourceId(e.target.value)
+                    }
                     className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
                     {importSources.filter(Boolean).map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
