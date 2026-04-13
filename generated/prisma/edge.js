@@ -355,12 +355,12 @@ config.compilerWasm = undefined
 
 config.injectableEdgeEnv = () => ({
   parsed: {
-    DATABASE_URL: typeof globalThis !== 'undefined' && globalThis['DATABASE_URL'] || typeof process !== 'undefined' && process.env && process.env.DATABASE_URL || undefined
+    DATABASE_URL: typeof globalThis !== 'undefined' && globalThis['DATABASE_URL'] ?? typeof process !== 'undefined' && process.env && process.env.DATABASE_URL ?? undefined
   }
 })
 
-if (typeof globalThis !== 'undefined' && globalThis['DEBUG'] || typeof process !== 'undefined' && process.env && process.env.DEBUG || undefined) {
-  Debug.enable(typeof globalThis !== 'undefined' && globalThis['DEBUG'] || typeof process !== 'undefined' && process.env && process.env.DEBUG || undefined)
+if (typeof globalThis !== 'undefined' && globalThis['DEBUG'] ?? typeof process !== 'undefined' && process.env && process.env.DEBUG ?? undefined) {
+  Debug.enable(typeof globalThis !== 'undefined' && globalThis['DEBUG'] ?? typeof process !== 'undefined' && process.env && process.env.DEBUG ?? undefined)
 }
 
 const PrismaClient = getPrismaClient(config)

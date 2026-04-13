@@ -8,15 +8,15 @@ const mapSubmission = (row) => ({
   id: row.id,
   user_id: row.user_id,
   badge_id: row.badge_id,
-  proof_url: row.proof_url || undefined,
-  description: row.description || undefined,
+  proof_url: row.proof_url ?? undefined,
+  description: row.description ?? undefined,
   status: row.status,
   submitted_at: row.submitted_at,
-  reviewed_by: row.reviewed_by || undefined,
-  reviewed_at: row.reviewed_at || undefined,
-  feedback: row.feedback || undefined,
-  user_name: row.user_name || undefined,
-  badge_name: row.badge_name || undefined,
+  reviewed_by: row.reviewed_by ?? undefined,
+  reviewed_at: row.reviewed_at ?? undefined,
+  feedback: row.feedback ?? undefined,
+  user_name: row.user_name ?? undefined,
+  badge_name: row.badge_name ?? undefined,
 });
 
 const upsertMemoryBadgeAward = ({ userId, badgeId, awardedBy, tone }) => {
@@ -91,7 +91,7 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
       id: crypto.randomUUID(),
       user_id: userId,
       badge_id: badgeId,
-      proof_url: proofUrl || null,
+      proof_url: proofUrl ?? null,
       description,
       status: 'pending',
       submitted_at: new Date().toISOString(),
@@ -124,7 +124,7 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
         reviewed_by,
         reviewed_at,
         feedback`,
-      [userId, badgeId, proofUrl || null, description],
+      [userId, badgeId, proofUrl ?? null, description],
     );
 
     return mapSubmission({
@@ -138,7 +138,7 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
 
 export const reviewSubmission = async ({ submissionId, reviewerId, status }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
+  if (!reviewer ?? (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem revisar solicitações.');
   }
 
@@ -233,11 +233,11 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
 
 export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
+  if (!reviewer ?? (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem conceder badges.');
   }
 
-  const badgeName = memoryAdminStore.badges.find((badge) => badge.id === badgeId)?.name || 'Badge';
+  const badgeName = memoryAdminStore.badges.find((badge) => badge.id === badgeId)?.name ?? 'Badge';
   const client = await createPgClient();
 
   if (!client) {
@@ -256,7 +256,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
        limit 1`,
       [badgeId],
     );
-    const resolvedBadgeName = badgeResult.rows[0]?.name || badgeName;
+    const resolvedBadgeName = badgeResult.rows[0]?.name ?? badgeName;
 
     for (const userId of userIds) {
       await client.query(
@@ -289,7 +289,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
 
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
+  if (!reviewer ?? (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem remover badges.');
   }
 
@@ -323,7 +323,7 @@ export const persistImportRun = async ({
   rows,
 }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
+  if (!reviewer ?? (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
     throw new Error('Apenas administradores podem processar importações.');
   }
 
@@ -388,12 +388,12 @@ export const persistImportRun = async ({
           index + 1,
           JSON.stringify(row.row),
           JSON.stringify({
-            user_id: row.user_id || null,
-            badge_id: row.badge_id || null,
-            tone: row.tone || null,
+            user_id: row.user_id ?? null,
+            badge_id: row.badge_id ?? null,
+            tone: row.tone ?? null,
           }),
           row.status === 'valid' ? 'imported' : row.status,
-          row.reason || null,
+          row.reason ?? null,
         ],
       );
 

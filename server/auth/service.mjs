@@ -71,7 +71,7 @@ export const loginUser = async (input) => {
   const payload = loginSchema.parse(input);
   const user = await findUserByEmail(payload.email);
 
-  if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+  if (!user ?? !(await verifyPassword(payload.password, user.password_hash))) {
     return {
       status: 401,
       body: { error: 'Credenciais inválidas.' },
@@ -129,7 +129,7 @@ export const getAuthenticatedUser = async (authorizationHeader) => {
 
 export const logoutUser = async (authorizationHeader) => {
   const authResult = await getAuthenticatedUser(authorizationHeader);
-  if (authResult.status !== 200 || !authResult.sessionId) {
+  if (authResult.status !== 200 ?? !authResult.sessionId) {
     return authResult;
   }
 

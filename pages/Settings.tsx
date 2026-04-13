@@ -9,8 +9,8 @@ interface SettingsProps {
 const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: user?.full_name || '',
-    email: user?.email || '',
+    full_name: user?.full_name ?? '',
+    email: user?.email ?? '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -57,7 +57,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Erro ao atualizar perfil.');
+        throw new Error(error.error ?? 'Erro ao atualizar perfil.');
       }
 
       const result = await response.json();

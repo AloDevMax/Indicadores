@@ -46,11 +46,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erro ao fazer upload');
+        throw new Error(data.error ?? 'Erro ao fazer upload');
       }
 
       const data = await response.json();
-      const imageUrl = data.imageUrl || data.logoUrl || data.avatarUrl;
+      const imageUrl = data.imageUrl ?? data.logoUrl ?? data.avatarUrl;
       
       if (imageUrl) {
         onImageUpload(imageUrl);

@@ -37,7 +37,7 @@ export const parseMultipartData = async (req) => {
                   buffer: Buffer.from(fileContent, 'binary')
                 };
               } else {
-                const value = part.split('\r\n\r\n')[1]?.split('\r\n')[0] || '';
+                const value = part.split('\r\n\r\n')[1]?.split('\r\n')[0] ?? '';
                 fields[fieldName] = value;
               }
             }

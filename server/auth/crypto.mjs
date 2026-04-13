@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7;
-const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-only-auth-secret-change-me';
+const AUTH_SECRET = process.env.AUTH_SECRET ?? 'dev-only-auth-secret-change-me';
 
 const base64url = (value) => Buffer.from(value).toString('base64url');
 const fromBase64url = (value) => Buffer.from(value, 'base64url').toString('utf8');
@@ -20,7 +20,7 @@ export const hashPassword = async (password) => {
 
 export const verifyPassword = async (password, storedHash) => {
   const [scheme, salt, expectedHash] = storedHash.split(':');
-  if (scheme !== 'scrypt' || !salt || !expectedHash) {
+  if (scheme !== 'scrypt' ?? !salt ?? !expectedHash) {
     return false;
   }
 
@@ -58,7 +58,7 @@ export const createSessionToken = ({ sessionId, userId, role }) => {
 
 export const verifySessionToken = (token) => {
   const [encodedPayload, signature] = token.split('.');
-  if (!encodedPayload || !signature) {
+  if (!encodedPayload ?? !signature) {
     return null;
   }
 
@@ -66,13 +66,13 @@ export const verifySessionToken = (token) => {
   const provided = Buffer.from(signature);
   const expected = Buffer.from(expectedSignature);
 
-  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+  if (provided.length !== expected.length ?? !crypto.timingSafeEqual(provided, expected)) {
     return null;
   }
 
   try {
     const payload = JSON.parse(fromBase64url(encodedPayload));
-    if (!payload.exp || payload.exp < Date.now()) {
+    if (!payload.exp ?? payload.exp < Date.now()) {
       return null;
     }
     return payload;

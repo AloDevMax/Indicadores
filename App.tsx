@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -46,8 +46,6 @@ const INITIAL_USERS: Profile[] = [
   { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
   { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
   { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01', email_verified: true },
-  { id: 'u2', email: 'ana@acme.com', full_name: 'Ana Costa', role: 'user', company_id: 'c1', productive_unit_id: 'pu2', level: 3, xp: 3100, created_at: '2023-02-15' },
-  { id: 'u3', email: 'bob@builders.com', full_name: 'Bob Construtor', role: 'user', company_id: 'c2', productive_unit_id: 'pu3', level: 10, xp: 10500, created_at: '2022-11-20' },
 ];
 
 const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
@@ -103,14 +101,14 @@ const App: React.FC = () => {
         if (!isMounted) return;
 
         if (bootstrap) {
-          setBadges(bootstrap.badges || INITIAL_BADGES);
-          setCompanies(bootstrap.companies || INITIAL_COMPANIES);
-          setProductiveUnits(bootstrap.productiveUnits || INITIAL_PRODUCTIVE_UNITS);
-          setBadgeLegends(bootstrap.badgeLegends || INITIAL_BADGE_LEGENDS);
-          setImportSources(bootstrap.importSources || INITIAL_IMPORT_SOURCES);
-          setUsers(bootstrap.users || INITIAL_USERS);
-          setUserBadges(bootstrap.userBadges || []);
-          setSubmissions(bootstrap.submissions || []);
+          setBadges(bootstrap.badges ?? INITIAL_BADGES);
+          setCompanies(bootstrap.companies ?? INITIAL_COMPANIES);
+          setProductiveUnits(bootstrap.productiveUnits ?? INITIAL_PRODUCTIVE_UNITS);
+          setBadgeLegends(bootstrap.badgeLegends ?? INITIAL_BADGE_LEGENDS);
+          setImportSources(bootstrap.importSources ?? INITIAL_IMPORT_SOURCES);
+          setUsers(bootstrap.users ?? INITIAL_USERS);
+          setUserBadges(bootstrap.userBadges ?? []);
+          setSubmissions(bootstrap.submissions ?? []);
         }
 
         if (currentUser) {
@@ -272,17 +270,17 @@ const App: React.FC = () => {
   };
 
   const visibleCompanies = useMemo(() => {
-    if (!user || user.role !== 'admin') return companies;
+    if (!user ?? user.role !== 'admin') return companies;
     return companies.filter((company) => company.id === user.company_id);
   }, [companies, user]);
 
   const visibleProductiveUnits = useMemo(() => {
-    if (!user || user.role !== 'admin') return productiveUnits;
+    if (!user ?? user.role !== 'admin') return productiveUnits;
     return productiveUnits.filter((unit) => unit.company_id === user.company_id);
   }, [productiveUnits, user]);
 
   const visibleUsers = useMemo(() => {
-    if (!user || user.role !== 'admin') return users;
+    if (!user ?? user.role !== 'admin') return users;
     return users.filter((profile) => profile.company_id === user.company_id);
   }, [users, user]);
 
@@ -319,7 +317,7 @@ const App: React.FC = () => {
                 path="/"
                 element={
                   user
-                    ? (user.role === 'admin' || user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
+                    ? (user.role === 'admin' ?? user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Landing />
                 }
               />
@@ -382,7 +380,7 @@ const App: React.FC = () => {
               <Route
                 path="/admin/*"
                 element={
-                  user?.role === 'admin' || user?.role === 'developer' ? (
+                  user?.role === 'admin' ?? user?.role === 'developer' ? (
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}

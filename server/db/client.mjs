@@ -38,7 +38,7 @@ export const createPgClient = async () => {
     return client;
   } catch (error) {
     console.error('[DATABASE] ❌ Erro ao conectar:');
-    console.error(`   Tipo: ${error.code || error.name}`);
+    console.error(`   Tipo: ${error.code ?? error.name}`);
     console.error(`   Mensagem: ${error.message}`);
     
     if (error.code === 'ECONNREFUSED') {

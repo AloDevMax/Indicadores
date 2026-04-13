@@ -29,9 +29,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   
   if (!user) return null;
 
-  const isAdmin = user.role === 'admin' || user.role === 'developer';
+  const isAdmin = user.role === 'admin' ?? user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
-  const showUserMenu = !isAdmin || adminViewMode === 'personal';
+  const showUserMenu = !isAdmin ?? adminViewMode === 'personal';
   
   const toggleExpandCompany = (companyId: string) => {
     const newExpanded = new Set(expandedCompanies);
@@ -165,7 +165,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  end={link.to === '/admin' || link.to === '/dashboard'}
+                  end={link.to === '/admin' ?? link.to === '/dashboard'}
                   onClick={() => {
                     if (window.innerWidth < 768) onClose();
                   }}

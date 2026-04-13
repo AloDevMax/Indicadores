@@ -37,7 +37,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBadgeId || !proofDescription) {
+    if (!selectedBadgeId ?? !proofDescription) {
       alert('Por favor, selecione um selo e descreva sua conquista.');
       return;
     }
@@ -78,7 +78,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             >
               <option value="">Selecionar conquista...</option>
               {allBadges.filter((badge) => !unlockedIds.includes(badge.id)).map((badge) => (
-                <option key={badge.id} value={badge.id}>{badge?.name || 'Badge sem nome'}</option>
+                <option key={badge.id} value={badge.id}>{badge?.name ?? 'Badge sem nome'}</option>
               ))}
             </select>
           </div>

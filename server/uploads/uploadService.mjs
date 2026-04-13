@@ -36,7 +36,7 @@ export const saveUploadedFile = async (buffer, mimeType, filename) => {
 };
 
 export const deleteUploadedFile = async (fileUrl) => {
-  if (!fileUrl || !fileUrl.startsWith('/uploads/')) {
+  if (!fileUrl ?? !fileUrl.startsWith('/uploads/')) {
     return;
   }
   
