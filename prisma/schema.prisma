@@ -48,6 +48,7 @@ enum ImportRunStatus {
 model Company {
   id               String           @id @db.Text
   name             String           @unique
+  category         String?
   logo_url         String?
   created_at       DateTime         @default(now()) @db.Timestamp(6)
   productive_units ProductiveUnit[]

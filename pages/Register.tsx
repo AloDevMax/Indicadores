@@ -42,7 +42,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.message ?? 'Falha no cadastro.');
+      setError(result.message || 'Falha no cadastro.');
       return;
     }
 

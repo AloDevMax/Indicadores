@@ -7,7 +7,7 @@ import { createPgClient } from './client.mjs';
 const mapRows = (rows, mapper) => rows.map(mapper);
 
 const filterDataForManager = (payload, currentUser) => {
-  if (!currentUser ?? currentUser.role !== 'admin' ?? !currentUser.company_id) {
+  if (!currentUser || currentUser.role !== 'admin' || !currentUser.company_id) {
     return payload;
   }
 
@@ -46,7 +46,7 @@ export const loadBootstrapData = async (currentUser = null) => {
       userBadges: memoryStore.userBadges,
       submissions: memoryStore.submissions.map((submission) => ({
         ...submission,
-        badge_name: memoryAdminStore.badges.find((badge) => badge.id === submission.badge_id)?.name ?? submission.badge_name,
+        badge_name: memoryAdminStore.badges.find((badge) => badge.id === submission.badge_id)?.name || submission.badge_name,
       })),
     }, currentUser);
   }
@@ -132,7 +132,7 @@ export const loadBootstrapData = async (currentUser = null) => {
     ]);
 
     const notificationsByUserId = notifications.rows.reduce((accumulator, notification) => {
-      const nextEntries = accumulator.get(notification.user_id) ?? [];
+      const nextEntries = accumulator.get(notification.user_id) || [];
       nextEntries.push({
         id: notification.id,
         title: notification.title,
@@ -149,10 +149,10 @@ export const loadBootstrapData = async (currentUser = null) => {
       badges: badges.rows,
       companies: companies.rows,
       productiveUnits: productiveUnits.rows,
-      badgeLegends: badgeLegends.rows[0] ?? seedData.badgeLegends,
+      badgeLegends: badgeLegends.rows[0] || seedData.badgeLegends,
       users: users.rows.map((user) => ({
         ...user,
-        notifications: notificationsByUserId.get(user.id) ?? [],
+        notifications: notificationsByUserId.get(user.id) || [],
       })),
       userBadges: userBadges.rows,
       submissions: submissions.rows,

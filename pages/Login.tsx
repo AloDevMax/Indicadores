@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(false);
 
     if (!result.success) {
-      setError(result.message ?? 'Credenciais inválidas.');
+      setError(result.message || 'Credenciais inválidas.');
       return;
     }
 

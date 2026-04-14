@@ -2213,6 +2213,7 @@ export namespace Prisma {
   export type CompanyMinAggregateOutputType = {
     id: string | null
     name: string | null
+    category: string | null
     logo_url: string | null
     created_at: Date | null
   }
@@ -2220,6 +2221,7 @@ export namespace Prisma {
   export type CompanyMaxAggregateOutputType = {
     id: string | null
     name: string | null
+    category: string | null
     logo_url: string | null
     created_at: Date | null
   }
@@ -2227,6 +2229,7 @@ export namespace Prisma {
   export type CompanyCountAggregateOutputType = {
     id: number
     name: number
+    category: number
     logo_url: number
     created_at: number
     _all: number
@@ -2236,6 +2239,7 @@ export namespace Prisma {
   export type CompanyMinAggregateInputType = {
     id?: true
     name?: true
+    category?: true
     logo_url?: true
     created_at?: true
   }
@@ -2243,6 +2247,7 @@ export namespace Prisma {
   export type CompanyMaxAggregateInputType = {
     id?: true
     name?: true
+    category?: true
     logo_url?: true
     created_at?: true
   }
@@ -2250,6 +2255,7 @@ export namespace Prisma {
   export type CompanyCountAggregateInputType = {
     id?: true
     name?: true
+    category?: true
     logo_url?: true
     created_at?: true
     _all?: true
@@ -2330,6 +2336,7 @@ export namespace Prisma {
   export type CompanyGroupByOutputType = {
     id: string
     name: string
+    category: string | null
     logo_url: string | null
     created_at: Date
     _count: CompanyCountAggregateOutputType | null
@@ -2354,6 +2361,7 @@ export namespace Prisma {
   export type CompanySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    category?: boolean
     logo_url?: boolean
     created_at?: boolean
     productive_units?: boolean | Company$productive_unitsArgs<ExtArgs>
@@ -2364,6 +2372,7 @@ export namespace Prisma {
   export type CompanySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    category?: boolean
     logo_url?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["company"]>
@@ -2371,6 +2380,7 @@ export namespace Prisma {
   export type CompanySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    category?: boolean
     logo_url?: boolean
     created_at?: boolean
   }, ExtArgs["result"]["company"]>
@@ -2378,11 +2388,12 @@ export namespace Prisma {
   export type CompanySelectScalar = {
     id?: boolean
     name?: boolean
+    category?: boolean
     logo_url?: boolean
     created_at?: boolean
   }
 
-  export type CompanyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "logo_url" | "created_at", ExtArgs["result"]["company"]>
+  export type CompanyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "category" | "logo_url" | "created_at", ExtArgs["result"]["company"]>
   export type CompanyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     productive_units?: boolean | Company$productive_unitsArgs<ExtArgs>
     users?: boolean | Company$usersArgs<ExtArgs>
@@ -2400,6 +2411,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       name: string
+      category: string | null
       logo_url: string | null
       created_at: Date
     }, ExtArgs["result"]["company"]>
@@ -2829,6 +2841,7 @@ export namespace Prisma {
   interface CompanyFieldRefs {
     readonly id: FieldRef<"Company", 'String'>
     readonly name: FieldRef<"Company", 'String'>
+    readonly category: FieldRef<"Company", 'String'>
     readonly logo_url: FieldRef<"Company", 'String'>
     readonly created_at: FieldRef<"Company", 'DateTime'>
   }
@@ -15952,6 +15965,7 @@ export namespace Prisma {
   export const CompanyScalarFieldEnum: {
     id: 'id',
     name: 'name',
+    category: 'category',
     logo_url: 'logo_url',
     created_at: 'created_at'
   };
@@ -16320,6 +16334,7 @@ export namespace Prisma {
     NOT?: CompanyWhereInput | CompanyWhereInput[]
     id?: StringFilter<"Company"> | string
     name?: StringFilter<"Company"> | string
+    category?: StringNullableFilter<"Company"> | string | null
     logo_url?: StringNullableFilter<"Company"> | string | null
     created_at?: DateTimeFilter<"Company"> | Date | string
     productive_units?: ProductiveUnitListRelationFilter
@@ -16329,6 +16344,7 @@ export namespace Prisma {
   export type CompanyOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
+    category?: SortOrderInput | SortOrder
     logo_url?: SortOrderInput | SortOrder
     created_at?: SortOrder
     productive_units?: ProductiveUnitOrderByRelationAggregateInput
@@ -16341,6 +16357,7 @@ export namespace Prisma {
     AND?: CompanyWhereInput | CompanyWhereInput[]
     OR?: CompanyWhereInput[]
     NOT?: CompanyWhereInput | CompanyWhereInput[]
+    category?: StringNullableFilter<"Company"> | string | null
     logo_url?: StringNullableFilter<"Company"> | string | null
     created_at?: DateTimeFilter<"Company"> | Date | string
     productive_units?: ProductiveUnitListRelationFilter
@@ -16350,6 +16367,7 @@ export namespace Prisma {
   export type CompanyOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
+    category?: SortOrderInput | SortOrder
     logo_url?: SortOrderInput | SortOrder
     created_at?: SortOrder
     _count?: CompanyCountOrderByAggregateInput
@@ -16363,6 +16381,7 @@ export namespace Prisma {
     NOT?: CompanyScalarWhereWithAggregatesInput | CompanyScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Company"> | string
     name?: StringWithAggregatesFilter<"Company"> | string
+    category?: StringNullableWithAggregatesFilter<"Company"> | string | null
     logo_url?: StringNullableWithAggregatesFilter<"Company"> | string | null
     created_at?: DateTimeWithAggregatesFilter<"Company"> | Date | string
   }
@@ -17188,6 +17207,7 @@ export namespace Prisma {
   export type CompanyCreateInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitCreateNestedManyWithoutCompanyInput
@@ -17197,6 +17217,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitUncheckedCreateNestedManyWithoutCompanyInput
@@ -17206,6 +17227,7 @@ export namespace Prisma {
   export type CompanyUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUpdateManyWithoutCompanyNestedInput
@@ -17215,6 +17237,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUncheckedUpdateManyWithoutCompanyNestedInput
@@ -17224,6 +17247,7 @@ export namespace Prisma {
   export type CompanyCreateManyInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
   }
@@ -17231,6 +17255,7 @@ export namespace Prisma {
   export type CompanyUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -17238,6 +17263,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -18181,6 +18207,7 @@ export namespace Prisma {
   export type CompanyCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    category?: SortOrder
     logo_url?: SortOrder
     created_at?: SortOrder
   }
@@ -18188,6 +18215,7 @@ export namespace Prisma {
   export type CompanyMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    category?: SortOrder
     logo_url?: SortOrder
     created_at?: SortOrder
   }
@@ -18195,6 +18223,7 @@ export namespace Prisma {
   export type CompanyMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    category?: SortOrder
     logo_url?: SortOrder
     created_at?: SortOrder
   }
@@ -20442,6 +20471,7 @@ export namespace Prisma {
   export type CompanyCreateWithoutProductive_unitsInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     users?: UserCreateNestedManyWithoutCompanyInput
@@ -20450,6 +20480,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateWithoutProductive_unitsInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     users?: UserUncheckedCreateNestedManyWithoutCompanyInput
@@ -20530,6 +20561,7 @@ export namespace Prisma {
   export type CompanyUpdateWithoutProductive_unitsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUpdateManyWithoutCompanyNestedInput
@@ -20538,6 +20570,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateWithoutProductive_unitsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     users?: UserUncheckedUpdateManyWithoutCompanyNestedInput
@@ -20562,6 +20595,7 @@ export namespace Prisma {
   export type CompanyCreateWithoutUsersInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitCreateNestedManyWithoutCompanyInput
@@ -20570,6 +20604,7 @@ export namespace Prisma {
   export type CompanyUncheckedCreateWithoutUsersInput = {
     id: string
     name: string
+    category?: string | null
     logo_url?: string | null
     created_at?: Date | string
     productive_units?: ProductiveUnitUncheckedCreateNestedManyWithoutCompanyInput
@@ -20845,6 +20880,7 @@ export namespace Prisma {
   export type CompanyUpdateWithoutUsersInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUpdateManyWithoutCompanyNestedInput
@@ -20853,6 +20889,7 @@ export namespace Prisma {
   export type CompanyUncheckedUpdateWithoutUsersInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    category?: NullableStringFieldUpdateOperationsInput | string | null
     logo_url?: NullableStringFieldUpdateOperationsInput | string | null
     created_at?: DateTimeFieldUpdateOperationsInput | Date | string
     productive_units?: ProductiveUnitUncheckedUpdateManyWithoutCompanyNestedInput

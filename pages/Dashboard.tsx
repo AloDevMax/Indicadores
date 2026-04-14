@@ -34,7 +34,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const isAdmin = ['admin', 'developer'].includes(user?.role);
   // Só renderiza quando os dados essenciais estiverem disponíveis
-  if (!allBadges ?? allBadges.length === 0) {
+  if (!allBadges || allBadges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="animate-bounce text-indigo-600 font-bold text-xl uppercase tracking-widest">Carregando conquistas...</div>
@@ -45,7 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
-  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) ?? importSources[0];
+  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
   const visibleCollaborators = useMemo(() => {
     const base = users.filter(profile => profile.role === 'user');
@@ -67,10 +67,10 @@ const Dashboard: React.FC<DashboardProps> = ({
     }>();
 
     visibleCollaborators.forEach((collaborator) => {
-      const companyId = collaborator.company_id ?? 'independente';
-      const companyName = companies.find(company => company.id === collaborator.company_id)?.name ?? 'Independente';
-      const unitId = collaborator.productive_unit_id ?? `${companyId}-sem-unidade`;
-      const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name ?? 'Sem unidade produtiva';
+      const companyId = collaborator.company_id || 'independente';
+      const companyName = companies.find(company => company.id === collaborator.company_id)?.name || 'Independente';
+      const unitId = collaborator.productive_unit_id || `${companyId}-sem-unidade`;
+      const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name || 'Sem unidade produtiva';
 
       if (!groups.has(companyId)) {
         groups.set(companyId, { companyId, companyName, units: new Map() });
@@ -179,7 +179,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-4">
           <div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">fonte excel vinculada ao dashboard</div>
-            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name ?? 'Fonte sem nome'}</h3>
+            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name || 'Fonte sem nome'}</h3>
             {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
             {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">último vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
           </div>
@@ -187,7 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             {(Object.entries(linkedImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
               <div key={field} className="bg-slate-50 rounded-2xl px-4 py-3">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
-                <div className="text-sm font-bold text-slate-900 mt-1">{importBindingSnapshot?.matchedColumns[field] ?? column}</div>
+                <div className="text-sm font-bold text-slate-900 mt-1">{importBindingSnapshot?.matchedColumns[field] || column}</div>
               </div>
             ))}
           </div>
@@ -222,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <section className="space-y-6">
         <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">galeria de conquistas</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          {(allBadges ?? []).map((badge) => {
+          {(allBadges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
             return (
               <BadgeCard
@@ -314,7 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                           )}
                                         </div>
                                         <div className="min-w-0">
-                                          <div className="text-xs font-black text-slate-900 truncate">{badge?.name ?? 'Badge sem nome'}</div>
+                                          <div className="text-xs font-black text-slate-900 truncate">{badge?.name || 'Badge sem nome'}</div>
                                           <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
                                             {BADGE_TONE_LABELS[userBadge.tone]}
                                           </div>

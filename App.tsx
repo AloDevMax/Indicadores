@@ -101,14 +101,14 @@ const App: React.FC = () => {
         if (!isMounted) return;
 
         if (bootstrap) {
-          setBadges(bootstrap.badges ?? INITIAL_BADGES);
-          setCompanies(bootstrap.companies ?? INITIAL_COMPANIES);
-          setProductiveUnits(bootstrap.productiveUnits ?? INITIAL_PRODUCTIVE_UNITS);
-          setBadgeLegends(bootstrap.badgeLegends ?? INITIAL_BADGE_LEGENDS);
-          setImportSources(bootstrap.importSources ?? INITIAL_IMPORT_SOURCES);
-          setUsers(bootstrap.users ?? INITIAL_USERS);
-          setUserBadges(bootstrap.userBadges ?? []);
-          setSubmissions(bootstrap.submissions ?? []);
+          setBadges(bootstrap.badges || INITIAL_BADGES);
+          setCompanies(bootstrap.companies || INITIAL_COMPANIES);
+          setProductiveUnits(bootstrap.productiveUnits || INITIAL_PRODUCTIVE_UNITS);
+          setBadgeLegends(bootstrap.badgeLegends || INITIAL_BADGE_LEGENDS);
+          setImportSources(bootstrap.importSources || INITIAL_IMPORT_SOURCES);
+          setUsers(bootstrap.users || INITIAL_USERS);
+          setUserBadges(bootstrap.userBadges || []);
+          setSubmissions(bootstrap.submissions || []);
         }
 
         if (currentUser) {
@@ -270,17 +270,17 @@ const App: React.FC = () => {
   };
 
   const visibleCompanies = useMemo(() => {
-    if (!user ?? user.role !== 'admin') return companies;
+    if (!user || user.role !== 'admin') return companies;
     return companies.filter((company) => company.id === user.company_id);
   }, [companies, user]);
 
   const visibleProductiveUnits = useMemo(() => {
-    if (!user ?? user.role !== 'admin') return productiveUnits;
+    if (!user || user.role !== 'admin') return productiveUnits;
     return productiveUnits.filter((unit) => unit.company_id === user.company_id);
   }, [productiveUnits, user]);
 
   const visibleUsers = useMemo(() => {
-    if (!user ?? user.role !== 'admin') return users;
+    if (!user || user.role !== 'admin') return users;
     return users.filter((profile) => profile.company_id === user.company_id);
   }, [users, user]);
 
@@ -317,7 +317,7 @@ const App: React.FC = () => {
                 path="/"
                 element={
                   user
-                    ? (user.role === 'admin' ?? user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
+                    ? (user.role === 'admin' || user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Landing />
                 }
               />
@@ -380,7 +380,7 @@ const App: React.FC = () => {
               <Route
                 path="/admin/*"
                 element={
-                  user?.role === 'admin' ?? user?.role === 'developer' ? (
+                  user?.role === 'admin' || user?.role === 'developer' ? (
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}

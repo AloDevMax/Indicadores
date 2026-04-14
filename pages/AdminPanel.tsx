@@ -26,6 +26,8 @@ const IMPORT_FIELD_LABELS: Record<ImportSourceField, string> = {
   award: 'Autorização',
 };
 
+const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
+
 interface AdminPanelProps {
   currentUser: Profile;
   activeMode: 'management' | 'personal';
@@ -434,9 +436,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const badgeData: Badge = {
       id: editingBadge?.id || Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
-      description: formData.get('description') as string,
+      description: (formData.get('description') as string) || '',
       points: Number(formData.get('points')),
-      category: formData.get('category') as string,
+      category: (formData.get('category') as string) || 'Qualidade',
       icon_name: (formData.get('icon_name') as string) || '✨',
       image_url: tempBadgeImageUrl || editingBadge?.image_url,
     };
@@ -468,7 +470,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const formData = new FormData(e.currentTarget);
     const companyData: Company = {
       id: editingCompany?.id || Math.random().toString(36).substr(2, 9),
-      name: formData.get('name') as string,
+      name: (formData.get('name') as string) || '',
+      category: formData.get('category') as string,
       logo_url: tempCompanyLogoUrl || editingCompany?.logo_url,
     };
     try {
@@ -544,7 +547,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const formData = new FormData(e.currentTarget);
     const companyId = (formData.get('company_id') as string) || undefined;
     const productiveUnitId = (formData.get('productive_unit_id') as string) || undefined;
-    const validProductiveUnitId = productiveUnitId && productiveUnits.some(unit => unit.id === productiveUnitId && unit.company_id === companyId)
+    const validProductiveUnitId = (productiveUnitId && productiveUnits.some(unit => unit.id === productiveUnitId && unit.company_id === companyId))
       ? productiveUnitId
       : undefined;
 
@@ -552,7 +555,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       id: editingUser?.id || '',
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
-      avatar_url: tempUserAvatarUrl || editingUser?.avatar_url,
+      avatar_url: tempUserAvatarUrl || editingUser?.avatar_url || '',
       role: formData.get('role') as 'admin' | 'user',
       company_id: companyId,
       productive_unit_id: validProductiveUnitId,
@@ -843,10 +846,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
                     <div className="relative z-10">
-                      <div className={cn(`text-3xl font-black leading-none ${kpi.color ?? 'text-slate-900'}`)}>{kpi.val}</div>
+                      <div className={cn("text-3xl font-black leading-none", kpi.color || "text-slate-900")}>{kpi.val}</div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{kpi.label}</div>
                     </div>
-                    <div className="absolute right-[-10px] bottom-[-10px] text-6xl opacity-[0.03] group-hover:rotate-12 transition-transform">{kpi.icon}</div>
+                    <div className="absolute right-[-10px] bottom-[-10px] text-6xl opacity-[0.03] group-hover:rotate-12 transition-transform">{kpi.icon || ''}</div>
                   </div>
                 ))}
               </div>
@@ -868,13 +871,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                         <div>
                           <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
-                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades</div>
+                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {c.category || 'Sem categoria'} • {users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades
+                          </div>
                         </div>
                       </div>
-                      {isDeveloper && <div className="flex gap-2">
-                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
-                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
-                      </div>}
+                      <div className="flex gap-2">
+                        {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
+                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                        )}
+                        {isDeveloper && (
+                          <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-3">
                       {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
@@ -974,7 +983,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <tr>
                       <th className="px-10 py-6">Nome / Empresa / Unidade</th>
-                      <th className="px-10 py-6">NíResumo do M?s</th>
+                      <th className="px-10 py-6">Resumo do Mês</th>
                       <th className="px-10 py-6 text-right">Opções</th>
                     </tr>
                   </thead>
@@ -1032,7 +1041,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
                 </div>
-                <div className={cn('flex gap-2 flex-wrap')}>
+                <div className="flex gap-2 flex-wrap">
                   <select
                     value={selectedImportSourceId ?? ""}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -1123,7 +1132,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button
                           key={tone}
                           onClick={() => setSelectedAwardTone(tone)}
-                          className={cn(`px-4 py-4 rounded-2xl border-2 text-left transition-all ${selectedAwardTone === tone ? 'border-indigo-600 bg-indigo-50 shadow-lg' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`)}
+                          className={cn("px-4 py-4 rounded-2xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-indigo-600 bg-indigo-50 shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
                         >
                           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
                           <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
@@ -1227,11 +1236,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
                       </div>
                       <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
+                      <div className="ml-auto bg-slate-100 px-3 py-1 rounded-lg text-[10px] font-black text-slate-500 uppercase">{c.category || 'Geral'}</div>
                     </div>
-                    {isDeveloper && <div className="flex gap-2">
-                      <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
-                      <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
-                    </div>}
+                    <div className="flex gap-2">
+                      {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
+                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
+                      )}
+                      {isDeveloper && (
+                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1252,11 +1266,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
               <div className="relative group">
                 <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-indigo-200">🛡️</div>
-                <div className="absolute -bottom-3 -right-3 bg-yellow-400 text-slate-900 min-w-[56px] h-12 px-3 rounded-2xl flex items-center justify-center font-black border-4 border-white text-sm">{adminMonthlyMetrics.monthlyScore}</div>
+                <div className="absolute -bottom-3 -right-3 bg-yellow-400 text-slate-900 min-w-[56px] h-12 px-3 rounded-2xl flex items-center justify-center font-black border-4 border-white text-sm">{adminMonthlyMetrics.monthlyScore || 0}</div>
               </div>
               <div className="flex-1 w-full space-y-4">
                 <div className="flex justify-between items-end">
-                  <h3 className="text-2xl font-black text-slate-900">NíSaldo do m?s</h3>
+                  <h3 className="text-2xl font-black text-slate-900">Saldo do Mês</h3>
                   <div className="text-sm font-black text-indigo-600 bg-indigo-50 px-4 py-2 rounded-xl">{adminMonthlyMetrics.positiveCount} selos / {adminMonthlyMetrics.lossCount} perdas</div>
                 </div>
                 <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white"><div className="h-full bg-indigo-600" style={{ width: `${Math.min(100, Math.max(0, (adminMonthlyMetrics.positiveCount / 3) * 100))}%` }}></div></div>
@@ -1469,6 +1483,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da organização</label>
                 <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">categoria do setor</label>
+                <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
+                  <option value="">Selecionar categoria...</option>
+                  {COMPANY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+              </div>
               <ImageUpload
                 label="Logo da Empresa (Opcional)"
                 currentImageUrl={tempCompanyLogoUrl || editingCompany?.logo_url}
@@ -1556,11 +1577,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input name="badge_column" defaultValue={editingImportSource?.columns.badge || 'selo'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna MarcaÃ§Ã£o</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Marcação</label>
                   <input name="tone_column" defaultValue={editingImportSource?.columns.tone || 'marcacao'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna AutorizaÃ§Ã£o</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Autorização</label>
                   <input name="award_column" defaultValue={editingImportSource?.columns.award || 'premio'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
                 </div>
               </div>
@@ -1611,7 +1632,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="flex gap-4 pt-8">
               <button type="button" onClick={() => setIsImportMappingModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-              <button type="button" onClick={handleConfirmImportMapping} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Gerar pre-visualizacao</button>
+              <button type="button" onClick={handleConfirmImportMapping} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Gerar pré-visualização</button>
             </div>
           </div>
         </div>

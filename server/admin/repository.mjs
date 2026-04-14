@@ -18,7 +18,7 @@ export const saveBadge = async (badge) => {
   const client = await createPgClient();
 
   if (!client) {
-    const normalized = { ...badge, id: badge.id ?? randomId() };
+    const normalized = { ...badge, id: badge.id || randomId() };
     memoryAdminStore.badges = memoryAdminStore.badges.some((entry) => entry.id === normalized.id)
       ? memoryAdminStore.badges.map((entry) => (entry.id === normalized.id ? normalized : entry))
       : [...memoryAdminStore.badges, normalized];
@@ -26,7 +26,7 @@ export const saveBadge = async (badge) => {
   }
 
   try {
-    const id = badge.id ?? randomId();
+    const id = badge.id || randomId();
     const result = await client.query(
       `insert into badges (id, name, description, category, icon_name, image_url, points)
        values ($1, $2, $3, $4, $5, $6, $7)
@@ -38,7 +38,7 @@ export const saveBadge = async (badge) => {
            image_url = excluded.image_url,
            points = excluded.points
        returning id, name, description, category, icon_name, image_url, points`,
-      [id, badge.name, badge.description, badge.category, badge.icon_name, badge.image_url ?? null, badge.points],
+      [id, badge.name, badge.description, badge.category, badge.icon_name, badge.image_url || null, badge.points],
     );
     return result.rows[0];
   } finally {
@@ -76,7 +76,7 @@ export const saveCompany = async (company) => {
   const client = await createPgClient();
 
   if (!client) {
-    const normalized = { ...company, id: company.id ?? randomId() };
+    const normalized = { ...company, id: company.id || randomId() };
     memoryAdminStore.companies = memoryAdminStore.companies.some((entry) => entry.id === normalized.id)
       ? memoryAdminStore.companies.map((entry) => (entry.id === normalized.id ? normalized : entry))
       : [...memoryAdminStore.companies, normalized];
@@ -84,7 +84,7 @@ export const saveCompany = async (company) => {
   }
 
   try {
-    const id = company.id ?? randomId();
+    const id = company.id || randomId();
     const result = await client.query(
       `insert into companies (id, name, logo_url)
        values ($1, $2, $3)
@@ -92,7 +92,7 @@ export const saveCompany = async (company) => {
        set name = excluded.name,
            logo_url = excluded.logo_url
        returning id, name, logo_url`,
-      [id, company.name, company.logo_url ?? null],
+      [id, company.name, company.logo_url || null],
     );
     return result.rows[0];
   } finally {
@@ -130,7 +130,7 @@ export const saveProductiveUnit = async (productiveUnit) => {
   const client = await createPgClient();
 
   if (!client) {
-    const normalized = { ...productiveUnit, id: productiveUnit.id ?? randomId() };
+    const normalized = { ...productiveUnit, id: productiveUnit.id || randomId() };
     memoryAdminStore.productiveUnits = memoryAdminStore.productiveUnits.some((entry) => entry.id === normalized.id)
       ? memoryAdminStore.productiveUnits.map((entry) => (entry.id === normalized.id ? normalized : entry))
       : [...memoryAdminStore.productiveUnits, normalized];
@@ -138,7 +138,7 @@ export const saveProductiveUnit = async (productiveUnit) => {
   }
 
   try {
-    const id = productiveUnit.id ?? randomId();
+    const id = productiveUnit.id || randomId();
     const result = await client.query(
       `insert into productive_units (id, name, company_id)
        values ($1, $2, $3)
@@ -225,11 +225,11 @@ export const saveUser = async (user, password) => {
   if (!client) {
     const normalized = {
       ...user,
-      id: user.id ?? crypto.randomUUID(),
+      id: user.id || crypto.randomUUID(),
       level: user.level ?? 1,
       xp: user.xp ?? 0,
       email_verified: user.email_verified ?? false,
-      created_at: user.created_at ?? new Date().toISOString(),
+      created_at: user.created_at || new Date().toISOString(),
       password: password,
     };
     return upsertMemoryUser(normalized);
@@ -253,8 +253,8 @@ export const saveUser = async (user, password) => {
         user.email,
         user.full_name,
         user.role,
-        user.company_id ?? null,
-        user.productive_unit_id ?? null,
+        user.company_id || null,
+        user.productive_unit_id || null,
         user.level ?? 1,
         user.xp ?? 0,
       ];
@@ -306,10 +306,10 @@ export const saveUser = async (user, password) => {
         user.email,
         passwordHash,
         user.full_name,
-        user.avatar_url ?? null,
+        user.avatar_url || null,
         user.role,
-        user.company_id ?? null,
-        user.productive_unit_id ?? null,
+        user.company_id || null,
+        user.productive_unit_id || null,
         user.level ?? 1,
         user.xp ?? 0,
       ],
@@ -324,7 +324,7 @@ export const deleteUser = async (userId) => {
   const client = await createPgClient();
 
   if (!client) {
-    const user = (await findUserByEmail('')) ?? null;
+    const user = (await findUserByEmail('')) || null;
     // Para memory store, iterar pelos usuários para encontrar o avatar
     const memoryUsers = await findUserByEmail('');
     await deleteMemoryUser(userId);
@@ -349,7 +349,7 @@ export const saveImportSource = async (importSource) => {
   const client = await createPgClient();
 
   if (!client) {
-    const normalized = { ...importSource, id: importSource.id ?? randomId() };
+    const normalized = { ...importSource, id: importSource.id || randomId() };
     memoryAdminStore.importSources = memoryAdminStore.importSources.some((entry) => entry.id === normalized.id)
       ? memoryAdminStore.importSources.map((entry) => (entry.id === normalized.id ? normalized : entry))
       : [...memoryAdminStore.importSources, normalized];
@@ -357,7 +357,7 @@ export const saveImportSource = async (importSource) => {
   }
 
   try {
-    const id = importSource.id ?? randomId();
+    const id = importSource.id || randomId();
     const result = await client.query(
       `insert into import_sources (
         id,
@@ -392,7 +392,7 @@ export const saveImportSource = async (importSource) => {
       [
         id,
         importSource.name,
-        importSource.description ?? null,
+        importSource.description || null,
         importSource.columns.company,
         importSource.columns.productive_unit,
         importSource.columns.user,
@@ -406,7 +406,7 @@ export const saveImportSource = async (importSource) => {
     return {
       id: row.id,
       name: row.name,
-      description: row.description ?? undefined,
+      description: row.description || undefined,
       columns: {
         company: row.company_column,
         productive_unit: row.productive_unit_column,
@@ -446,8 +446,8 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
         email,
         full_name: email.split('@')[0],
         role: 'user',
-        company_id: companyId ?? undefined,
-        productive_unit_id: productiveUnitId ?? undefined,
+        company_id: companyId || undefined,
+        productive_unit_id: productiveUnitId || undefined,
         level: 1,
         xp: 0,
         email_verified: false,
@@ -467,7 +467,7 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
          where id = $1
            and company_id = $2
          limit 1`,
-        [productiveUnitId, companyId ?? null],
+        [productiveUnitId, companyId || null],
       );
 
       if (!productiveUnitCheck.rows[0]) {
@@ -503,8 +503,8 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
           email,
           passwordHash,
           email.split('@')[0],
-          companyId ?? null,
-          productiveUnitId ?? null,
+          companyId || null,
+          productiveUnitId || null,
         ],
       );
 

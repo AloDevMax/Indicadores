@@ -67,13 +67,13 @@ const sanitizeUser = (user) => ({
   full_name: user.full_name,
   avatar_url: user.avatar_url,
   role: user.role,
-  company_id: user.company_id ?? undefined,
-  productive_unit_id: user.productive_unit_id ?? undefined,
+  company_id: user.company_id || undefined,
+  productive_unit_id: user.productive_unit_id || undefined,
   level: user.level,
   xp: user.xp,
   created_at: user.created_at,
   email_verified: Boolean(user.email_verified),
-  notifications: user.notifications ?? [],
+  notifications: user.notifications || [],
 });
 
 export const findUserByEmail = async (email) => {
@@ -82,7 +82,7 @@ export const findUserByEmail = async (email) => {
 
   if (!client) {
     await seedUsers();
-    return memory.users.find((user) => user.email.toLowerCase() === normalizedEmail) ?? null;
+    return memory.users.find((user) => user.email.toLowerCase() === normalizedEmail) || null;
   }
 
   try {
@@ -106,7 +106,7 @@ export const findUserByEmail = async (email) => {
       [normalizedEmail],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] || null;
   } finally {
     await client.end();
   }
@@ -141,7 +141,7 @@ export const findUserById = async (userId) => {
       [userId],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] || null;
   } finally {
     await client.end();
   }
@@ -205,7 +205,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
       [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin' ? 99 : 1, safeRole === 'admin' ? 100000 : 0, safeRole === 'admin'],
     );
 
-    return result.rows[0] ?? null;
+    return result.rows[0] || null;
   } finally {
     await client.end();
   }
@@ -241,7 +241,7 @@ export const findActiveSession = async (sessionId) => {
 
   if (!client) {
     const session = memory.sessions.find((entry) => entry.id === sessionId);
-    if (!session ?? session.revoked_at ?? new Date(session.expires_at).getTime() < Date.now()) {
+    if (!session || session.revoked_at || new Date(session.expires_at).getTime() < Date.now()) {
       return null;
     }
     return session;
@@ -257,7 +257,7 @@ export const findActiveSession = async (sessionId) => {
        limit 1`,
       [sessionId],
     );
-    return result.rows[0] ?? null;
+    return result.rows[0] || null;
   } finally {
     await client.end();
   }
@@ -299,9 +299,9 @@ export const upsertMemoryUser = async (user) => {
 
   const normalized = {
     ...rest,
-    id: rest.id ?? crypto.randomUUID(),
+    id: rest.id || crypto.randomUUID(),
     email_verified: rest.email_verified ?? false,
-    created_at: rest.created_at ?? new Date().toISOString(),
+    created_at: rest.created_at || new Date().toISOString(),
   };
 
   const existingIndex = memory.users.findIndex((entry) => entry.id === normalized.id);
@@ -309,7 +309,7 @@ export const upsertMemoryUser = async (user) => {
     memory.users[existingIndex] = {
       ...memory.users[existingIndex],
       ...normalized,
-      password_hash: normalized.password_hash ?? memory.users[existingIndex].password_hash,
+      password_hash: normalized.password_hash || memory.users[existingIndex].password_hash,
     };
   } else {
     memory.users.push({
@@ -362,7 +362,7 @@ export const appendMemoryNotification = async (userId, notification) => {
   await seedUsers();
   memory.users = memory.users.map((user) => (
     user.id === userId
-      ? { ...user, notifications: [notification, ...(user.notifications ?? [])] }
+      ? { ...user, notifications: [notification, ...(user.notifications || [])] }
       : user
   ));
 };

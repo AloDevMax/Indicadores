@@ -13,7 +13,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
-  const isAdmin = user.role === 'admin' ?? user.role === 'developer';
+  const isAdmin = user.role === 'admin' || user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
 

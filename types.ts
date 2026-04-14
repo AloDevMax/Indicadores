@@ -30,6 +30,7 @@ export interface Profile {
 export interface Company {
   id: string;
   name: string;
+  category?: string;
   logo_url?: string;
 }
 

@@ -29,7 +29,7 @@ const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegen
 
         return { ...user, monthlyScore: metrics.monthlyScore, monthlyMetrics: metrics, categoryCount };
       })
-      .sort((a, b) => (b.categoryCount ?? 0) - (a.categoryCount ?? 0));
+      .sort((a, b) => (b.categoryCount || 0) - (a.categoryCount || 0));
   }, [selectedCategory, filteredExplorers, userBadges, badges]);
 
   const topThree = sortedUsers.slice(0, 3);
@@ -147,7 +147,7 @@ const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegen
                           <span>{badge.icon_name}</span>
                         )}
                       </div>
-                      <div><div className="font-bold text-slate-900 text-sm">{badge?.name ?? 'Badge sem nome'}</div><div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div></div>
+                      <div><div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div><div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div></div>
                     </div>
                   ))}
                 </div>
