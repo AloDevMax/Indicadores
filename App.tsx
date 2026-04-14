@@ -145,23 +145,35 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
-    try {
-      const authenticatedUser = await loginWithApi(email, password);
-      setUser(authenticatedUser);
-      setUsers(prev =>
-        prev.some(existingUser => existingUser.id === authenticatedUser.id)
-          ? prev.map(existingUser => (existingUser.id === authenticatedUser.id ? { ...existingUser, ...authenticatedUser } : existingUser))
-          : [...prev, authenticatedUser],
-      );
-      setAdminViewMode('management');
-      return { success: true };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
-      };
-    }
-  };
+  try {
+    const authenticatedUser = await loginWithApi(email, password);
+
+    console.log('LOGIN RESULT:', authenticatedUser); // 👈 AQUI
+
+    setUser(authenticatedUser);
+
+    setUsers(prev =>
+      prev.some(existingUser => existingUser.id === authenticatedUser.id)
+        ? prev.map(existingUser =>
+            existingUser.id === authenticatedUser.id
+              ? { ...existingUser, ...authenticatedUser }
+              : existingUser
+          )
+        : [...prev, authenticatedUser],
+    );
+
+    setAdminViewMode('management');
+
+    return { success: true };
+  } catch (error) {
+    console.error('LOGIN ERROR:', error); // 👈 adiciona isso também
+
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
+    };
+  }
+};
 
   const handleRegister = async (email: string, password: string, full_name: string) => {
     try {
