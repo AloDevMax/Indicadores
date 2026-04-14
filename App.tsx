@@ -91,7 +91,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-
+    
     const initializeBootstrap = async () => {
       try {
         const [bootstrap, currentUser] = await Promise.all([
@@ -127,7 +127,7 @@ const App: React.FC = () => {
         setProductiveUnits(INITIAL_PRODUCTIVE_UNITS);
         setBadgeLegends(INITIAL_BADGE_LEGENDS);
         setImportSources(INITIAL_IMPORT_SOURCES);
-        setUsers(INITIAL_USERS);
+        setUser(INITIAL_USERS.find(u => u.role === 'developer') || null);
         setUserBadges([]);
         setSubmissions([]);
       } finally {
@@ -270,19 +270,42 @@ const App: React.FC = () => {
   };
 
   const visibleCompanies = useMemo(() => {
-    if (!user || user.role !== 'admin') return companies;
+  if (!user) return [];
+
+  if (user.role === 'developer') {
+    return companies;
+  }
+
+  if (user.role === 'admin' || user.role === 'user') {
     return companies.filter((company) => company.id === user.company_id);
-  }, [companies, user]);
+  }
+
+  return [];
+}, [companies, user]);
 
   const visibleProductiveUnits = useMemo(() => {
-    if (!user || user.role !== 'admin') return productiveUnits;
-    return productiveUnits.filter((unit) => unit.company_id === user.company_id);
-  }, [productiveUnits, user]);
+  if (!user) return [];
+
+  if (user.role === 'developer') {
+    return productiveUnits;
+  }
+
+  return productiveUnits.filter(
+    (unit) => unit.company_id === user.company_id
+  );
+}, [productiveUnits, user]);
 
   const visibleUsers = useMemo(() => {
-    if (!user || user.role !== 'admin') return users;
-    return users.filter((profile) => profile.company_id === user.company_id);
-  }, [users, user]);
+  if (!user) return [];
+
+  if (user.role === 'developer') {
+    return users;
+  }
+
+  return users.filter(
+    (profile) => profile.company_id === user.company_id
+  );
+}, [users, user]);
 
   if (loading) {
     return (
