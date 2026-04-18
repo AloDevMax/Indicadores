@@ -178,6 +178,7 @@ export const ensureBuiltInDeveloper = async () => {
   }
 
   try {
+    const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
     const existingUser = await client.query(
       `select
         id,
@@ -199,10 +200,43 @@ export const ensureBuiltInDeveloper = async () => {
     );
 
     if (existingUser.rows[0]) {
-      return mapUserRow(existingUser.rows[0]);
+      const updatedUser = await client.query(
+        `update users
+         set password_hash = $2,
+             full_name = $3,
+             role = $4,
+             level = $5,
+             xp = $6,
+             email_verified = $7,
+             updated_at = now()
+         where id = $1
+         returning
+           id,
+           email,
+           password_hash,
+           full_name,
+           avatar_url,
+           role,
+           company_id,
+           productive_unit_id,
+           level,
+           xp,
+           email_verified,
+           created_at`,
+        [
+          existingUser.rows[0].id,
+          passwordHash,
+          BUILT_IN_DEVELOPER.full_name,
+          BUILT_IN_DEVELOPER.persisted_role,
+          BUILT_IN_DEVELOPER.level,
+          BUILT_IN_DEVELOPER.xp,
+          BUILT_IN_DEVELOPER.email_verified,
+        ],
+      );
+
+      return updatedUser.rows[0] ? mapUserRow(updatedUser.rows[0]) : mapUserRow(existingUser.rows[0]);
     }
 
-    const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
     const createdUser = await client.query(
       `insert into users (
         id,
