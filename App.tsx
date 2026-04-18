@@ -208,6 +208,7 @@ const App: React.FC = () => {
   };
 
   const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
+    console.log('Reviewing submission:', { submissionId, status });
     const result = await reviewSubmissionWithApi(submissionId, status);
     setSubmissions(prev => prev.map(submission => (
       submission.id === submissionId ? { ...submission, ...result.submission } : submission
@@ -218,7 +219,14 @@ const App: React.FC = () => {
         const filtered = prev.filter(
           badge => !(result.awardedBadge && badge.user_id === result.awardedBadge.user_id && badge.badge_id === result.awardedBadge.badge_id),
         );
-        return [...filtered, result.awardedBadge as UserBadge];
+        const targetUser = users.find((entry) => entry.id === result.awardedBadge?.user_id);
+        const enrichedBadge: UserBadge = {
+          ...(result.awardedBadge as UserBadge),
+          company_id: result.awardedBadge.company_id || targetUser?.company_id,
+          productive_unit_id: result.awardedBadge.productive_unit_id || targetUser?.productive_unit_id,
+          created_at: result.awardedBadge.created_at || result.awardedBadge.awarded_at,
+        };
+        return [...filtered, enrichedBadge];
       });
     }
   };
@@ -250,12 +258,22 @@ const App: React.FC = () => {
   const handleSaveImportSource = async (importSource: ImportSourceConfig) => saveImportSourceWithApi(importSource);
 
   const handleAwardBadges = async (userIds: string[], badgeId: string, tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2') => {
+    userIds.forEach((userId) => console.log('Awarding badge:', { userId, badgeId }));
     const awardedBadges = await awardBadgesWithApi(userIds, badgeId, tone);
     setUserBadges(prev => {
       const filtered = prev.filter(existing =>
         !awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
       );
-      return [...filtered, ...awardedBadges];
+      const enrichedBadges = awardedBadges.map((awarded) => {
+        const targetUser = users.find((entry) => entry.id === awarded.user_id);
+        return {
+          ...awarded,
+          company_id: awarded.company_id || targetUser?.company_id,
+          productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
+          created_at: awarded.created_at || awarded.awarded_at,
+        };
+      });
+      return [...filtered, ...enrichedBadges];
     });
   };
 
@@ -270,12 +288,26 @@ const App: React.FC = () => {
     matchedColumns: Partial<Record<string, string>>,
     rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2'; status: 'valid' | 'invalid'; reason?: string }>,
   ) => {
+    rows.forEach((row) => {
+      if (row.user_id && row.badge_id) {
+        console.log('Awarding badge:', { userId: row.user_id, badgeId: row.badge_id });
+      }
+    });
     const result = await persistImportRunWithApi(sourceId, sourceName, matchedColumns, rows);
     setUserBadges(prev => {
       const filtered = prev.filter(existing =>
         !result.awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
       );
-      return [...filtered, ...result.awardedBadges];
+      const enrichedBadges = result.awardedBadges.map((awarded) => {
+        const targetUser = users.find((entry) => entry.id === awarded.user_id);
+        return {
+          ...awarded,
+          company_id: awarded.company_id || targetUser?.company_id,
+          productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
+          created_at: awarded.created_at || awarded.awarded_at,
+        };
+      });
+      return [...filtered, ...enrichedBadges];
     });
     setImportBindingSnapshot(result.bindingSnapshot);
     return result.summary.valid;
@@ -484,4 +516,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

@@ -322,7 +322,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0] || fallbackImportSource;
 
   const normalizeCell = (value: unknown) => value?.toString().trim() || '';
-  const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
+  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const normalizeCompare = (value: unknown) => normalize(normalizeCell(value));
   const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
   const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
   const positiveBadgeTokens = new Set(['1', 'x', '✓', '✔', 'true', 'sim', 's', 'ok']);
@@ -620,7 +621,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!selectedUnitId || !productiveUnitFound) { status = 'invalid'; reason = 'unidade nao selecionada'; }
     else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado'; }
     else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
-    else if (badgeCandidates.some((badge) => !badge.badge)) { status = 'invalid'; reason = 'selo nao encontrado'; }
+      else if (badgeCandidates.some((badge) => !badge.badge)) {
+        const missingBadges = badgeCandidates.filter((badge) => !badge.badge).map((badge) => badge.badgeName);
+        missingBadges.forEach((badgeName) => console.log('[excel-import] Badge nao encontrado:', badgeName));
+        status = 'invalid';
+        reason = 'selo nao encontrado';
+      }
     else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
 
     return {
@@ -769,10 +775,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   });
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+    console.log('Awarding badge:', { userId: targetUserId, badgeId });
+    const targetUser = users.find((user) => user.id === targetUserId);
+    const badge = badges.find((entry) => entry.id === badgeId);
+    if (!targetUser || !badge) {
+      console.log('[badge-award] concessao ignorada por dados invalidos', { targetUserId, badgeId });
+      return;
+    }
     const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
 
     if (existingAward) {
-      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? { ...ub, tone, awarded_at: new Date().toISOString(), awarded_by: safeAdminProfile.id } : ub));
+      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? {
+        ...ub,
+        tone,
+        awarded_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        awarded_by: safeAdminProfile.id,
+        company_id: targetUser.company_id,
+        productive_unit_id: targetUser.productive_unit_id,
+      } : ub));
       return;
     }
 
@@ -781,8 +802,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       user_id: targetUserId,
       badge_id: badgeId,
       awarded_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       awarded_by: safeAdminProfile.id,
       tone,
+      company_id: targetUser.company_id,
+      productive_unit_id: targetUser.productive_unit_id,
     };
 
     setUserBadges(prev => [...prev, newAward]);
@@ -1052,6 +1076,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleAwardBadges = async () => {
     if (selectedUsers.length === 0 || !selectedAwardBadge) return;
     const badge = badges.find(b => b.id === selectedAwardBadge);
+    if (!badge) {
+      console.log('[badge-award] badge_id nao encontrado', { badgeId: selectedAwardBadge });
+      return;
+    }
 
     if (onAwardBadges) {
       await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);

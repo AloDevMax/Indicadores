@@ -50,6 +50,8 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
   }
   const toneStyle = TONE_STYLES[tone];
   const hasCustomImage = Boolean(badge.image_url);
+  const customBorderStyle = badge.color ? { borderColor: badge.color } : undefined;
+  const customIconStyle = unlocked && badge.color ? { backgroundColor: badge.color } : undefined;
 
   return (
     <div className={`
@@ -57,11 +59,13 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
       ${unlocked
         ? `bg-white shadow-xl border-2 scale-100 ${toneStyle.card}`
         : 'bg-slate-50 border-2 border-dashed border-slate-200 opacity-60 grayscale scale-95'}
-    `}>
+    `}
+    style={customBorderStyle}>
       <div className={`
         w-16 h-16 rounded-2xl mb-4 flex items-center justify-center text-3xl overflow-hidden
         ${unlocked ? `${toneStyle.icon} ${!hasCustomImage ? 'animate-pulse' : ''}` : 'bg-slate-200 text-slate-400'}
-      `}>
+      `}
+      style={customIconStyle}>
         {hasCustomImage ? (
           <img
             src={badge.image_url}

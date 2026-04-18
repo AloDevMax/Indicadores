@@ -48,6 +48,8 @@ export interface Badge {
   icon_name: string;
   image_url?: string;
   points: number;
+  color?: string;
+  tone?: BadgeTone;
 }
 
 export interface UserBadge {
@@ -59,6 +61,7 @@ export interface UserBadge {
   tone: BadgeTone;
   company_id?: string;
   productive_unit_id?: string;
+  created_at?: string;
 }
 
 export interface BadgeLegendSettings {

@@ -19,15 +19,25 @@ const mapSubmission = (row) => ({
   badge_name: row.badge_name || undefined,
 });
 
-const upsertMemoryBadgeAward = ({ userId, badgeId, awardedBy, tone }) => {
-  const award = {
-    id: crypto.randomUUID(),
+const buildAwardPayload = async ({ userId, badgeId, awardedBy, tone, id, awardedAt }) => {
+  const targetUser = await findUserById(userId);
+  const resolvedAwardedAt = awardedAt || new Date().toISOString();
+
+  return {
+    id: id || crypto.randomUUID(),
     user_id: userId,
     badge_id: badgeId,
-    awarded_at: new Date().toISOString(),
+    awarded_at: resolvedAwardedAt,
+    created_at: resolvedAwardedAt,
     awarded_by: awardedBy,
     tone,
+    company_id: targetUser?.company_id,
+    productive_unit_id: targetUser?.productive_unit_id,
   };
+};
+
+const upsertMemoryBadgeAward = async ({ userId, badgeId, awardedBy, tone }) => {
+  const award = await buildAwardPayload({ userId, badgeId, awardedBy, tone });
   memoryStore.userBadges = memoryStore.userBadges.filter(
     (entry) => !(entry.user_id === userId && entry.badge_id === badgeId),
   );
@@ -156,14 +166,12 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
 
     let awardedBadge = null;
     if (status === 'approved') {
-      awardedBadge = {
-        id: crypto.randomUUID(),
-        user_id: submission.user_id,
-        badge_id: submission.badge_id,
-        awarded_at: new Date().toISOString(),
-        awarded_by: reviewerId,
+      awardedBadge = await buildAwardPayload({
+        userId: submission.user_id,
+        badgeId: submission.badge_id,
+        awardedBy: reviewerId,
         tone: 'bronze',
-      };
+      });
       memoryStore.userBadges = memoryStore.userBadges.filter(
         (entry) => !(entry.user_id === awardedBadge.user_id && entry.badge_id === awardedBadge.badge_id),
       );
@@ -210,7 +218,14 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [submission.user_id, submission.badge_id, reviewerId],
       );
-      awardedBadge = badgeResult.rows[0];
+      awardedBadge = await buildAwardPayload({
+        userId: submission.user_id,
+        badgeId: submission.badge_id,
+        awardedBy: reviewerId,
+        tone: 'bronze',
+        id: badgeResult.rows[0].id,
+        awardedAt: badgeResult.rows[0].awarded_at,
+      });
     }
 
     await client.query('commit');
@@ -241,7 +256,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
   const client = await createPgClient();
 
   if (!client) {
-    const awardedBadges = userIds.map((userId) => upsertMemoryBadgeAward({ userId, badgeId, awardedBy: reviewerId, tone }));
+    const awardedBadges = await Promise.all(userIds.map((userId) => upsertMemoryBadgeAward({ userId, badgeId, awardedBy: reviewerId, tone })));
     await persistAwardNotifications({ client: null, userIds, badgeName, tone });
     return awardedBadges;
   }
@@ -272,7 +287,14 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [userId, badgeId, reviewerId, tone],
       );
-      results.push(inserted.rows[0]);
+      results.push(await buildAwardPayload({
+        userId,
+        badgeId,
+        awardedBy: reviewerId,
+        tone,
+        id: inserted.rows[0].id,
+        awardedAt: inserted.rows[0].awarded_at,
+      }));
     }
 
     await persistAwardNotifications({ client, userIds, badgeName: resolvedBadgeName, tone });
@@ -348,14 +370,14 @@ export const persistImportRun = async ({
       summary,
     };
     memoryStore.importRuns.unshift(importRun);
-    const awardedBadges = validRows.map((row) =>
+    const awardedBadges = await Promise.all(validRows.map((row) =>
       upsertMemoryBadgeAward({
         userId: row.user_id,
         badgeId: row.badge_id,
         awardedBy: reviewerId,
         tone: row.tone,
       }),
-    );
+    ));
     return { importRun, awardedBadges, summary };
   }
 
@@ -411,7 +433,14 @@ export const persistImportRun = async ({
            returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
           [row.user_id, row.badge_id, reviewerId, row.tone],
         );
-        awardedBadges.push(inserted.rows[0]);
+        awardedBadges.push(await buildAwardPayload({
+          userId: row.user_id,
+          badgeId: row.badge_id,
+          awardedBy: reviewerId,
+          tone: row.tone,
+          id: inserted.rows[0].id,
+          awardedAt: inserted.rows[0].awarded_at,
+        }));
       }
     }
 
