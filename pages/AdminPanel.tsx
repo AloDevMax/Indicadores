@@ -83,9 +83,12 @@ interface ImportPreview {
   reason?: string;
 }
 
+type ExcelSheetRow = unknown[];
 type ExcelRow = Record<string, unknown>;
 
 interface ParsedExcelData {
+  rawRows: ExcelSheetRow[];
+  headerRowIndex: number;
   headers: string[];
   rows: ExcelRow[];
 }
@@ -198,8 +201,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
   const [selectedImportSourceId, setSelectedImportSourceId] = useState<string>(importSources[0]?.id || '');
   const [editingImportSource, setEditingImportSource] = useState<ImportSourceConfig | null>(null);
+  const [importSheetMatrix, setImportSheetMatrix] = useState<ExcelSheetRow[]>([]);
   const [importSheetRows, setImportSheetRows] = useState<Record<string, unknown>[]>([]);
   const [importSheetHeaders, setImportSheetHeaders] = useState<string[]>([]);
+  const [importHeaderRowIndex, setImportHeaderRowIndex] = useState(0);
   const [assistedImportColumns, setAssistedImportColumns] = useState<Record<ImportSourceField, string>>({
     company: '',
     productive_unit: '',
@@ -208,6 +213,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     tone: '',
     award: '',
   });
+  const [assistedImportBadgeColumns, setAssistedImportBadgeColumns] = useState<string[]>([]);
   
   const [userSearch, setUserSearch] = useState('');
 
@@ -301,6 +307,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const normalizeCell = (value: unknown) => value?.toString().trim() || '';
   const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
+  const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
+  const badgeMarkerValues = new Set(['x', '1', 'sim', 's', 'ok', 'true', '✓', '✔']);
+  const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
 
   const parseTone = (value: unknown): BadgeTone => {
     const normalized = normalizeCompare(value);
@@ -312,17 +321,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return 'bronze';
   };
 
+  const findMatchingRowKey = (row: ExcelRow, candidates: string[]) => {
+    const normalizedCandidates = candidates.map(normalizeCompare).filter(Boolean);
+    return Object.keys(row).find((key) =>
+      normalizedCandidates.some((candidate) => normalizeCompare(key) === candidate),
+    );
+  };
+
   const getFieldValue = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig): string => {
     const columnName = source.columns[field];
     const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    const matchedKey = Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
+    const matchedKey = findMatchingRowKey(row, candidates);
     return matchedKey ? normalizeCell(row[matchedKey]) : '';
   };
 
   const getMatchedColumnName = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig) => {
     const columnName = source.columns[field];
     const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    return Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
+    return findMatchingRowKey(row, candidates);
   };
 
   const renderSquareImage = (src: string, alt: string) => (
@@ -343,6 +359,185 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return partialMatch || '';
   };
 
+  const normalizeHeaderCells = (headers: ExcelSheetRow): Array<string | null> => {
+    const usedHeaders = new Map<string, number>();
+
+    return headers.map((headerCell, index) => {
+      const rawHeader = normalizeCell(headerCell).replace(/^__EMPTY(?:_\d+)?$/i, '');
+      if (!rawHeader) {
+        return null;
+      }
+
+      const fallbackHeader = rawHeader || `Coluna ${index + 1}`;
+      const occurrences = usedHeaders.get(normalizeCompare(fallbackHeader)) || 0;
+      usedHeaders.set(normalizeCompare(fallbackHeader), occurrences + 1);
+
+      return occurrences === 0 ? fallbackHeader : `${fallbackHeader} (${occurrences + 1})`;
+    });
+  };
+
+  const normalizeHeaders = (headers: ExcelSheetRow): string[] => {
+    return normalizeHeaderCells(headers).filter((header): header is string => Boolean(header));
+  };
+
+  const extractHeaders = (rows: ExcelSheetRow[]) => {
+    const evaluateRowScore = (row: ExcelSheetRow) => {
+      const values = row.map(normalizeCell).filter(Boolean);
+      if (values.length === 0) return -1;
+
+      const aliasMatches = values.filter((value) =>
+        allHeaderAliases.some((alias) =>
+          normalizeCompare(value) === normalizeCompare(alias) ||
+          normalizeCompare(value).includes(normalizeCompare(alias)),
+        ),
+      ).length;
+      const badgeNameMatches = values.filter((value) =>
+        badges.some((badge) => normalizeCompare(badge.name) === normalizeCompare(value)),
+      ).length;
+      const textualValues = values.filter((value) => /[a-zA-ZÀ-ÿ]/.test(value)).length;
+
+      return aliasMatches * 5 + badgeNameMatches * 4 + textualValues + (values.length >= 2 ? 2 : 0);
+    };
+
+    let bestRowIndex = rows.findIndex((row) => row.some((cell) => normalizeCell(cell)));
+    let bestScore = bestRowIndex >= 0 ? evaluateRowScore(rows[bestRowIndex]) : -1;
+
+    rows.slice(0, 10).forEach((row, index) => {
+      const score = evaluateRowScore(row);
+      if (score > bestScore) {
+        bestScore = score;
+        bestRowIndex = index;
+      }
+    });
+
+    const headerRowIndex = bestRowIndex >= 0 ? bestRowIndex : 0;
+    return {
+      headerRowIndex,
+      headers: normalizeHeaders(rows[headerRowIndex] || []),
+    };
+  };
+
+  const buildExcelRows = (rawRows: ExcelSheetRow[], headerRowIndex: number): ExcelRow[] => {
+    const headerRow = rawRows[headerRowIndex] || [];
+    const normalizedHeaderNames = normalizeHeaderCells(headerRow);
+
+    return rawRows
+      .slice(headerRowIndex + 1)
+      .map((row) => {
+        const nextRowEntries = headerRow.reduce<Array<[string, unknown]>>((entries, _headerCell, columnIndex) => {
+          const headerName = normalizedHeaderNames[columnIndex];
+          if (!headerName) {
+            return entries;
+          }
+
+          entries.push([headerName, row[columnIndex] ?? '']);
+          return entries;
+        }, []);
+
+        return Object.fromEntries(nextRowEntries);
+      })
+      .filter((row) => Object.values(row).some((value) => normalizeCell(value)));
+  };
+
+  const getHeaderRowOptions = (rawRows: ExcelSheetRow[]) => (
+    rawRows
+      .map((row, index) => ({
+        index,
+        preview: row.map(normalizeCell).filter(Boolean).slice(0, 4).join(' | '),
+      }))
+      .filter((row) => row.preview)
+      .slice(0, 12)
+  );
+
+  const isTruthyBadgeValue = (value: string) => badgeMarkerValues.has(normalizeCompare(value));
+  const isNegativeBadgeValue = (value: string) => badgeNegativeValues.has(normalizeCompare(value));
+
+  const splitBadgeCandidates = (value: string) => (
+    value
+      .split(/[|,;/]+/)
+      .map((part) => normalizeCell(part))
+      .filter(Boolean)
+  );
+
+  const findBadgeByName = (value: string) => (
+    badges.find((badge) => normalizeCompare(badge?.name || '') === normalizeCompare(value))
+  );
+
+  const suggestBadgeColumns = (headers: string[], source: ImportSourceConfig) => {
+    const selected = new Set<string>();
+    const configuredColumn = suggestColumnForField(headers, 'badge', source);
+
+    if (configuredColumn) {
+      selected.add(configuredColumn);
+    }
+
+    headers.forEach((header) => {
+      const normalizedHeader = normalizeCompare(header);
+      const looksLikeGenericBadgeColumn = [source.columns.badge, ...IMPORT_FIELD_ALIASES.badge]
+        .some((alias) => normalizedHeader.includes(normalizeCompare(alias)));
+      const looksLikeNamedBadgeColumn = badges.some((badge) => normalizeCompare(badge.name) === normalizedHeader);
+
+      if (looksLikeGenericBadgeColumn || looksLikeNamedBadgeColumn) {
+        selected.add(header);
+      }
+    });
+
+    return Array.from(selected);
+  };
+
+  const getSelectedBadgeColumns = (source: ImportSourceConfig) => {
+    if (assistedImportBadgeColumns.length > 0) {
+      return assistedImportBadgeColumns;
+    }
+
+    return [source.columns.badge].filter(Boolean);
+  };
+
+  const getBadgeCandidatesFromRow = (row: ExcelRow, source: ImportSourceConfig) => {
+    const badgeColumns = getSelectedBadgeColumns(source);
+    const resolvedBadges: Array<{ badge?: Badge; badgeLabel: string; columnName: string }> = [];
+    const seenBadges = new Set<string>();
+
+    badgeColumns.forEach((selectedColumnName) => {
+      const columnName = findMatchingRowKey(row, [selectedColumnName]) || selectedColumnName;
+      const cellValue = normalizeCell(row[columnName]);
+      const headerBadge = findBadgeByName(columnName);
+      const valueBadges = splitBadgeCandidates(cellValue)
+        .map((candidate) => ({ badge: findBadgeByName(candidate), badgeLabel: candidate }))
+        .filter((candidate) => candidate.badgeLabel);
+
+      if (valueBadges.length > 0) {
+        valueBadges.forEach(({ badge, badgeLabel }) => {
+          const uniqueKey = `${columnName}:${normalizeCompare(badgeLabel)}`;
+          if (!seenBadges.has(uniqueKey)) {
+            seenBadges.add(uniqueKey);
+            resolvedBadges.push({ badge, badgeLabel, columnName });
+          }
+        });
+        return;
+      }
+
+      if (headerBadge && isTruthyBadgeValue(cellValue)) {
+        const uniqueKey = `${columnName}:${normalizeCompare(headerBadge.name)}`;
+        if (!seenBadges.has(uniqueKey)) {
+          seenBadges.add(uniqueKey);
+          resolvedBadges.push({ badge: headerBadge, badgeLabel: headerBadge.name, columnName });
+        }
+        return;
+      }
+
+      if (!isNegativeBadgeValue(cellValue) && cellValue) {
+        const uniqueKey = `${columnName}:${normalizeCompare(cellValue)}`;
+        if (!seenBadges.has(uniqueKey)) {
+          seenBadges.add(uniqueKey);
+          resolvedBadges.push({ badge: findBadgeByName(cellValue), badgeLabel: cellValue, columnName });
+        }
+      }
+    });
+
+    return resolvedBadges;
+  };
+
   const parseExcel = (file: File): Promise<ParsedExcelData> => new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -355,10 +550,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         if (!worksheet) {
           throw new Error('Nenhuma planilha encontrada no arquivo.');
         }
-        const rows = XLSX.utils.sheet_to_json<ExcelRow>(worksheet, { defval: '' });
-        const headers = Object.keys(rows[0] || {});
+        const rawRows = XLSX.utils.sheet_to_json<ExcelSheetRow>(worksheet, { header: 1, defval: '' });
+        const { headerRowIndex, headers } = extractHeaders(rawRows);
+        const rows = buildExcelRows(rawRows, headerRowIndex);
 
-        resolve({ rows, headers });
+        resolve({ rawRows, headerRowIndex, rows, headers });
       } catch (error) {
         reject(error);
       }
@@ -368,21 +564,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.readAsBinaryString(file);
   });
 
-  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
+  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview[] => {
+      const selectedBadgeColumns = getSelectedBadgeColumns(source);
       const matchedColumns: Partial<Record<ImportSourceField, string>> = {
         company: getMatchedColumnName(row, 'company', source),
         productive_unit: getMatchedColumnName(row, 'productive_unit', source),
         user: getMatchedColumnName(row, 'user', source),
-        badge: getMatchedColumnName(row, 'badge', source),
+        badge: selectedBadgeColumns.join(', '),
         tone: getMatchedColumnName(row, 'tone', source),
         award: getMatchedColumnName(row, 'award', source),
       };
       const companyValue = getFieldValue(row, 'company', source);
       const unitValue = getFieldValue(row, 'productive_unit', source);
       const userValue = getFieldValue(row, 'user', source);
-      const badgeValue = getFieldValue(row, 'badge', source);
       const toneValue = getFieldValue(row, 'tone', source);
       const awardValue = getFieldValue(row, 'award', source).toUpperCase();
+      const badgeCandidates = getBadgeCandidatesFromRow(row, source);
 
       const companyFound = companies.find(company => normalizeCompare(company?.name || '') === normalizeCompare(companyValue));
       const productiveUnitFound = productiveUnits.find(unit =>
@@ -394,42 +591,68 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         (!companyFound || user.company_id === companyFound.id) &&
         (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
       );
-      const badgeFound = badges.find(badge => normalizeCompare(badge?.name || '') === normalizeCompare(badgeValue));
       const tone = parseTone(toneValue);
 
-      let status: 'valid' | 'invalid' = 'valid';
-      let reason = '';
+      if (badgeCandidates.length === 0) {
+        return [{
+          row: {
+            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+            explorador: userValue,
+            empresa: companyValue,
+            unidade_produtiva: unitValue,
+            selo: '',
+            premio: awardValue,
+            marcacao: toneValue || tone,
+          },
+          user: userFound,
+          company: companyFound,
+          productiveUnit: productiveUnitFound,
+          tone,
+          sourceName: source?.name || 'Fonte sem nome',
+          matchedColumns,
+          status: 'invalid',
+          reason: 'selo nao encontrado',
+        }];
+      }
 
-      if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
-      else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
-      else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
-      else if (!badgeFound) { status = 'invalid'; reason = 'selo nao encontrado'; }
-      else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
+      return badgeCandidates.map(({ badge, badgeLabel, columnName }) => {
+        let status: 'valid' | 'invalid' = 'valid';
+        let reason = '';
 
-      return {
-        row: {
-          ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-          explorador: userValue,
-          empresa: companyValue,
-          unidade_produtiva: unitValue,
-          selo: badgeValue,
-          premio: awardValue,
-          marcacao: toneValue || tone,
-        },
-        user: userFound,
-        badge: badgeFound,
-        company: companyFound,
-        productiveUnit: productiveUnitFound,
-        tone,
-        sourceName: source?.name || 'Fonte sem nome',
-        matchedColumns,
-        status,
-        reason,
-      };
+        if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
+        else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
+        else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
+        else if (!badge) { status = 'invalid'; reason = 'selo nao encontrado'; }
+        else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
+
+        return {
+          row: {
+            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+            explorador: userValue,
+            empresa: companyValue,
+            unidade_produtiva: unitValue,
+            selo: badgeLabel,
+            premio: awardValue,
+            marcacao: toneValue || tone,
+          },
+          user: userFound,
+          badge,
+          company: companyFound,
+          productiveUnit: productiveUnitFound,
+          tone,
+          sourceName: source?.name || 'Fonte sem nome',
+          matchedColumns: {
+            ...matchedColumns,
+            badge: columnName,
+          },
+          status,
+          reason,
+        };
+      });
   };
 
   const processExcelData = (rows: ExcelRow[], source: ImportSourceConfig): ProcessedExcelData => {
-    const previews = rows.map((row) => mapRow(row, source));
+    const previews = rows.flatMap((row) => mapRow(row, source));
     const todayKey = new Date().toISOString().slice(0, 10);
     const existingKeys = new Set(
       userBadges
@@ -485,9 +708,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     };
   };
 
+  const applyHeaderRowSelection = (rawRows: ExcelSheetRow[], headerRowIndex: number, source: ImportSourceConfig) => {
+    const rows = buildExcelRows(rawRows, headerRowIndex);
+    const headers = extractHeaders([rawRows[headerRowIndex] || []]).headers;
+    const suggestedColumns: Record<ImportSourceField, string> = {
+      company: suggestColumnForField(headers, 'company', source),
+      productive_unit: suggestColumnForField(headers, 'productive_unit', source),
+      user: suggestColumnForField(headers, 'user', source),
+      badge: suggestColumnForField(headers, 'badge', source),
+      tone: suggestColumnForField(headers, 'tone', source),
+      award: suggestColumnForField(headers, 'award', source),
+    };
+    const suggestedBadgeColumns = suggestBadgeColumns(headers, source);
+
+    setImportHeaderRowIndex(headerRowIndex);
+    setImportSheetRows(rows);
+    setImportSheetHeaders(headers);
+    setAssistedImportColumns(suggestedColumns);
+    setAssistedImportBadgeColumns(
+      suggestedBadgeColumns.length > 0
+        ? suggestedBadgeColumns
+        : (suggestedColumns.badge ? [suggestedColumns.badge] : []),
+    );
+  };
+
   const buildImportSourceWithMapping = (): ImportSourceConfig => ({
     ...(activeImportSource || fallbackImportSource),
-    columns: assistedImportColumns,
+    columns: {
+      ...assistedImportColumns,
+      badge: assistedImportBadgeColumns[0] || assistedImportColumns.badge,
+    },
   });
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
@@ -836,19 +1086,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (!file || !activeImportSource) return;
 
     try {
-      const { rows, headers } = await parseExcel(file);
-      const suggestedColumns: Record<ImportSourceField, string> = {
-        company: suggestColumnForField(headers, 'company', activeImportSource),
-        productive_unit: suggestColumnForField(headers, 'productive_unit', activeImportSource),
-        user: suggestColumnForField(headers, 'user', activeImportSource),
-        badge: suggestColumnForField(headers, 'badge', activeImportSource),
-        tone: suggestColumnForField(headers, 'tone', activeImportSource),
-        award: suggestColumnForField(headers, 'award', activeImportSource),
-      };
-
-      setImportSheetRows(rows);
-      setImportSheetHeaders(headers);
-      setAssistedImportColumns(suggestedColumns);
+      const { rawRows, headerRowIndex } = await parseExcel(file);
+      setImportSheetMatrix(rawRows);
+      applyHeaderRowSelection(rawRows, headerRowIndex, activeImportSource);
       setIsImportMappingModalOpen(true);
     } catch (error) {
       console.error('[excel-import] falha ao ler arquivo:', error);
@@ -858,10 +1098,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleConfirmImportMapping = () => {
     if (!activeImportSource || importSheetRows.length === 0) return;
 
-    const mappedSource: ImportSourceConfig = {
-      ...activeImportSource,
-      columns: assistedImportColumns,
-    };
+    const mappedSource = buildImportSourceWithMapping();
 
     const processedData = processExcelData(importSheetRows, mappedSource);
     setImportPreviews(processedData.previews);
@@ -871,7 +1108,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setImportBindingSnapshot({
         sourceId: mappedSource?.id || fallbackImportSource.id,
         sourceName: mappedSource?.name || fallbackImportSource.name,
-        matchedColumns: firstPreview.matchedColumns,
+        matchedColumns: {
+          ...firstPreview.matchedColumns,
+          badge: assistedImportBadgeColumns.join(', '),
+        },
         importedAt: new Date().toISOString(),
       });
     }
@@ -893,7 +1133,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       const importedCount = await onPersistImport(
         mappedSource.id || fallbackImportSource.id,
         mappedSource?.name || fallbackImportSource.name,
-        processedData.previews[0]?.matchedColumns || {},
+        {
+          ...(processedData.previews[0]?.matchedColumns || {}),
+          badge: assistedImportBadgeColumns.join(', '),
+        },
         processedData.previews.map(preview => ({
           row: preview.row,
           user_id: preview.user?.id,
@@ -1726,6 +1969,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 flex-1 overflow-hidden">
               <div className="rounded-[32px] border border-slate-100 bg-slate-50/70 p-6 overflow-y-auto">
+                <div className="mb-6">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Linha de cabeçalho</div>
+                  <select
+                    value={importHeaderRowIndex}
+                    onChange={(e) => applyHeaderRowSelection(importSheetMatrix, Number(e.target.value), activeImportSource)}
+                    className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
+                  >
+                    {getHeaderRowOptions(importSheetMatrix).map((option) => (
+                      <option key={option.index} value={option.index}>
+                        {`Linha ${option.index + 1}: ${option.preview}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Cabeçalhos detectados</div>
                 <div className="flex flex-wrap gap-3">
                   {importSheetHeaders.map(header => (
@@ -1738,9 +1995,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="rounded-[32px] border border-slate-100 bg-white p-6 overflow-y-auto space-y-4">
                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mapeamento sugerido</div>
-                {(['company', 'productive_unit', 'user', 'badge', 'tone', 'award'] as ImportSourceField[]).map(field => (
+                {(['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[]).map(field => (
                   <label key={field} className="space-y-2 block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</span>
                     <select
                       value={assistedImportColumns[field]}
                       onChange={(e) => setAssistedImportColumns(prev => ({ ...prev, [field]: e.target.value }))}
@@ -1751,6 +2008,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </select>
                   </label>
                 ))}
+                <div className="space-y-3">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS.badge}</div>
+                  <div className="rounded-2xl bg-slate-50 p-4 space-y-2 max-h-56 overflow-y-auto">
+                    {importSheetHeaders.map((header) => {
+                      const checked = assistedImportBadgeColumns.includes(header);
+                      return (
+                        <label key={header} className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setAssistedImportBadgeColumns((prev) => (
+                              checked ? prev.filter((column) => column !== header) : [...prev, header]
+                            ))}
+                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                          />
+                          <span>{header}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] font-bold text-slate-400">
+                    Selecione uma ou mais colunas de selo. Colunas com o nome do selo no cabeçalho também funcionam.
+                  </p>
+                </div>
               </div>
             </div>
 
