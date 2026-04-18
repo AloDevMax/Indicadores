@@ -12,6 +12,7 @@ import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
+import { memoryStore } from './data/memoryStore.mjs';
 
 
 const app = express();
@@ -109,6 +110,36 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
   );
 
   return targetUserIds.every((targetUserId) => allowedUserIds.has(targetUserId));
+};
+
+const ensureSubmissionWithinScope = async (user, submissionId) => {
+  if (!isManager(user)) return true;
+
+  const client = await createPgClient();
+
+  if (!client) {
+    const submission = memoryStore.submissions.find((entry) => entry.id === submissionId);
+    if (!submission) return false;
+
+    const users = await listUsers();
+    const submissionUser = users.find((entry) => entry.id === submission.user_id);
+    return Boolean(submissionUser?.company_id) && submissionUser.company_id === user.company_id;
+  }
+
+  try {
+    const result = await client.query(
+      `select u.company_id
+       from badge_submissions s
+       inner join users u on u.id = s.user_id
+       where s.id = $1
+       limit 1`,
+      [submissionId],
+    );
+
+    return Boolean(result.rows[0]?.company_id) && result.rows[0].company_id === user.company_id;
+  } finally {
+    await client.end();
+  }
 };
 
 app.post('/api/auth/login', async (req, res) => {
@@ -219,6 +250,12 @@ app.post('/api/submissions', async (req, res) => {
 app.post('/api/submissions/:id/review', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+  if (!isAdminOrDeveloper(auth.body.user)) {
+    return res.status(403).json({ error: 'Acesso restrito.' });
+  }
+  if (!(await ensureSubmissionWithinScope(auth.body.user, req.params.id))) {
+    return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
+  }
 
   const result = await reviewSubmission({
     submissionId: req.params.id,
@@ -258,8 +295,8 @@ app.post('/api/admin/users', async (req, res) => {
 
 app.post('/api/admin/import-sources', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
-    return res.status(403).json({ error: 'Acesso restrito.' });
+  if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
+    return res.status(403).json({ error: 'Somente o desenvolvedor pode manter fontes globais de importação.' });
   }
 
   const importSource = await saveImportSource(req.body);
@@ -268,8 +305,8 @@ app.post('/api/admin/import-sources', async (req, res) => {
 
 app.post('/api/admin/badges', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
-    return res.status(403).json({ error: 'Acesso restrito.' });
+  if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
+    return res.status(403).json({ error: 'Somente o desenvolvedor pode manter a biblioteca global de selos.' });
   }
   const badge = await saveBadge(req.body);
   res.status(200).json({ badge });
@@ -277,10 +314,36 @@ app.post('/api/admin/badges', async (req, res) => {
 
 app.post('/api/admin/badges/delete', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
+    return res.status(403).json({ error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' });
+  }
+  const result = await deleteBadge(req.body.id);
+  res.status(200).json(result);
+});
+
+app.post('/api/admin/import-runs', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
-  const result = await deleteBadge(req.body.id);
+
+  const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
+  const scopedUserIds = rows
+    .filter((row) => row?.status === 'valid' && row?.user_id)
+    .map((row) => row.user_id);
+
+  if (!(await ensureUsersWithinScope(auth.body.user, scopedUserIds))) {
+    return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
+  }
+
+  const result = await persistImportRun({
+    reviewerId: auth.body.user.id,
+    sourceId: req.body.source_id,
+    sourceName: req.body.source_name,
+    matchedColumns: req.body.matched_columns || {},
+    rows,
+  });
+
   res.status(200).json(result);
 });
 

@@ -30,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   if (!user) return null;
 
   const isAdmin = user.role === 'admin' || user.role === 'developer';
+  const isDeveloper = user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
   
@@ -50,18 +51,17 @@ const Sidebar: React.FC<SidebarProps> = ({
   const userLinks = [
     { to: '/dashboard', label: 'Meu Progresso', icon: '📈' },
     { to: '/badges', label: 'Meus Selos', icon: '🛡️' },
-    { to: '/ranking', label: 'Ranking Global', icon: '🥇' },
+    { to: '/ranking', label: user.role === 'developer' ? 'Ranking Global' : 'Ranking da Empresa', icon: '🥇' },
   ];
 
   const adminLinks = [
     { to: '/admin', label: 'Visão Geral', icon: '📊' },
-    { to: '/ranking', label: 'Ranking Global', icon: '🥇' },
+    { to: '/ranking', label: isDeveloper ? 'Ranking Global' : 'Ranking da Empresa', icon: '🥇' },
     { to: '/admin/award', label: 'Premiar Selos', icon: '🏆' },
     { to: '/admin/submissions', label: 'Solicitações', icon: '📨' },
     { to: '/admin/users', label: 'Colaboradores', icon: '👥' },
-    { to: '/admin/badges', label: 'Biblioteca', icon: '🛡️' },
     { to: '/admin/companies', label: 'Empresas', icon: '🏢' },
-    { to: '/admin/settings', label: 'Configurações', icon: '⚙️' },
+    ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: '🛡️' }] : []),
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;

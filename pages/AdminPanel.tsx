@@ -83,6 +83,23 @@ interface ImportPreview {
   reason?: string;
 }
 
+type ExcelRow = Record<string, unknown>;
+
+interface ParsedExcelData {
+  headers: string[];
+  rows: ExcelRow[];
+}
+
+interface ProcessedExcelData {
+  previews: ImportPreview[];
+  importedBadges: UserBadge[];
+  summary: {
+    processed: number;
+    success: number;
+    failed: number;
+  };
+}
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   currentUser,
   activeMode, 
@@ -121,14 +138,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
+  const canManageGlobalCatalog = isDeveloper;
+  const canConfigureImportSource = isDeveloper;
+  const allowedViews = isDeveloper
+    ? new Set(['overview', 'submissions', 'users', 'award', 'badges', 'companies'])
+    : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
-    return path as 'overview' | 'submissions' | 'users' | 'award' | 'badges' | 'companies';
-  }, [location.pathname]);
+    return allowedViews.has(path)
+      ? path as 'overview' | 'submissions' | 'users' | 'award' | 'badges' | 'companies'
+      : 'overview';
+  }, [allowedViews, location.pathname]);
 
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -288,16 +312,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return 'bronze';
   };
 
-  const getSourceCell = (row: Record<string, unknown>, field: ImportSourceField, source: ImportSourceConfig) => {
+  const getFieldValue = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig): string => {
     const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
+    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
     const matchedKey = Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
     return matchedKey ? normalizeCell(row[matchedKey]) : '';
   };
 
-  const getMatchedColumnName = (row: Record<string, unknown>, field: ImportSourceField, source: ImportSourceConfig) => {
+  const getMatchedColumnName = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig) => {
     const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]];
+    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
     return Object.keys(row).find(key => candidates.some(candidate => normalizeCompare(key) === normalizeCompare(candidate)));
   };
 
@@ -319,8 +343,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return partialMatch || '';
   };
 
-  const buildImportPreviews = (rows: Record<string, unknown>[], source: ImportSourceConfig) => {
-    const previews: ImportPreview[] = rows.map(row => {
+  const parseExcel = (file: File): Promise<ParsedExcelData> => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      try {
+        const binary = event.target?.result;
+        const workbook = XLSX.read(binary, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined;
+        if (!worksheet) {
+          throw new Error('Nenhuma planilha encontrada no arquivo.');
+        }
+        const rows = XLSX.utils.sheet_to_json<ExcelRow>(worksheet, { defval: '' });
+        const headers = Object.keys(rows[0] || {});
+
+        resolve({ rows, headers });
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    reader.onerror = () => reject(new Error('Falha ao ler o arquivo Excel.'));
+    reader.readAsBinaryString(file);
+  });
+
+  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
       const matchedColumns: Partial<Record<ImportSourceField, string>> = {
         company: getMatchedColumnName(row, 'company', source),
         productive_unit: getMatchedColumnName(row, 'productive_unit', source),
@@ -329,12 +377,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         tone: getMatchedColumnName(row, 'tone', source),
         award: getMatchedColumnName(row, 'award', source),
       };
-      const companyValue = getSourceCell(row, 'company', source);
-      const unitValue = getSourceCell(row, 'productive_unit', source);
-      const userValue = getSourceCell(row, 'user', source);
-      const badgeValue = getSourceCell(row, 'badge', source);
-      const toneValue = getSourceCell(row, 'tone', source);
-      const awardValue = getSourceCell(row, 'award', source).toUpperCase();
+      const companyValue = getFieldValue(row, 'company', source);
+      const unitValue = getFieldValue(row, 'productive_unit', source);
+      const userValue = getFieldValue(row, 'user', source);
+      const badgeValue = getFieldValue(row, 'badge', source);
+      const toneValue = getFieldValue(row, 'tone', source);
+      const awardValue = getFieldValue(row, 'award', source).toUpperCase();
 
       const companyFound = companies.find(company => normalizeCompare(company?.name || '') === normalizeCompare(companyValue));
       const productiveUnitFound = productiveUnits.find(unit =>
@@ -353,7 +401,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       let reason = '';
 
       if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
-      else if (!productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
+      else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
       else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
       else if (!badgeFound) { status = 'invalid'; reason = 'selo nao encontrado'; }
       else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
@@ -378,10 +426,69 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         status,
         reason,
       };
+  };
+
+  const processExcelData = (rows: ExcelRow[], source: ImportSourceConfig): ProcessedExcelData => {
+    const previews = rows.map((row) => mapRow(row, source));
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const existingKeys = new Set(
+      userBadges
+        .filter((badge) => badge.awarded_at.slice(0, 10) === todayKey)
+        .map((badge) => `${badge.user_id}:${badge.badge_id}:${todayKey}`),
+    );
+    const importedKeys = new Set<string>();
+    const importedBadges: UserBadge[] = [];
+
+    previews.forEach((preview, index) => {
+      if (preview.status !== 'valid' || !preview.user?.id || !preview.badge?.id) {
+        if (preview.reason?.includes('colaborador')) {
+          console.log(`[excel-import] linha ${index + 1}: usuário não encontrado`, preview.row);
+        }
+        if (preview.reason?.includes('selo')) {
+          console.log(`[excel-import] linha ${index + 1}: selo não encontrado`, preview.row);
+        }
+        return;
+      }
+
+      const duplicateKey = `${preview.user.id}:${preview.badge.id}:${todayKey}`;
+      if (existingKeys.has(duplicateKey) || importedKeys.has(duplicateKey)) {
+        preview.status = 'invalid';
+        preview.reason = 'selo duplicado no mesmo dia';
+        return;
+      }
+
+      importedKeys.add(duplicateKey);
+      importedBadges.push({
+        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 11),
+        user_id: preview.user.id,
+        badge_id: preview.badge.id,
+        awarded_at: new Date().toISOString(),
+        awarded_by: safeAdminProfile.id,
+        tone: preview.tone,
+      });
     });
 
-    return previews;
+    const summary = {
+      processed: rows.length,
+      success: importedBadges.length,
+      failed: previews.filter((preview) => preview.status === 'invalid').length,
+    };
+
+    console.log('[excel-import] total de linhas processadas:', summary.processed);
+    console.log('[excel-import] total de sucessos:', summary.success);
+    console.log('[excel-import] total de falhas:', summary.failed);
+
+    return {
+      previews,
+      importedBadges,
+      summary,
+    };
   };
+
+  const buildImportSourceWithMapping = (): ImportSourceConfig => ({
+    ...(activeImportSource || fallbackImportSource),
+    columns: assistedImportColumns,
+  });
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
     const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
@@ -432,6 +539,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!canManageGlobalCatalog) {
+      alert('Somente o desenvolvedor pode manter a biblioteca global de selos.');
+      return;
+    }
     const formData = new FormData(e.currentTarget);
     const badgeData: Badge = {
       id: editingBadge?.id || Math.random().toString(36).substr(2, 9),
@@ -455,6 +566,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleDeleteBadge = async () => {
+    if (!canManageGlobalCatalog) {
+      alert('Somente o desenvolvedor pode remover selos da biblioteca global.');
+      return;
+    }
     if (badgeToDelete) {
       if (onDeleteBadge) {
         await onDeleteBadge(badgeToDelete.id);
@@ -514,6 +629,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleSaveImportSource = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!canConfigureImportSource) {
+      alert('Somente o desenvolvedor pode editar fontes globais de importação.');
+      return;
+    }
     const formData = new FormData(e.currentTarget);
 
     const importSourceData: ImportSourceConfig = {
@@ -712,17 +831,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
   };
-  const handleExcelImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeImportSource) return;
 
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const bstr = evt.target?.result;
-      const wb = XLSX.read(bstr, { type: 'binary' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const data = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws);
-      const headers = Object.keys(data[0] || {});
+    try {
+      const { rows, headers } = await parseExcel(file);
       const suggestedColumns: Record<ImportSourceField, string> = {
         company: suggestColumnForField(headers, 'company', activeImportSource),
         productive_unit: suggestColumnForField(headers, 'productive_unit', activeImportSource),
@@ -732,12 +846,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         award: suggestColumnForField(headers, 'award', activeImportSource),
       };
 
-      setImportSheetRows(data);
+      setImportSheetRows(rows);
       setImportSheetHeaders(headers);
       setAssistedImportColumns(suggestedColumns);
       setIsImportMappingModalOpen(true);
-    };
-    reader.readAsBinaryString(file);
+    } catch (error) {
+      console.error('[excel-import] falha ao ler arquivo:', error);
+    }
   };
 
   const handleConfirmImportMapping = () => {
@@ -748,10 +863,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       columns: assistedImportColumns,
     };
 
-    const previews = buildImportPreviews(importSheetRows, mappedSource);
-    setImportPreviews(previews);
+    const processedData = processExcelData(importSheetRows, mappedSource);
+    setImportPreviews(processedData.previews);
 
-    const firstPreview = previews[0];
+    const firstPreview = processedData.previews[0];
     if (firstPreview) {
       setImportBindingSnapshot({
         sourceId: mappedSource?.id || fallbackImportSource.id,
@@ -766,15 +881,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const finalizeImport = async () => {
-    const valid = importPreviews.filter(p => p.status === 'valid');
-    if (valid.length === 0) return;
+    if (importSheetRows.length === 0) return;
 
-    if (onPersistImport && activeImportSource) {
+    const mappedSource = buildImportSourceWithMapping();
+    const processedData = processExcelData(importSheetRows, mappedSource);
+    setImportPreviews(processedData.previews);
+
+    if (processedData.summary.success === 0) return;
+
+    if (onPersistImport) {
       const importedCount = await onPersistImport(
-        activeImportSource.id || fallbackImportSource.id,
-        activeImportSource?.name || fallbackImportSource.name,
-        importPreviews[0]?.matchedColumns || {},
-        importPreviews.map(preview => ({
+        mappedSource.id || fallbackImportSource.id,
+        mappedSource?.name || fallbackImportSource.name,
+        processedData.previews[0]?.matchedColumns || {},
+        processedData.previews.map(preview => ({
           row: preview.row,
           user_id: preview.user?.id,
           badge_id: preview.badge?.id,
@@ -785,12 +905,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       );
       alert(`${importedCount} importacoes concluidas.`);
     } else {
-      valid.forEach(p => {
-        if (p.user?.id && p.badge?.id) {
-          upsertUserBadge(p.user.id, p.badge.id, p.tone);
-        }
+      setUserBadges(prev => {
+        const existingKeys = new Set(prev.map((badge) => `${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
+        const nextBadges = processedData.importedBadges.filter((badge) => !existingKeys.has(`${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
+        return [...prev, ...nextBadges];
       });
-      alert(`${valid.length} importacoes concluidas.`);
+      alert(`${processedData.summary.success} importacoes concluidas.`);
     }
 
     setIsImportModalOpen(false);
@@ -1051,9 +1171,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   >
                     {importSources.filter(Boolean).map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
                   </select>
-                  <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
-                    Configurar fonte
-                  </button>
+                  {canConfigureImportSource && (
+                    <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
+                      Configurar fonte
+                    </button>
+                  )}
                   <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
                   <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
                 </div>
@@ -1090,9 +1212,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
                           <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource?.name || 'Fonte sem nome'}</p>
                         </div>
-                        <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
-                          editar mapeamento
-                        </button>
+                        {canConfigureImportSource && (
+                          <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
+                            editar mapeamento
+                          </button>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descrição cadastrada.'}</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -1155,7 +1279,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          {view === 'badges' && (
+          {view === 'badges' && canManageGlobalCatalog && (
             <div className="space-y-8 animate-in fade-in">
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Biblioteca de Selos</h2>
@@ -1419,7 +1543,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* Badge Modal */}
-      {isBadgeModalOpen && (
+      {isBadgeModalOpen && canManageGlobalCatalog && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">{editingBadge ? 'Editar Selo' : 'Novo Selo'}</h2>
@@ -1459,7 +1583,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       )}
 
       {/* Delete Badge Confirmation Modal */}
-      {isDeleteBadgeModalOpen && (
+      {isDeleteBadgeModalOpen && canManageGlobalCatalog && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 text-center">
             <div className="text-5xl mb-6">⚠️</div>
@@ -1544,7 +1668,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {isImportSourceModalOpen && (
+      {isImportSourceModalOpen && canConfigureImportSource && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingImportSource ? 'Editar fonte Excel' : 'Nova fonte Excel'}</h2>
