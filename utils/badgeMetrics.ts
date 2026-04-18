@@ -51,3 +51,16 @@ export const getUserMonthlyBadgeMetrics = (userId: string, userBadges: UserBadge
     counts,
   };
 };
+
+export const getUserBadgeSummary = (userId: string, userBadges: UserBadge[]) => {
+  const badges = userBadges.filter((badge) => badge.user_id === userId);
+  const byBadge = badges.reduce<Record<string, number>>((accumulator, badge) => {
+    accumulator[badge.badge_id] = (accumulator[badge.badge_id] || 0) + 1;
+    return accumulator;
+  }, {});
+
+  return {
+    total: badges.length,
+    byBadge,
+  };
+};

@@ -57,6 +57,8 @@ export interface UserBadge {
   awarded_at: string;
   awarded_by: string;
   tone: BadgeTone;
+  company_id?: string;
+  productive_unit_id?: string;
 }
 
 export interface BadgeLegendSettings {

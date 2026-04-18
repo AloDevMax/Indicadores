@@ -79,11 +79,18 @@ interface ImportPreviewBadge {
 
 interface ImportPreview {
   row: Record<string, string>;
+  userName: string;
+  companyId?: string;
+  companyName: string;
+  productiveUnitId?: string;
+  productiveUnitName: string;
   user?: Profile;
   company?: Company;
   productiveUnit?: ProductiveUnit;
   badges: ImportPreviewBadge[];
   badgeValues?: Record<string, number>;
+  numericMeta?: Record<string, number>;
+  textMeta?: Record<string, string>;
   tone: BadgeTone;
   sourceName: string;
   matchedColumns: Partial<Record<ImportSourceField, string>>;
@@ -213,6 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [importSheetRows, setImportSheetRows] = useState<Record<string, unknown>[]>([]);
   const [importSheetHeaders, setImportSheetHeaders] = useState<string[]>([]);
   const [importHeaderRowIndex, setImportHeaderRowIndex] = useState(0);
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
   const [assistedImportColumns, setAssistedImportColumns] = useState<Record<ImportSourceField, string>>({
     company: '',
     productive_unit: '',
@@ -317,6 +325,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
   const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
   const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
+  const positiveBadgeTokens = new Set(['1', 'x', '✓', '✔', 'true', 'sim', 's', 'ok']);
 
   const parseTone = (value: unknown): BadgeTone => {
     const normalized = normalizeCompare(value);
@@ -459,6 +468,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     badges.find((badge) => normalizeCompare(badge?.name || '') === normalizeCompare(value))
   );
 
+  const classifyColumn = (header: string): 'badge' | 'numeric_meta' | 'text_meta' => {
+    const normalizedHeader = normalizeCompare(header);
+
+    if (
+      normalizedHeader.includes('total') ||
+      normalizedHeader.includes('bonificação') ||
+      normalizedHeader.includes('bonificacao') ||
+      normalizedHeader.includes('bonus')
+    ) {
+      return 'numeric_meta';
+    }
+
+    if (
+      normalizedHeader.includes('observação') ||
+      normalizedHeader.includes('observacao') ||
+      normalizedHeader.includes('nota') ||
+      normalizedHeader.includes('comentário') ||
+      normalizedHeader.includes('comentario')
+    ) {
+      return 'text_meta';
+    }
+
+    return 'badge';
+  };
+
   const getDefaultIndicatorColumns = (headers: string[], source: ImportSourceConfig) => {
     const fixedColumns = new Set(
       (['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[])
@@ -467,7 +501,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         .map(normalizeCompare),
     );
 
-    return headers.filter((header) => !fixedColumns.has(normalizeCompare(header)));
+    return headers.filter((header) => !fixedColumns.has(normalizeCompare(header)) && classifyColumn(header) === 'badge');
   };
 
   const getSelectedBadgeColumns = (source: ImportSourceConfig) => {
@@ -482,6 +516,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const normalizedValue = normalizeCell(value);
     if (isNegativeBadgeValue(normalizedValue)) {
       return null;
+    }
+
+    if (positiveBadgeTokens.has(normalizeCompare(normalizedValue))) {
+      return 1;
     }
 
     const numericValue = Number(normalizedValue.replace(',', '.'));
@@ -513,6 +551,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     return resolvedBadges;
   };
 
+  const getNumericMetaFromRow = (row: ExcelRow, source: ImportSourceConfig) => {
+    return Object.fromEntries(
+      Object.keys(row)
+        .filter((header) => classifyColumn(header) === 'numeric_meta')
+        .map((header) => [header, parseIndicatorValue(row[findMatchingRowKey(row, [header]) || header])])
+        .filter((entry): entry is [string, number] => entry[1] !== null),
+    );
+  };
+
+  const getTextMetaFromRow = (row: ExcelRow) => {
+    return Object.fromEntries(
+      Object.keys(row)
+        .filter((header) => classifyColumn(header) === 'text_meta')
+        .map((header) => [header, normalizeCell(row[header])])
+        .filter((entry) => entry[1]),
+    );
+  };
+
   const parseExcel = (file: File): Promise<ParsedExcelData> => new Promise((resolve, reject) => {
     const reader = new FileReader();
 
@@ -540,59 +596,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   });
 
   const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
-      const selectedBadgeColumns = getSelectedBadgeColumns(source);
-      const companyValue = getFieldValue(row, 'company', source);
-      const unitValue = getFieldValue(row, 'productive_unit', source);
-      const userValue = getFieldValue(row, 'user', source);
-      const toneValue = getFieldValue(row, 'tone', source);
-      const awardValue = getFieldValue(row, 'award', source).toUpperCase();
-      const badgeCandidates = getBadgeCandidatesFromRow(row, source);
+    const selectedBadgeColumns = getSelectedBadgeColumns(source);
+    const userValue = getFieldValue(row, 'user', source);
+    const toneValue = getFieldValue(row, 'tone', source);
+    const awardValue = getFieldValue(row, 'award', source).toUpperCase();
+    const badgeCandidates = getBadgeCandidatesFromRow(row, source);
+    const numericMeta = getNumericMetaFromRow(row, source);
+    const textMeta = getTextMetaFromRow(row);
+    const productiveUnitFound = productiveUnits.find((unit) => unit.id === selectedUnitId) || undefined;
+    const inferredCompanyId = currentUser.company_id || productiveUnitFound?.company_id;
+    const companyFound = companies.find((company) => company.id === inferredCompanyId);
+    const inferredCompanyName = companyFound?.name || 'Empresa vinculada';
+    const userFound = users.find(user =>
+      normalizeCompare(user.full_name) === normalizeCompare(userValue) &&
+      (!inferredCompanyId || user.company_id === inferredCompanyId) &&
+      (!selectedUnitId || user.productive_unit_id === selectedUnitId)
+    );
+    const tone = parseTone(toneValue);
 
-      const companyFound = companies.find(company => normalizeCompare(company?.name || '') === normalizeCompare(companyValue));
-      const productiveUnitFound = productiveUnits.find(unit =>
-        normalizeCompare(unit?.name || '') === normalizeCompare(unitValue) &&
-        (!companyFound || unit.company_id === companyFound.id)
-      );
-      const userFound = users.find(user =>
-        (normalizeCompare(user.full_name) === normalizeCompare(userValue) || normalizeCompare(user.email) === normalizeCompare(userValue)) &&
-        (!companyFound || user.company_id === companyFound.id) &&
-        (!productiveUnitFound || user.productive_unit_id === productiveUnitFound.id)
-      );
-      const tone = parseTone(toneValue);
+    let status: 'valid' | 'invalid' = 'valid';
+    let reason = '';
 
-      let status: 'valid' | 'invalid' = 'valid';
-      let reason = '';
+    if (!selectedUnitId || !productiveUnitFound) { status = 'invalid'; reason = 'unidade nao selecionada'; }
+    else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado'; }
+    else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
+    else if (badgeCandidates.some((badge) => !badge.badge)) { status = 'invalid'; reason = 'selo nao encontrado'; }
+    else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
 
-      if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
-      else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
-      else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
-      else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
-      else if (badgeCandidates.some((badge) => !badge.badge)) { status = 'invalid'; reason = 'selo nao encontrado'; }
-      else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
-
-      return {
-        row: {
-          ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-          explorador: userValue,
-          empresa: companyValue,
-          unidade_produtiva: unitValue,
-          selos: badgeCandidates.map((badge) => badge.badgeName).join(', '),
-          premio: awardValue,
-          marcacao: toneValue || tone,
-        },
-        user: userFound,
-        company: companyFound,
-        productiveUnit: productiveUnitFound,
-        badges: badgeCandidates,
-        badgeValues: Object.fromEntries(badgeCandidates.map((badge) => [badge.badgeName, badge.badgeValue])),
-        tone,
-        sourceName: source?.name || 'Fonte sem nome',
-        matchedColumns: {
-          company: getMatchedColumnName(row, 'company', source),
-          productive_unit: getMatchedColumnName(row, 'productive_unit', source),
-          user: getMatchedColumnName(row, 'user', source),
-          badge: selectedBadgeColumns.join(', '),
-          tone: getMatchedColumnName(row, 'tone', source),
+    return {
+      row: {
+        ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+        explorador: userValue,
+        empresa: inferredCompanyName,
+        unidade_produtiva: productiveUnitFound?.name || 'Unidade nao selecionada',
+        selos: badgeCandidates.map((badge) => badge.badgeName).join(', '),
+        premio: awardValue,
+        marcacao: toneValue || tone,
+      },
+      userName: userValue,
+      companyId: inferredCompanyId,
+      companyName: inferredCompanyName,
+      productiveUnitId: productiveUnitFound?.id,
+      productiveUnitName: productiveUnitFound?.name || 'Unidade nao selecionada',
+      user: userFound,
+      company: companyFound,
+      productiveUnit: productiveUnitFound,
+      badges: badgeCandidates,
+      badgeValues: Object.fromEntries(badgeCandidates.map((badge) => [badge.badgeName, badge.badgeValue])),
+      numericMeta,
+      textMeta,
+      tone,
+      sourceName: source?.name || 'Fonte sem nome',
+      matchedColumns: {
+        company: 'empresa inferida do contexto',
+        productive_unit: productiveUnitFound?.name || 'unidade selecionada',
+        user: getMatchedColumnName(row, 'user', source),
+        badge: selectedBadgeColumns.join(', '),
+        tone: getMatchedColumnName(row, 'tone', source),
           award: getMatchedColumnName(row, 'award', source),
         },
         status,
@@ -610,12 +670,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
     const importedKeys = new Set<string>();
     const importedBadges: UserBadge[] = [];
+    let foundUsers = 0;
 
     previews.forEach((preview, index) => {
+      if (preview.user?.id) {
+        foundUsers += 1;
+      }
       if (preview.status !== 'valid' || !preview.user?.id) {
-        if (preview.reason?.includes('empresa')) {
-          console.log(`[excel-import] linha ${index + 1}: empresa nao encontrada`, preview.row);
-        }
         if (preview.reason?.includes('colaborador')) {
           console.log(`[excel-import] linha ${index + 1}: usuario nao encontrado`, preview.row);
         }
@@ -643,6 +704,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           awarded_at: new Date().toISOString(),
           awarded_by: safeAdminProfile.id,
           tone: preview.tone,
+          company_id: preview.companyId,
+          productive_unit_id: preview.productiveUnitId,
         });
         return awards;
       }, []);
@@ -662,6 +725,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     console.log('[excel-import] total de linhas processadas:', summary.processed);
+    console.log('[excel-import] total de colaboradores encontrados:', foundUsers);
     console.log('[excel-import] total de sucessos:', summary.success);
     console.log('[excel-import] total de falhas:', summary.failed);
 
@@ -1048,6 +1112,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeImportSource) return;
+    if (!selectedUnitId) {
+      alert('Selecione a unidade antes de importar a planilha.');
+      return;
+    }
 
     try {
       const { rawRows, headerRowIndex } = await parseExcel(file);
@@ -1060,7 +1128,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleConfirmImportMapping = () => {
-    if (!activeImportSource || importSheetRows.length === 0) return;
+    if (!activeImportSource || importSheetRows.length === 0 || !selectedUnitId) return;
 
     const mappedSource = buildImportSourceWithMapping();
 
@@ -1085,7 +1153,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const finalizeImport = async () => {
-    if (importSheetRows.length === 0) return;
+    if (importSheetRows.length === 0 || !selectedUnitId) {
+      alert('Selecione a unidade antes de concluir a importação.');
+      return;
+    }
 
     const mappedSource = buildImportSourceWithMapping();
     const processedData = processExcelData(importSheetRows, mappedSource);
@@ -1118,14 +1189,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         },
         importRows,
       );
-      alert(`${importedCount} importacoes concluidas.`);
+      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
+      alert(`${foundUsers} colaboradores encontrados, ${importedCount} selos atribuidos e ${processedData.summary.failed} erros.`);
     } else {
       setUserBadges(prev => {
         const existingKeys = new Set(prev.map((badge) => `${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
         const nextBadges = processedData.importedBadges.filter((badge) => !existingKeys.has(`${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
         return [...prev, ...nextBadges];
       });
-      alert(`${processedData.summary.success} importacoes concluidas.`);
+      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
+      alert(`${foundUsers} colaboradores encontrados, ${processedData.summary.success} selos atribuidos e ${processedData.summary.failed} erros.`);
     }
 
     setIsImportModalOpen(false);
@@ -1378,6 +1451,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <select
+                    value={selectedUnitId || ''}
+                    onChange={(e) => setSelectedUnitId(e.target.value || null)}
+                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
+                  >
+                    <option value="">Selecionar unidade</option>
+                    {productiveUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
+                  </select>
+                  <select
                     value={selectedImportSourceId ?? ""}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                     setSelectedImportSourceId(e.target.value)
@@ -1392,7 +1473,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </button>
                   )}
                   <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
+                  <button onClick={() => fileInputRef.current?.click()} disabled={!selectedUnitId} className="bg-emerald-600 disabled:bg-slate-300 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
                 </div>
               </header>
 
@@ -1426,6 +1507,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div>
                           <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
                           <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource?.name || 'Fonte sem nome'}</p>
+                          <p className="text-xs text-cyan-600 font-bold mt-2">Unidade selecionada: {productiveUnits.find((unit) => unit.id === selectedUnitId)?.name || 'Nenhuma unidade selecionada'}</p>
                         </div>
                         {canConfigureImportSource && (
                           <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
@@ -2023,21 +2105,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="flex-1 overflow-y-auto pr-2 border border-slate-100 rounded-3xl">
               <table className="w-full text-left">
                 <thead className="sticky top-0 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">selos</th><th className="px-6 py-4">status</th></tr>
+                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">unidade</th><th className="px-6 py-4">selos</th><th className="px-6 py-4">totais</th><th className="px-6 py-4">observações</th><th className="px-6 py-4">status</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {importPreviews.map((p, idx) => (
                     <tr key={idx} className={`text-xs ${p.status === 'invalid' ? 'bg-rose-50/30' : ''}`}>
-                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.explorador}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">{p.row.empresa}</td>
+                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.userName}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
+                      <td className="px-6 py-4 text-slate-500 font-bold">{p.companyName}</td>
+                      <td className="px-6 py-4 text-slate-500 font-bold">{p.productiveUnitName}</td>
                       <td className="px-6 py-4">
                         <div className="flex flex-wrap gap-2">
                           {p.badges.map((badge) => (
-                            <span key={`${p.row.explorador}-${badge.columnName}`} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
+                            <span key={`${p.userName}-${badge.columnName}`} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
                               {badge.badgeName} ({badge.badgeValue})
                             </span>
                           ))}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 font-bold">
+                        {Object.keys(p.numericMeta || {}).length > 0 ? Object.entries(p.numericMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 font-bold">
+                        {Object.keys(p.textMeta || {}).length > 0 ? Object.entries(p.textMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
                       </td>
                       <td className="px-6 py-4">{p.status === 'valid' ? <span className="text-emerald-700 font-black uppercase">válido</span> : <span className="text-rose-700 font-black uppercase">{p.reason}</span>}</td>
                     </tr>

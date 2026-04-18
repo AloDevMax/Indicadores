@@ -1,7 +1,7 @@
 ﻿import React, { useMemo } from 'react';
 import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
 import BadgeCard from '../components/BadgeCard';
-import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
+import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 
 interface DashboardProps {
   user: Profile;
@@ -44,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
+  const myBadgeSummary = useMemo(() => getUserBadgeSummary(user.id, userBadges), [user.id, userBadges]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
   const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
@@ -161,6 +162,60 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="font-black uppercase text-[10px] tracking-[0.2em] opacity-80">perdas do mês</div>
         </div>
       </div>
+
+      <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">resumo de selos</div>
+            <h3 className="text-xl font-black text-slate-900 mt-2">Distribuição pessoal de selos</h3>
+          </div>
+          <div className="bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl text-center min-w-[110px]">
+            <div className="text-2xl font-black">{myBadgeSummary.total}</div>
+            <div className="text-[10px] font-black uppercase tracking-widest">total</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">lista de selos</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
+                Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
+                  const badge = allBadges.find((entry) => entry.id === badgeId);
+                  return (
+                    <span key={badgeId} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
+                      {badge?.name || 'Selo'} x{count}
+                    </span>
+                  );
+                })
+              ) : (
+                <span className="text-sm font-bold text-slate-400">Nenhum selo registrado ainda.</span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">contagem por tipo</div>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
+                Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
+                  const badge = allBadges.find((entry) => entry.id === badgeId);
+                  return (
+                    <div key={badgeId} className="bg-slate-50 rounded-2xl px-4 py-3">
+                      <div className="text-sm font-black text-slate-900">{count}</div>
+                      <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{badge?.name || 'Selo'}</div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="bg-slate-50 rounded-2xl px-4 py-3 text-sm font-bold text-slate-400">
+                  Aguardando importação ou concessão de selos.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
         <button className="text-left w-full">
