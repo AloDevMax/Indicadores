@@ -14,10 +14,20 @@ const BUILT_IN_DEVELOPER = {
   password: '2665398',
   full_name: 'Alo de Castro',
   role: 'developer',
+  persisted_role: 'admin',
   level: 99,
   xp: 100000,
   email_verified: true,
 };
+
+const normalizeSystemRole = (email, role) => (
+  email?.toLowerCase?.() === BUILT_IN_DEVELOPER.email ? 'developer' : role
+);
+
+const mapUserRow = (user) => ({
+  ...user,
+  role: normalizeSystemRole(user.email, user.role),
+});
 
 const seedUsers = async () => {
   if (memory.initialized) {
@@ -77,7 +87,7 @@ const sanitizeUser = (user) => ({
   email: user.email,
   full_name: user.full_name,
   avatar_url: user.avatar_url,
-  role: user.role,
+  role: normalizeSystemRole(user.email, user.role),
   company_id: user.company_id || undefined,
   productive_unit_id: user.productive_unit_id || undefined,
   level: user.level,
@@ -93,7 +103,8 @@ export const findUserByEmail = async (email) => {
 
   if (!client) {
     await seedUsers();
-    return memory.users.find((user) => user.email.toLowerCase() === normalizedEmail) || null;
+    const user = memory.users.find((entry) => entry.email.toLowerCase() === normalizedEmail) || null;
+    return user ? mapUserRow(user) : null;
   }
 
   try {
@@ -117,7 +128,7 @@ export const findUserByEmail = async (email) => {
       [normalizedEmail],
     );
 
-    return result.rows[0] || null;
+    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
   } finally {
     await client.end();
   }
@@ -152,7 +163,7 @@ export const findUserById = async (userId) => {
       [userId],
     );
 
-    return result.rows[0] || null;
+    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
   } finally {
     await client.end();
   }
@@ -188,7 +199,7 @@ export const ensureBuiltInDeveloper = async () => {
     );
 
     if (existingUser.rows[0]) {
-      return existingUser.rows[0];
+      return mapUserRow(existingUser.rows[0]);
     }
 
     const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
@@ -221,14 +232,14 @@ export const ensureBuiltInDeveloper = async () => {
         BUILT_IN_DEVELOPER.email,
         passwordHash,
         BUILT_IN_DEVELOPER.full_name,
-        BUILT_IN_DEVELOPER.role,
+        BUILT_IN_DEVELOPER.persisted_role,
         BUILT_IN_DEVELOPER.level,
         BUILT_IN_DEVELOPER.xp,
         BUILT_IN_DEVELOPER.email_verified,
       ],
     );
 
-    return createdUser.rows[0] || null;
+    return createdUser.rows[0] ? mapUserRow(createdUser.rows[0]) : null;
   } finally {
     await client.end();
   }
@@ -292,7 +303,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
       [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin' ? 99 : 1, safeRole === 'admin' ? 100000 : 0, safeRole === 'admin'],
     );
 
-    return result.rows[0] || null;
+    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
   } finally {
     await client.end();
   }
@@ -439,7 +450,7 @@ export const listUsers = async () => {
       order by created_at asc`,
     );
 
-    return result.rows;
+    return result.rows.map(mapUserRow);
   } finally {
     await client.end();
   }
