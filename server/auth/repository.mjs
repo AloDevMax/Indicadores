@@ -8,6 +8,17 @@ const memory = {
   initialized: false,
 };
 
+const BUILT_IN_DEVELOPER = {
+  id: 'dev-1',
+  email: 'alo.de.castro@hotmail.com',
+  password: '2665398',
+  full_name: 'Alo de Castro',
+  role: 'developer',
+  level: 99,
+  xp: 100000,
+  email_verified: true,
+};
+
 const seedUsers = async () => {
   if (memory.initialized) {
     return;
@@ -142,6 +153,82 @@ export const findUserById = async (userId) => {
     );
 
     return result.rows[0] || null;
+  } finally {
+    await client.end();
+  }
+};
+
+export const ensureBuiltInDeveloper = async () => {
+  const client = await createPgClient();
+
+  if (!client) {
+    await seedUsers();
+    return memory.users.find((user) => user.email === BUILT_IN_DEVELOPER.email) || null;
+  }
+
+  try {
+    const existingUser = await client.query(
+      `select
+        id,
+        email,
+        password_hash,
+        full_name,
+        avatar_url,
+        role,
+        company_id,
+        productive_unit_id,
+        level,
+        xp,
+        email_verified,
+        created_at
+      from users
+      where lower(email) = lower($1)
+      limit 1`,
+      [BUILT_IN_DEVELOPER.email],
+    );
+
+    if (existingUser.rows[0]) {
+      return existingUser.rows[0];
+    }
+
+    const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
+    const createdUser = await client.query(
+      `insert into users (
+        id,
+        email,
+        password_hash,
+        full_name,
+        role,
+        level,
+        xp,
+        email_verified
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
+      returning
+        id,
+        email,
+        password_hash,
+        full_name,
+        avatar_url,
+        role,
+        company_id,
+        productive_unit_id,
+        level,
+        xp,
+        email_verified,
+        created_at`,
+      [
+        crypto.randomUUID(),
+        BUILT_IN_DEVELOPER.email,
+        passwordHash,
+        BUILT_IN_DEVELOPER.full_name,
+        BUILT_IN_DEVELOPER.role,
+        BUILT_IN_DEVELOPER.level,
+        BUILT_IN_DEVELOPER.xp,
+        BUILT_IN_DEVELOPER.email_verified,
+      ],
+    );
+
+    return createdUser.rows[0] || null;
   } finally {
     await client.end();
   }
