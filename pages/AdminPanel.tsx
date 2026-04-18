@@ -70,12 +70,20 @@ interface AdminPanelProps {
   onOpenSolicitation?: () => void;
 }
 
+interface ImportPreviewBadge {
+  columnName: string;
+  badgeName: string;
+  badgeValue: number;
+  badge?: Badge;
+}
+
 interface ImportPreview {
   row: Record<string, string>;
   user?: Profile;
-  badge?: Badge;
   company?: Company;
   productiveUnit?: ProductiveUnit;
+  badges: ImportPreviewBadge[];
+  badgeValues?: Record<string, number>;
   tone: BadgeTone;
   sourceName: string;
   matchedColumns: Partial<Record<ImportSourceField, string>>;
@@ -308,7 +316,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const normalizeCell = (value: unknown) => value?.toString().trim() || '';
   const normalizeCompare = (value: unknown) => normalizeCell(value).toLowerCase();
   const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
-  const badgeMarkerValues = new Set(['x', '1', 'sim', 's', 'ok', 'true', '✓', '✔']);
   const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
 
   const parseTone = (value: unknown): BadgeTone => {
@@ -391,12 +398,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           normalizeCompare(value).includes(normalizeCompare(alias)),
         ),
       ).length;
-      const badgeNameMatches = values.filter((value) =>
-        badges.some((badge) => normalizeCompare(badge.name) === normalizeCompare(value)),
-      ).length;
       const textualValues = values.filter((value) => /[a-zA-ZÀ-ÿ]/.test(value)).length;
 
-      return aliasMatches * 5 + badgeNameMatches * 4 + textualValues + (values.length >= 2 ? 2 : 0);
+      return aliasMatches * 5 + textualValues + (values.length >= 2 ? 2 : 0);
     };
 
     let bestRowIndex = rows.findIndex((row) => row.some((cell) => normalizeCell(cell)));
@@ -449,40 +453,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       .slice(0, 12)
   );
 
-  const isTruthyBadgeValue = (value: string) => badgeMarkerValues.has(normalizeCompare(value));
   const isNegativeBadgeValue = (value: string) => badgeNegativeValues.has(normalizeCompare(value));
-
-  const splitBadgeCandidates = (value: string) => (
-    value
-      .split(/[|,;/]+/)
-      .map((part) => normalizeCell(part))
-      .filter(Boolean)
-  );
 
   const findBadgeByName = (value: string) => (
     badges.find((badge) => normalizeCompare(badge?.name || '') === normalizeCompare(value))
   );
 
-  const suggestBadgeColumns = (headers: string[], source: ImportSourceConfig) => {
-    const selected = new Set<string>();
-    const configuredColumn = suggestColumnForField(headers, 'badge', source);
+  const getDefaultIndicatorColumns = (headers: string[], source: ImportSourceConfig) => {
+    const fixedColumns = new Set(
+      (['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[])
+        .map((field) => suggestColumnForField(headers, field, source))
+        .filter(Boolean)
+        .map(normalizeCompare),
+    );
 
-    if (configuredColumn) {
-      selected.add(configuredColumn);
-    }
-
-    headers.forEach((header) => {
-      const normalizedHeader = normalizeCompare(header);
-      const looksLikeGenericBadgeColumn = [source.columns.badge, ...IMPORT_FIELD_ALIASES.badge]
-        .some((alias) => normalizedHeader.includes(normalizeCompare(alias)));
-      const looksLikeNamedBadgeColumn = badges.some((badge) => normalizeCompare(badge.name) === normalizedHeader);
-
-      if (looksLikeGenericBadgeColumn || looksLikeNamedBadgeColumn) {
-        selected.add(header);
-      }
-    });
-
-    return Array.from(selected);
+    return headers.filter((header) => !fixedColumns.has(normalizeCompare(header)));
   };
 
   const getSelectedBadgeColumns = (source: ImportSourceConfig) => {
@@ -490,48 +475,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return assistedImportBadgeColumns;
     }
 
-    return [source.columns.badge].filter(Boolean);
+    return getDefaultIndicatorColumns(importSheetHeaders, source);
   };
 
-  const getBadgeCandidatesFromRow = (row: ExcelRow, source: ImportSourceConfig) => {
+  const parseIndicatorValue = (value: unknown) => {
+    const normalizedValue = normalizeCell(value);
+    if (isNegativeBadgeValue(normalizedValue)) {
+      return null;
+    }
+
+    const numericValue = Number(normalizedValue.replace(',', '.'));
+    if (Number.isFinite(numericValue) && numericValue > 0) {
+      return numericValue;
+    }
+
+    return null;
+  };
+
+  const getBadgeCandidatesFromRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreviewBadge[] => {
     const badgeColumns = getSelectedBadgeColumns(source);
-    const resolvedBadges: Array<{ badge?: Badge; badgeLabel: string; columnName: string }> = [];
-    const seenBadges = new Set<string>();
+    const resolvedBadges: ImportPreviewBadge[] = [];
 
     badgeColumns.forEach((selectedColumnName) => {
       const columnName = findMatchingRowKey(row, [selectedColumnName]) || selectedColumnName;
-      const cellValue = normalizeCell(row[columnName]);
-      const headerBadge = findBadgeByName(columnName);
-      const valueBadges = splitBadgeCandidates(cellValue)
-        .map((candidate) => ({ badge: findBadgeByName(candidate), badgeLabel: candidate }))
-        .filter((candidate) => candidate.badgeLabel);
+      const badgeValue = parseIndicatorValue(row[columnName]);
 
-      if (valueBadges.length > 0) {
-        valueBadges.forEach(({ badge, badgeLabel }) => {
-          const uniqueKey = `${columnName}:${normalizeCompare(badgeLabel)}`;
-          if (!seenBadges.has(uniqueKey)) {
-            seenBadges.add(uniqueKey);
-            resolvedBadges.push({ badge, badgeLabel, columnName });
-          }
+      if (badgeValue !== null) {
+        resolvedBadges.push({
+          columnName,
+          badgeName: columnName,
+          badgeValue,
+          badge: findBadgeByName(columnName),
         });
-        return;
-      }
-
-      if (headerBadge && isTruthyBadgeValue(cellValue)) {
-        const uniqueKey = `${columnName}:${normalizeCompare(headerBadge.name)}`;
-        if (!seenBadges.has(uniqueKey)) {
-          seenBadges.add(uniqueKey);
-          resolvedBadges.push({ badge: headerBadge, badgeLabel: headerBadge.name, columnName });
-        }
-        return;
-      }
-
-      if (!isNegativeBadgeValue(cellValue) && cellValue) {
-        const uniqueKey = `${columnName}:${normalizeCompare(cellValue)}`;
-        if (!seenBadges.has(uniqueKey)) {
-          seenBadges.add(uniqueKey);
-          resolvedBadges.push({ badge: findBadgeByName(cellValue), badgeLabel: cellValue, columnName });
-        }
       }
     });
 
@@ -564,16 +539,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     reader.readAsBinaryString(file);
   });
 
-  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview[] => {
+  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
       const selectedBadgeColumns = getSelectedBadgeColumns(source);
-      const matchedColumns: Partial<Record<ImportSourceField, string>> = {
-        company: getMatchedColumnName(row, 'company', source),
-        productive_unit: getMatchedColumnName(row, 'productive_unit', source),
-        user: getMatchedColumnName(row, 'user', source),
-        badge: selectedBadgeColumns.join(', '),
-        tone: getMatchedColumnName(row, 'tone', source),
-        award: getMatchedColumnName(row, 'award', source),
-      };
       const companyValue = getFieldValue(row, 'company', source);
       const unitValue = getFieldValue(row, 'productive_unit', source);
       const userValue = getFieldValue(row, 'user', source);
@@ -593,66 +560,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       );
       const tone = parseTone(toneValue);
 
-      if (badgeCandidates.length === 0) {
-        return [{
-          row: {
-            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-            explorador: userValue,
-            empresa: companyValue,
-            unidade_produtiva: unitValue,
-            selo: '',
-            premio: awardValue,
-            marcacao: toneValue || tone,
-          },
-          user: userFound,
-          company: companyFound,
-          productiveUnit: productiveUnitFound,
-          tone,
-          sourceName: source?.name || 'Fonte sem nome',
-          matchedColumns,
-          status: 'invalid',
-          reason: 'selo nao encontrado',
-        }];
-      }
+      let status: 'valid' | 'invalid' = 'valid';
+      let reason = '';
 
-      return badgeCandidates.map(({ badge, badgeLabel, columnName }) => {
-        let status: 'valid' | 'invalid' = 'valid';
-        let reason = '';
+      if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
+      else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
+      else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
+      else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
+      else if (badgeCandidates.some((badge) => !badge.badge)) { status = 'invalid'; reason = 'selo nao encontrado'; }
+      else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
 
-        if (!companyFound) { status = 'invalid'; reason = 'empresa nao encontrada'; }
-        else if (unitValue && !productiveUnitFound) { status = 'invalid'; reason = 'unidade produtiva nao encontrada'; }
-        else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado na unidade'; }
-        else if (!badge) { status = 'invalid'; reason = 'selo nao encontrado'; }
-        else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
-
-        return {
-          row: {
-            ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-            explorador: userValue,
-            empresa: companyValue,
-            unidade_produtiva: unitValue,
-            selo: badgeLabel,
-            premio: awardValue,
-            marcacao: toneValue || tone,
-          },
-          user: userFound,
-          badge,
-          company: companyFound,
-          productiveUnit: productiveUnitFound,
-          tone,
-          sourceName: source?.name || 'Fonte sem nome',
-          matchedColumns: {
-            ...matchedColumns,
-            badge: columnName,
-          },
-          status,
-          reason,
-        };
-      });
+      return {
+        row: {
+          ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
+          explorador: userValue,
+          empresa: companyValue,
+          unidade_produtiva: unitValue,
+          selos: badgeCandidates.map((badge) => badge.badgeName).join(', '),
+          premio: awardValue,
+          marcacao: toneValue || tone,
+        },
+        user: userFound,
+        company: companyFound,
+        productiveUnit: productiveUnitFound,
+        badges: badgeCandidates,
+        badgeValues: Object.fromEntries(badgeCandidates.map((badge) => [badge.badgeName, badge.badgeValue])),
+        tone,
+        sourceName: source?.name || 'Fonte sem nome',
+        matchedColumns: {
+          company: getMatchedColumnName(row, 'company', source),
+          productive_unit: getMatchedColumnName(row, 'productive_unit', source),
+          user: getMatchedColumnName(row, 'user', source),
+          badge: selectedBadgeColumns.join(', '),
+          tone: getMatchedColumnName(row, 'tone', source),
+          award: getMatchedColumnName(row, 'award', source),
+        },
+        status,
+        reason,
+      };
   };
 
   const processExcelData = (rows: ExcelRow[], source: ImportSourceConfig): ProcessedExcelData => {
-    const previews = rows.flatMap((row) => mapRow(row, source));
+    const previews = rows.map((row) => mapRow(row, source));
     const todayKey = new Date().toISOString().slice(0, 10);
     const existingKeys = new Set(
       userBadges
@@ -663,32 +612,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const importedBadges: UserBadge[] = [];
 
     previews.forEach((preview, index) => {
-      if (preview.status !== 'valid' || !preview.user?.id || !preview.badge?.id) {
+      if (preview.status !== 'valid' || !preview.user?.id) {
+        if (preview.reason?.includes('empresa')) {
+          console.log(`[excel-import] linha ${index + 1}: empresa nao encontrada`, preview.row);
+        }
         if (preview.reason?.includes('colaborador')) {
-          console.log(`[excel-import] linha ${index + 1}: usuário não encontrado`, preview.row);
+          console.log(`[excel-import] linha ${index + 1}: usuario nao encontrado`, preview.row);
         }
         if (preview.reason?.includes('selo')) {
-          console.log(`[excel-import] linha ${index + 1}: selo não encontrado`, preview.row);
+          console.log(`[excel-import] linha ${index + 1}: selo nao encontrado`, preview.row);
         }
         return;
       }
 
-      const duplicateKey = `${preview.user.id}:${preview.badge.id}:${todayKey}`;
-      if (existingKeys.has(duplicateKey) || importedKeys.has(duplicateKey)) {
+      const nextBadges = preview.badges.reduce<UserBadge[]>((awards, badge) => {
+        if (!badge.badge?.id) {
+          return awards;
+        }
+
+        const duplicateKey = `${preview.user?.id}:${badge.badge.id}:${todayKey}`;
+        if (existingKeys.has(duplicateKey) || importedKeys.has(duplicateKey)) {
+          return awards;
+        }
+
+        importedKeys.add(duplicateKey);
+        awards.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 11),
+          user_id: preview.user!.id,
+          badge_id: badge.badge.id,
+          awarded_at: new Date().toISOString(),
+          awarded_by: safeAdminProfile.id,
+          tone: preview.tone,
+        });
+        return awards;
+      }, []);
+
+      if (preview.badges.length > 0 && nextBadges.length === 0) {
         preview.status = 'invalid';
-        preview.reason = 'selo duplicado no mesmo dia';
-        return;
+        preview.reason = 'selos duplicados no mesmo dia';
       }
 
-      importedKeys.add(duplicateKey);
-      importedBadges.push({
-        id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 11),
-        user_id: preview.user.id,
-        badge_id: preview.badge.id,
-        awarded_at: new Date().toISOString(),
-        awarded_by: safeAdminProfile.id,
-        tone: preview.tone,
-      });
+      importedBadges.push(...nextBadges);
     });
 
     const summary = {
@@ -719,7 +683,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       tone: suggestColumnForField(headers, 'tone', source),
       award: suggestColumnForField(headers, 'award', source),
     };
-    const suggestedBadgeColumns = suggestBadgeColumns(headers, source);
+    const suggestedBadgeColumns = getDefaultIndicatorColumns(headers, source);
 
     setImportHeaderRowIndex(headerRowIndex);
     setImportSheetRows(rows);
@@ -1130,6 +1094,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (processedData.summary.success === 0) return;
 
     if (onPersistImport) {
+      const importRows = processedData.previews.flatMap((preview) => (
+        preview.badges.map((badge) => ({
+          row: {
+            ...preview.row,
+            selo: badge.badgeName,
+            valor_indicador: badge.badgeValue.toString(),
+          },
+          user_id: preview.user?.id,
+          badge_id: badge.badge?.id,
+          tone: preview.tone,
+          status: preview.status,
+          reason: preview.reason,
+        }))
+      ));
+
       const importedCount = await onPersistImport(
         mappedSource.id || fallbackImportSource.id,
         mappedSource?.name || fallbackImportSource.name,
@@ -1137,14 +1116,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           ...(processedData.previews[0]?.matchedColumns || {}),
           badge: assistedImportBadgeColumns.join(', '),
         },
-        processedData.previews.map(preview => ({
-          row: preview.row,
-          user_id: preview.user?.id,
-          badge_id: preview.badge?.id,
-          tone: preview.tone,
-          status: preview.status,
-          reason: preview.reason,
-        })),
+        importRows,
       );
       alert(`${importedCount} importacoes concluidas.`);
     } else {
@@ -2051,14 +2023,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="flex-1 overflow-y-auto pr-2 border border-slate-100 rounded-3xl">
               <table className="w-full text-left">
                 <thead className="sticky top-0 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">selo</th><th className="px-6 py-4">status</th></tr>
+                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">selos</th><th className="px-6 py-4">status</th></tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {importPreviews.map((p, idx) => (
                     <tr key={idx} className={`text-xs ${p.status === 'invalid' ? 'bg-rose-50/30' : ''}`}>
                       <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.explorador}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
                       <td className="px-6 py-4 text-slate-500 font-bold">{p.row.empresa}</td>
-                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.row.selo}</div>{p.badge && <div className="text-[9px] text-indigo-600 font-black uppercase">selo: {p.badge?.name || 'Badge sem nome'}</div>}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          {p.badges.map((badge) => (
+                            <span key={`${p.row.explorador}-${badge.columnName}`} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
+                              {badge.badgeName} ({badge.badgeValue})
+                            </span>
+                          ))}
+                        </div>
+                      </td>
                       <td className="px-6 py-4">{p.status === 'valid' ? <span className="text-emerald-700 font-black uppercase">válido</span> : <span className="text-rose-700 font-black uppercase">{p.reason}</span>}</td>
                     </tr>
                   ))}
