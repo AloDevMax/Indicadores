@@ -1,3 +1,26 @@
 ﻿node_modules/
-.env*
 dist/
+
+# Environment
+.env*
+!.env.example
+
+# Prisma generated client
+generated/
+
+# Uploads
+uploads/
+public/uploads/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp

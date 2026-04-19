@@ -117,12 +117,13 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
   try {
     const result = await client.query(
       `insert into badge_submissions (
+        id,
         user_id,
         badge_id,
         proof_url,
         description,
         status
-      ) values ($1, $2, $3, $4, 'pending')
+      ) values (gen_random_uuid(), $1, $2, $3, $4, 'pending')
       returning
         id,
         user_id,
@@ -213,8 +214,8 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
       );
 
       const badgeResult = await client.query(
-        `insert into user_badges (user_id, badge_id, awarded_by, tone)
-         values ($1, $2, $3, 'bronze')
+        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+         values (gen_random_uuid(), $1, $2, $3, 'bronze')
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [submission.user_id, submission.badge_id, reviewerId],
       );
@@ -282,8 +283,8 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
       );
 
       const inserted = await client.query(
-        `insert into user_badges (user_id, badge_id, awarded_by, tone)
-         values ($1, $2, $3, $4)
+        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+         values (gen_random_uuid(), $1, $2, $3, $4)
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [userId, badgeId, reviewerId, tone],
       );
@@ -386,13 +387,14 @@ export const persistImportRun = async ({
 
     const importRunResult = await client.query(
       `insert into import_runs (
+        id,
         source_id,
         source_name,
         imported_by,
         status,
         matched_columns,
         summary
-      ) values ($1, $2, $3, 'completed', $4::jsonb, $5::jsonb)
+      ) values (gen_random_uuid(), $1, $2, $3, 'completed', $4::jsonb, $5::jsonb)
       returning id, source_id, source_name, imported_by, imported_at, status, matched_columns, summary`,
       [sourceId, sourceName, reviewerId, JSON.stringify(matchedColumns), JSON.stringify(summary)],
     );
@@ -428,8 +430,8 @@ export const persistImportRun = async ({
         );
 
         const inserted = await client.query(
-          `insert into user_badges (user_id, badge_id, awarded_by, tone)
-           values ($1, $2, $3, $4)
+          `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+           values (gen_random_uuid(), $1, $2, $3, $4)
            returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
           [row.user_id, row.badge_id, reviewerId, row.tone],
         );
