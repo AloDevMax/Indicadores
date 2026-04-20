@@ -98,6 +98,25 @@ export interface AppBootstrapPayload {
   submissions: BadgeSubmission[];
 }
 
+export interface IndicatorRow {
+  excelName: string;
+  indicators: Record<string, number>; // badgeId → value (-2 to 3)
+}
+
+export interface UserMatchResult {
+  excelName: string;
+  matchedUserId: string | null;
+  matchedUserName: string | null;
+  confidence: 'auto' | 'manual' | 'ignored';
+}
+
+export interface MonthlyImportPreview {
+  month: number;
+  year: number;
+  rows: IndicatorRow[];
+  userMatches: UserMatchResult[];
+}
+
 export interface BadgeSubmission {
   id: string;
   user_id: string;

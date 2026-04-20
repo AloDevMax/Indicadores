@@ -255,6 +255,23 @@ export const removeUserBadgeWithApi = async (userId: string, badgeId: string) =>
   );
 };
 
+export const seedIndicatorBadgesWithApi = async (): Promise<Badge[]> => {
+  const payload = await postJson<{ badges: Badge[] }>('/api/admin/seed-indicator-badges', {}, requireAuthToken());
+  return payload.badges;
+};
+
+export const importMonthlyBadgesWithApi = async (
+  awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }>,
+  month: number,
+  year: number,
+): Promise<{ awardedCount: number }> => {
+  return postJson<{ awardedCount: number }>(
+    '/api/admin/import-monthly-badges',
+    { awards, month, year },
+    requireAuthToken(),
+  );
+};
+
 interface ImportRowPayload {
   row: Record<string, string>;
   user_id?: string;

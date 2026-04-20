@@ -9,8 +9,8 @@ import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
-import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
+import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
 
@@ -198,6 +198,45 @@ app.get('/api/health', async (_req, res) => {
   }
 
   res.json(health);
+});
+
+app.post('/api/admin/seed-indicator-badges', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+
+  const badges = await seedIndicatorBadges();
+  res.status(200).json({ badges });
+});
+
+app.post('/api/admin/import-monthly-badges', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+
+  const { awards, month, year } = req.body;
+
+  if (!Array.isArray(awards) || !month || !year) {
+    return res.status(400).json({ error: 'Parâmetros inválidos: awards, month e year são obrigatórios.' });
+  }
+
+  const userIds = [...new Set(awards.map(a => a.userId || a.user_id).filter(Boolean))];
+  if (!(await ensureUsersWithinScope(auth.body.user, userIds))) {
+    return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
+  }
+
+  const normalizedAwards = awards.map(a => ({
+    userId: a.userId || a.user_id,
+    badgeId: a.badgeId || a.badge_id,
+    tone: a.tone,
+  }));
+
+  const result = await importMonthlyBadges({
+    reviewerId: auth.body.user.id,
+    awards: normalizedAwards,
+    month: Number(month),
+    year: Number(year),
+  });
+
+  res.status(200).json(result);
 });
 
 app.post('/api/admin/award-badges', async (req, res) => {
