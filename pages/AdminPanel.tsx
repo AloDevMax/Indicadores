@@ -203,6 +203,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
   const [bulkInviteCompanyId, setBulkInviteCompanyId] = useState('');
@@ -823,9 +824,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (onReviewSubmission) {
       try {
         await onReviewSubmission(submissionId, status);
-        alert(`SolicitaÃ§Ã£o ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+        setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
+        alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Falha ao revisar solicitaÃ§Ã£o.');
+        alert(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
       }
       return;
     }
@@ -1053,23 +1055,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         setIsDeleteUserModalOpen(false);
         return;
       }
-      if (onDeleteUser) {
-        await onDeleteUser(userToDelete.id);
+      try {
+        if (onDeleteUser) {
+          await onDeleteUser(userToDelete.id);
+        }
+        setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+        setIsDeleteUserModalOpen(false);
+        setUserToDelete(null);
+      } catch (error) {
+        alert('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      setIsDeleteUserModalOpen(false);
-      setUserToDelete(null);
     }
   };
 
   const handleDeleteCompany = async () => {
     if (companyToDelete) {
-      if (onDeleteCompany) {
-        await onDeleteCompany(companyToDelete.id);
+      try {
+        if (onDeleteCompany) {
+          await onDeleteCompany(companyToDelete.id);
+        }
+        setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
+        setIsDeleteCompanyModalOpen(false);
+        setCompanyToDelete(null);
+      } catch (error) {
+        alert('Erro ao excluir empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
-      setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
-      setIsDeleteCompanyModalOpen(false);
-      setCompanyToDelete(null);
     }
   };
 
@@ -1081,61 +1091,75 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    if (onAwardBadges) {
-      await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
-    } else {
-      selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+    try {
+      setIsAwardingBadges(true);
+      if (onAwardBadges) {
+        await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
+      } else {
+        selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+      }
+
+      if (badge) {
+        setUsers(prev => prev.map(u => {
+          if (!selectedUsers.includes(u.id)) return u;
+
+          const updatedUser = {
+            ...u,
+            notifications: [
+              ...(u.notifications || []),
+              {
+                id: Math.random().toString(36).slice(2, 10),
+                title: 'Selo concedido',
+                message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
+                sent_at: new Date().toISOString(),
+                read: false,
+              }
+            ]
+          };
+
+          if (sendEmailOnAward && u.email_verified) {
+            sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
+          }
+
+          return updatedUser;
+        }));
+      }
+
+      alert(`${selectedUsers.length} colaboradores foram premiados!`);
+      setSelectedUsers([]);
+      setSelectedAwardBadge('');
+    } catch (error) {
+      alert('Erro ao premiar colaboradores: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsAwardingBadges(false);
     }
-
-    if (badge) {
-      setUsers(prev => prev.map(u => {
-        if (!selectedUsers.includes(u.id)) return u;
-
-        const updatedUser = {
-          ...u,
-          notifications: [
-            ...(u.notifications || []),
-            {
-              id: Math.random().toString(36).slice(2, 10),
-              title: 'Selo concedido',
-              message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
-              sent_at: new Date().toISOString(),
-              read: false,
-            }
-          ]
-        };
-
-        if (sendEmailOnAward && u.email_verified) {
-          sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
-        }
-
-        return updatedUser;
-      }));
-    }
-
-    alert(`${selectedUsers.length} colaboradores foram premiados!`);
-    setSelectedUsers([]);
-    setSelectedAwardBadge('');
   };
 
   const handleAssignBadgeToUser = async (targetUserId: string, badgeId: string, tone: BadgeTone) => {
-    if (onAwardBadges) {
-      await onAwardBadges([targetUserId], badgeId, tone);
-      return;
+    try {
+      if (onAwardBadges) {
+        await onAwardBadges([targetUserId], badgeId, tone);
+        return;
+      }
+      upsertUserBadge(targetUserId, badgeId, tone);
+    } catch (error) {
+      alert('Erro ao atribuir selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
-    upsertUserBadge(targetUserId, badgeId, tone);
   };
 
   const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
     const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
     if (!badgeAward) return;
 
-    if (onRemoveUserBadge) {
-      await onRemoveUserBadge(targetUserId, badgeId);
-      return;
+    try {
+      if (onRemoveUserBadge) {
+        await onRemoveUserBadge(targetUserId, badgeId);
+        return;
+      }
+      setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
+    } catch (error) {
+      alert('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
-
-    setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
   };
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1597,7 +1621,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                   <div className="bg-indigo-900 p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
                     <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge}>Conceder selos agora</button>
+                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
               </div>
