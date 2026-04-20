@@ -460,9 +460,6 @@ const App: React.FC = () => {
                       setProductiveUnits={setProductiveUnits}
                       badgeLegends={badgeLegends}
                       setBadgeLegends={setBadgeLegends}
-                      importSources={importSources}
-                      setImportSources={setImportSources}
-                      setImportBindingSnapshot={setImportBindingSnapshot}
                       users={visibleUsers}
                       setUsers={setUsers}
                       userBadges={userBadges}
@@ -477,10 +474,8 @@ const App: React.FC = () => {
                       onSaveUser={handleSaveUser}
                       onBulkInviteUsers={handleBulkInviteUsers}
                       onDeleteUser={handleDeleteUser}
-                      onSaveImportSource={handleSaveImportSource}
                       onAwardBadges={handleAwardBadges}
                       onRemoveUserBadge={handleRemoveUserBadge}
-                      onPersistImport={handlePersistImport}
                       onReviewSubmission={handleReviewSubmission}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />

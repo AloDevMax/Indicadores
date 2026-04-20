@@ -1,30 +1,11 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { ImageUpload } from '../components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 import { cn } from '../utils/cn';
-
-const IMPORT_FIELD_ALIASES: Record<ImportSourceField, string[]> = {
-  company: ['empresa', 'companhia', 'organizacao', 'organização', 'company'],
-  productive_unit: ['unidade_produtiva', 'unidade produtiva', 'unidade', 'setor', 'area', 'área', 'productive_unit'],
-  user: ['explorador', 'colaborador', 'funcionario', 'funcionário', 'nome', 'usuario', 'usuário', 'user'],
-  badge: ['selo', 'badge', 'conquista'],
-  tone: ['marcacao', 'marcação', 'cor', 'tone', 'faixa'],
-  award: ['premio', 'prêmio', 'autorizar', 'autorizacao', 'autorização', 'award'],
-};
-
-const IMPORT_FIELD_LABELS: Record<ImportSourceField, string> = {
-  company: 'Empresa',
-  productive_unit: 'Unidade produtiva',
-  user: 'Colaborador',
-  badge: 'Selo',
-  tone: 'Marcação',
-  award: 'Autorização',
-};
 
 const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
 
@@ -40,9 +21,6 @@ interface AdminPanelProps {
   setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
   badgeLegends: BadgeLegendSettings;
   setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
-  importSources: ImportSourceConfig[];
-  setImportSources: React.Dispatch<React.SetStateAction<ImportSourceConfig[]>>;
-  setImportBindingSnapshot: React.Dispatch<React.SetStateAction<ImportBindingSnapshot | null>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -57,66 +35,12 @@ interface AdminPanelProps {
   onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
   onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
   onDeleteUser?: (_userId: string) => Promise<void>;
-  onSaveImportSource?: (_importSource: ImportSourceConfig) => Promise<ImportSourceConfig>;
   onAwardBadges?: (_userIds: string[], _badgeId: string, _tone: BadgeTone) => Promise<void>;
   onRemoveUserBadge?: (_userId: string, _badgeId: string) => Promise<void>;
-  onPersistImport?: (
-    _sourceId: string,
-    _sourceName: string,
-    _matchedColumns: Partial<Record<string, string>>,
-    _rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: BadgeTone; status: 'valid' | 'invalid'; reason?: string }>,
-  ) => Promise<number>;
   onReviewSubmission?: (_submissionId: string, _status: 'approved' | 'rejected') => Promise<void>;
   onOpenSolicitation?: () => void;
 }
 
-interface ImportPreviewBadge {
-  columnName: string;
-  badgeName: string;
-  badgeValue: number;
-  badge?: Badge;
-}
-
-interface ImportPreview {
-  row: Record<string, string>;
-  userName: string;
-  companyId?: string;
-  companyName: string;
-  productiveUnitId?: string;
-  productiveUnitName: string;
-  user?: Profile;
-  company?: Company;
-  productiveUnit?: ProductiveUnit;
-  badges: ImportPreviewBadge[];
-  badgeValues?: Record<string, number>;
-  numericMeta?: Record<string, number>;
-  textMeta?: Record<string, string>;
-  tone: BadgeTone;
-  sourceName: string;
-  matchedColumns: Partial<Record<ImportSourceField, string>>;
-  status: 'valid' | 'invalid';
-  reason?: string;
-}
-
-type ExcelSheetRow = unknown[];
-type ExcelRow = Record<string, unknown>;
-
-interface ParsedExcelData {
-  rawRows: ExcelSheetRow[];
-  headerRowIndex: number;
-  headers: string[];
-  rows: ExcelRow[];
-}
-
-interface ProcessedExcelData {
-  previews: ImportPreview[];
-  importedBadges: UserBadge[];
-  summary: {
-    processed: number;
-    success: number;
-    failed: number;
-  };
-}
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   currentUser,
@@ -130,9 +54,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setProductiveUnits,
   badgeLegends,
   setBadgeLegends,
-  importSources,
-  setImportSources,
-  setImportBindingSnapshot,
   users,
   setUsers,
   userBadges,
@@ -147,23 +68,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onSaveUser,
   onBulkInviteUsers,
   onDeleteUser,
-  onSaveImportSource,
   onAwardBadges,
   onRemoveUserBadge,
-  onPersistImport,
   onReviewSubmission,
   onOpenSolicitation
 }) => {
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
   const canManageGlobalCatalog = isDeveloper;
-  const canConfigureImportSource = isDeveloper;
   const allowedViews = isDeveloper
     ? new Set(['overview', 'submissions', 'users', 'award', 'badges', 'companies'])
     : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
@@ -209,29 +125,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [bulkInviteCompanyId, setBulkInviteCompanyId] = useState('');
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isImportMappingModalOpen, setIsImportMappingModalOpen] = useState(false);
-  const [isImportSourceModalOpen, setIsImportSourceModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
-  const [importPreviews, setImportPreviews] = useState<ImportPreview[]>([]);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
-  const [selectedImportSourceId, setSelectedImportSourceId] = useState<string>(importSources[0]?.id || '');
-  const [editingImportSource, setEditingImportSource] = useState<ImportSourceConfig | null>(null);
-  const [importSheetMatrix, setImportSheetMatrix] = useState<ExcelSheetRow[]>([]);
-  const [importSheetRows, setImportSheetRows] = useState<Record<string, unknown>[]>([]);
-  const [importSheetHeaders, setImportSheetHeaders] = useState<string[]>([]);
-  const [importHeaderRowIndex, setImportHeaderRowIndex] = useState(0);
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-  const [assistedImportColumns, setAssistedImportColumns] = useState<Record<ImportSourceField, string>>({
-    company: '',
-    productive_unit: '',
-    user: '',
-    badge: '',
-    tone: '',
-    award: '',
-  });
-  const [assistedImportBadgeColumns, setAssistedImportBadgeColumns] = useState<string[]>([]);
-  
+
   const [userSearch, setUserSearch] = useState('');
 
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
@@ -279,12 +175,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setTempUserAvatarUrl(undefined);
   };
 
-  React.useEffect(() => {
-    if (!selectedImportSourceId && importSources[0]) {
-      setSelectedImportSourceId(importSources[0].id);
-    }
-  }, [importSources, selectedImportSourceId]);
-
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev => 
       prev.includes(userId) 
@@ -307,58 +197,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
   const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
   const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(safeAdminProfile.id, userBadges);
-  const fallbackImportSource: ImportSourceConfig = {
-    id: 'default-import-source',
-    name: 'Fonte sem nome',
-    description: 'Fonte padrão de importação',
-    columns: {
-      company: 'empresa',
-      productive_unit: 'unidade_produtiva',
-      user: 'explorador',
-      badge: 'selo',
-      tone: 'marcacao',
-      award: 'premio',
-    },
-  };
-  const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0] || fallbackImportSource;
-
-  const normalizeCell = (value: unknown) => value?.toString().trim() || '';
-  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  const normalizeCompare = (value: unknown) => normalize(normalizeCell(value));
-  const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
-  const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
-  const positiveBadgeTokens = new Set(['1', 'x', '✓', '✔', 'true', 'sim', 's', 'ok']);
-
-  const parseTone = (value: unknown): BadgeTone => {
-    const normalized = normalizeCompare(value);
-    if (normalized.includes('ouro') || normalized === 'gold') return 'gold';
-    if (normalized.includes('prata') || normalized === 'silver') return 'silver';
-    if (normalized.includes('bronze')) return 'bronze';
-    if (normalized.includes('loss_2') || normalized.includes('perda 2') || normalized.includes('perda2') || normalized.includes('vermelho intenso')) return 'loss_2';
-    if (normalized.includes('loss_1') || normalized.includes('perda 1') || normalized.includes('perda1') || normalized.includes('vermelho')) return 'loss_1';
-    return 'bronze';
-  };
-
-  const findMatchingRowKey = (row: ExcelRow, candidates: string[]) => {
-    const normalizedCandidates = candidates.map(normalizeCompare).filter(Boolean);
-    return Object.keys(row).find((key) =>
-      normalizedCandidates.some((candidate) => normalizeCompare(key) === candidate),
-    );
-  };
-
-  const getFieldValue = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig): string => {
-    const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    const matchedKey = findMatchingRowKey(row, candidates);
-    return matchedKey ? normalizeCell(row[matchedKey]) : '';
-  };
-
-  const getMatchedColumnName = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig) => {
-    const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    return findMatchingRowKey(row, candidates);
-  };
-
   const renderSquareImage = (src: string, alt: string) => (
     <img
       src={src}
@@ -366,414 +204,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       className="w-full h-full object-contain p-2 bg-white"
     />
   );
-
-  const suggestColumnForField = (headers: string[], field: ImportSourceField, source: ImportSourceConfig) => {
-    const candidates = [source.columns[field], ...IMPORT_FIELD_ALIASES[field]].map(normalizeCompare);
-
-    const exactMatch = headers.find(header => candidates.includes(normalizeCompare(header)));
-    if (exactMatch) return exactMatch;
-
-    const partialMatch = headers.find(header => candidates.some(candidate => normalizeCompare(header).includes(candidate) || candidate.includes(normalizeCompare(header))));
-    return partialMatch || '';
-  };
-
-  const normalizeHeaderCells = (headers: ExcelSheetRow): Array<string | null> => {
-    const usedHeaders = new Map<string, number>();
-
-    return headers.map((headerCell, index) => {
-      const rawHeader = normalizeCell(headerCell).replace(/^__EMPTY(?:_\d+)?$/i, '');
-      if (!rawHeader) {
-        return null;
-      }
-
-      const fallbackHeader = rawHeader || `Coluna ${index + 1}`;
-      const occurrences = usedHeaders.get(normalizeCompare(fallbackHeader)) || 0;
-      usedHeaders.set(normalizeCompare(fallbackHeader), occurrences + 1);
-
-      return occurrences === 0 ? fallbackHeader : `${fallbackHeader} (${occurrences + 1})`;
-    });
-  };
-
-  const normalizeHeaders = (headers: ExcelSheetRow): string[] => {
-    return normalizeHeaderCells(headers).filter((header): header is string => Boolean(header));
-  };
-
-  const extractHeaders = (rows: ExcelSheetRow[]) => {
-    const evaluateRowScore = (row: ExcelSheetRow) => {
-      const values = row.map(normalizeCell).filter(Boolean);
-      if (values.length === 0) return -1;
-
-      const aliasMatches = values.filter((value) =>
-        allHeaderAliases.some((alias) =>
-          normalizeCompare(value) === normalizeCompare(alias) ||
-          normalizeCompare(value).includes(normalizeCompare(alias)),
-        ),
-      ).length;
-      const textualValues = values.filter((value) => /[a-zA-ZÀ-ÿ]/.test(value)).length;
-
-      return aliasMatches * 5 + textualValues + (values.length >= 2 ? 2 : 0);
-    };
-
-    let bestRowIndex = rows.findIndex((row) => row.some((cell) => normalizeCell(cell)));
-    let bestScore = bestRowIndex >= 0 ? evaluateRowScore(rows[bestRowIndex]) : -1;
-
-    rows.slice(0, 10).forEach((row, index) => {
-      const score = evaluateRowScore(row);
-      if (score > bestScore) {
-        bestScore = score;
-        bestRowIndex = index;
-      }
-    });
-
-    const headerRowIndex = bestRowIndex >= 0 ? bestRowIndex : 0;
-    return {
-      headerRowIndex,
-      headers: normalizeHeaders(rows[headerRowIndex] || []),
-    };
-  };
-
-  const buildExcelRows = (rawRows: ExcelSheetRow[], headerRowIndex: number): ExcelRow[] => {
-    const headerRow = rawRows[headerRowIndex] || [];
-    const normalizedHeaderNames = normalizeHeaderCells(headerRow);
-
-    return rawRows
-      .slice(headerRowIndex + 1)
-      .map((row) => {
-        const nextRowEntries = headerRow.reduce<Array<[string, unknown]>>((entries, _headerCell, columnIndex) => {
-          const headerName = normalizedHeaderNames[columnIndex];
-          if (!headerName) {
-            return entries;
-          }
-
-          entries.push([headerName, row[columnIndex] ?? '']);
-          return entries;
-        }, []);
-
-        return Object.fromEntries(nextRowEntries);
-      })
-      .filter((row) => Object.values(row).some((value) => normalizeCell(value)));
-  };
-
-  const getHeaderRowOptions = (rawRows: ExcelSheetRow[]) => (
-    rawRows
-      .map((row, index) => ({
-        index,
-        preview: row.map(normalizeCell).filter(Boolean).slice(0, 4).join(' | '),
-      }))
-      .filter((row) => row.preview)
-      .slice(0, 12)
-  );
-
-  const isNegativeBadgeValue = (value: string) => badgeNegativeValues.has(normalizeCompare(value));
-
-  const findBadgeByName = (value: string) => (
-    badges.find((badge) => normalizeCompare(badge?.name || '') === normalizeCompare(value))
-  );
-
-  const classifyColumn = (header: string): 'badge' | 'numeric_meta' | 'text_meta' => {
-    const normalizedHeader = normalizeCompare(header);
-
-    if (
-      normalizedHeader.includes('total') ||
-      normalizedHeader.includes('bonificação') ||
-      normalizedHeader.includes('bonificacao') ||
-      normalizedHeader.includes('bonus')
-    ) {
-      return 'numeric_meta';
-    }
-
-    if (
-      normalizedHeader.includes('observação') ||
-      normalizedHeader.includes('observacao') ||
-      normalizedHeader.includes('nota') ||
-      normalizedHeader.includes('comentário') ||
-      normalizedHeader.includes('comentario')
-    ) {
-      return 'text_meta';
-    }
-
-    return 'badge';
-  };
-
-  const getDefaultIndicatorColumns = (headers: string[], source: ImportSourceConfig) => {
-    const fixedColumns = new Set(
-      (['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[])
-        .map((field) => suggestColumnForField(headers, field, source))
-        .filter(Boolean)
-        .map(normalizeCompare),
-    );
-
-    return headers.filter((header) => !fixedColumns.has(normalizeCompare(header)) && classifyColumn(header) === 'badge');
-  };
-
-  const getSelectedBadgeColumns = (source: ImportSourceConfig) => {
-    if (assistedImportBadgeColumns.length > 0) {
-      return assistedImportBadgeColumns;
-    }
-
-    return getDefaultIndicatorColumns(importSheetHeaders, source);
-  };
-
-  const parseIndicatorValue = (value: unknown) => {
-    const normalizedValue = normalizeCell(value);
-    if (isNegativeBadgeValue(normalizedValue)) {
-      return null;
-    }
-
-    if (positiveBadgeTokens.has(normalizeCompare(normalizedValue))) {
-      return 1;
-    }
-
-    const numericValue = Number(normalizedValue.replace(',', '.'));
-    if (Number.isFinite(numericValue) && numericValue > 0) {
-      return numericValue;
-    }
-
-    return null;
-  };
-
-  const getBadgeCandidatesFromRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreviewBadge[] => {
-    const badgeColumns = getSelectedBadgeColumns(source);
-    const resolvedBadges: ImportPreviewBadge[] = [];
-
-    badgeColumns.forEach((selectedColumnName) => {
-      const columnName = findMatchingRowKey(row, [selectedColumnName]) || selectedColumnName;
-      const badgeValue = parseIndicatorValue(row[columnName]);
-
-      if (badgeValue !== null) {
-        resolvedBadges.push({
-          columnName,
-          badgeName: columnName,
-          badgeValue,
-          badge: findBadgeByName(columnName),
-        });
-      }
-    });
-
-    return resolvedBadges;
-  };
-
-  const getNumericMetaFromRow = (row: ExcelRow, source: ImportSourceConfig) => {
-    return Object.fromEntries(
-      Object.keys(row)
-        .filter((header) => classifyColumn(header) === 'numeric_meta')
-        .map((header) => [header, parseIndicatorValue(row[findMatchingRowKey(row, [header]) || header])])
-        .filter((entry): entry is [string, number] => entry[1] !== null),
-    );
-  };
-
-  const getTextMetaFromRow = (row: ExcelRow) => {
-    return Object.fromEntries(
-      Object.keys(row)
-        .filter((header) => classifyColumn(header) === 'text_meta')
-        .map((header) => [header, normalizeCell(row[header])])
-        .filter((entry) => entry[1]),
-    );
-  };
-
-  const parseExcel = (file: File): Promise<ParsedExcelData> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      try {
-        const binary = event.target?.result;
-        const workbook = XLSX.read(binary, { type: 'binary' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined;
-        if (!worksheet) {
-          throw new Error('Nenhuma planilha encontrada no arquivo.');
-        }
-        const rawRows = XLSX.utils.sheet_to_json<ExcelSheetRow>(worksheet, { header: 1, defval: '' });
-        const { headerRowIndex, headers } = extractHeaders(rawRows);
-        const rows = buildExcelRows(rawRows, headerRowIndex);
-
-        resolve({ rawRows, headerRowIndex, rows, headers });
-      } catch (error) {
-        reject(error);
-      }
-    };
-
-    reader.onerror = () => reject(new Error('Falha ao ler o arquivo Excel.'));
-    reader.readAsBinaryString(file);
-  });
-
-  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
-    const selectedBadgeColumns = getSelectedBadgeColumns(source);
-    const userValue = getFieldValue(row, 'user', source);
-    const toneValue = getFieldValue(row, 'tone', source);
-    const awardValue = getFieldValue(row, 'award', source).toUpperCase();
-    const badgeCandidates = getBadgeCandidatesFromRow(row, source);
-    const numericMeta = getNumericMetaFromRow(row, source);
-    const textMeta = getTextMetaFromRow(row);
-    const productiveUnitFound = productiveUnits.find((unit) => unit.id === selectedUnitId) || undefined;
-    const inferredCompanyId = currentUser.company_id || productiveUnitFound?.company_id;
-    const companyFound = companies.find((company) => company.id === inferredCompanyId);
-    const inferredCompanyName = companyFound?.name || 'Empresa vinculada';
-    const userFound = users.find(user =>
-      normalizeCompare(user.full_name) === normalizeCompare(userValue) &&
-      (!inferredCompanyId || user.company_id === inferredCompanyId) &&
-      (!selectedUnitId || user.productive_unit_id === selectedUnitId)
-    );
-    const tone = parseTone(toneValue);
-
-    let status: 'valid' | 'invalid' = 'valid';
-    let reason = '';
-
-    if (!selectedUnitId || !productiveUnitFound) { status = 'invalid'; reason = 'unidade nao selecionada'; }
-    else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado'; }
-    else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
-      else if (badgeCandidates.some((badge) => !badge.badge)) {
-        const missingBadges = badgeCandidates.filter((badge) => !badge.badge).map((badge) => badge.badgeName);
-        missingBadges.forEach((badgeName) => console.log('[excel-import] Badge nao encontrado:', badgeName));
-        status = 'invalid';
-        reason = 'selo nao encontrado';
-      }
-    else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
-
-    return {
-      row: {
-        ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-        explorador: userValue,
-        empresa: inferredCompanyName,
-        unidade_produtiva: productiveUnitFound?.name || 'Unidade nao selecionada',
-        selos: badgeCandidates.map((badge) => badge.badgeName).join(', '),
-        premio: awardValue,
-        marcacao: toneValue || tone,
-      },
-      userName: userValue,
-      companyId: inferredCompanyId,
-      companyName: inferredCompanyName,
-      productiveUnitId: productiveUnitFound?.id,
-      productiveUnitName: productiveUnitFound?.name || 'Unidade nao selecionada',
-      user: userFound,
-      company: companyFound,
-      productiveUnit: productiveUnitFound,
-      badges: badgeCandidates,
-      badgeValues: Object.fromEntries(badgeCandidates.map((badge) => [badge.badgeName, badge.badgeValue])),
-      numericMeta,
-      textMeta,
-      tone,
-      sourceName: source?.name || 'Fonte sem nome',
-      matchedColumns: {
-        company: 'empresa inferida do contexto',
-        productive_unit: productiveUnitFound?.name || 'unidade selecionada',
-        user: getMatchedColumnName(row, 'user', source),
-        badge: selectedBadgeColumns.join(', '),
-        tone: getMatchedColumnName(row, 'tone', source),
-          award: getMatchedColumnName(row, 'award', source),
-        },
-        status,
-        reason,
-      };
-  };
-
-  const processExcelData = (rows: ExcelRow[], source: ImportSourceConfig): ProcessedExcelData => {
-    const previews = rows.map((row) => mapRow(row, source));
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const existingKeys = new Set(
-      userBadges
-        .filter((badge) => badge.awarded_at.slice(0, 10) === todayKey)
-        .map((badge) => `${badge.user_id}:${badge.badge_id}:${todayKey}`),
-    );
-    const importedKeys = new Set<string>();
-    const importedBadges: UserBadge[] = [];
-    let foundUsers = 0;
-
-    previews.forEach((preview, index) => {
-      if (preview.user?.id) {
-        foundUsers += 1;
-      }
-      if (preview.status !== 'valid' || !preview.user?.id) {
-        if (preview.reason?.includes('colaborador')) {
-          console.log(`[excel-import] linha ${index + 1}: usuario nao encontrado`, preview.row);
-        }
-        if (preview.reason?.includes('selo')) {
-          console.log(`[excel-import] linha ${index + 1}: selo nao encontrado`, preview.row);
-        }
-        return;
-      }
-
-      const nextBadges = preview.badges.reduce<UserBadge[]>((awards, badge) => {
-        if (!badge.badge?.id) {
-          return awards;
-        }
-
-        const duplicateKey = `${preview.user?.id}:${badge.badge.id}:${todayKey}`;
-        if (existingKeys.has(duplicateKey) || importedKeys.has(duplicateKey)) {
-          return awards;
-        }
-
-        importedKeys.add(duplicateKey);
-        awards.push({
-          id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 11),
-          user_id: preview.user!.id,
-          badge_id: badge.badge.id,
-          awarded_at: new Date().toISOString(),
-          awarded_by: safeAdminProfile.id,
-          tone: preview.tone,
-          company_id: preview.companyId,
-          productive_unit_id: preview.productiveUnitId,
-        });
-        return awards;
-      }, []);
-
-      if (preview.badges.length > 0 && nextBadges.length === 0) {
-        preview.status = 'invalid';
-        preview.reason = 'selos duplicados no mesmo dia';
-      }
-
-      importedBadges.push(...nextBadges);
-    });
-
-    const summary = {
-      processed: rows.length,
-      success: importedBadges.length,
-      failed: previews.filter((preview) => preview.status === 'invalid').length,
-    };
-
-    console.log('[excel-import] total de linhas processadas:', summary.processed);
-    console.log('[excel-import] total de colaboradores encontrados:', foundUsers);
-    console.log('[excel-import] total de sucessos:', summary.success);
-    console.log('[excel-import] total de falhas:', summary.failed);
-
-    return {
-      previews,
-      importedBadges,
-      summary,
-    };
-  };
-
-  const applyHeaderRowSelection = (rawRows: ExcelSheetRow[], headerRowIndex: number, source: ImportSourceConfig) => {
-    const rows = buildExcelRows(rawRows, headerRowIndex);
-    const headers = extractHeaders([rawRows[headerRowIndex] || []]).headers;
-    const suggestedColumns: Record<ImportSourceField, string> = {
-      company: suggestColumnForField(headers, 'company', source),
-      productive_unit: suggestColumnForField(headers, 'productive_unit', source),
-      user: suggestColumnForField(headers, 'user', source),
-      badge: suggestColumnForField(headers, 'badge', source),
-      tone: suggestColumnForField(headers, 'tone', source),
-      award: suggestColumnForField(headers, 'award', source),
-    };
-    const suggestedBadgeColumns = getDefaultIndicatorColumns(headers, source);
-
-    setImportHeaderRowIndex(headerRowIndex);
-    setImportSheetRows(rows);
-    setImportSheetHeaders(headers);
-    setAssistedImportColumns(suggestedColumns);
-    setAssistedImportBadgeColumns(
-      suggestedBadgeColumns.length > 0
-        ? suggestedBadgeColumns
-        : (suggestedColumns.badge ? [suggestedColumns.badge] : []),
-    );
-  };
-
-  const buildImportSourceWithMapping = (): ImportSourceConfig => ({
-    ...(activeImportSource || fallbackImportSource),
-    columns: {
-      ...assistedImportColumns,
-      badge: assistedImportBadgeColumns[0] || assistedImportColumns.badge,
-    },
-  });
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
     console.log('Awarding badge:', { userId: targetUserId, badgeId });
@@ -928,40 +358,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     } catch (error) {
       console.error('Error saving productive unit:', error);
       alert('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-    }
-  };
-
-  const handleSaveImportSource = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canConfigureImportSource) {
-      alert('Somente o desenvolvedor pode editar fontes globais de importação.');
-      return;
-    }
-    const formData = new FormData(e.currentTarget);
-
-    const importSourceData: ImportSourceConfig = {
-      id: editingImportSource?.id || Math.random().toString(36).substr(2, 9),
-      name: normalizeCell(formData.get('name')),
-      description: normalizeCell(formData.get('description')),
-      columns: {
-        company: normalizeCell(formData.get('company_column')),
-        productive_unit: normalizeCell(formData.get('productive_unit_column')),
-        user: normalizeCell(formData.get('user_column')),
-        badge: normalizeCell(formData.get('badge_column')),
-        tone: normalizeCell(formData.get('tone_column')) || 'marcacao',
-        award: normalizeCell(formData.get('award_column')) || 'premio',
-      },
-    };
-
-    try {
-      const savedImportSource = onSaveImportSource ? await onSaveImportSource(importSourceData) : importSourceData;
-      setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? savedImportSource : source) : [...prev, savedImportSource]);
-      setSelectedImportSourceId(savedImportSource.id);
-      setIsImportSourceModalOpen(false);
-      setEditingImportSource(null);
-    } catch (error) {
-      console.error('Error saving import source:', error);
-      alert('Erro ao salvar fonte de importação: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -1160,100 +556,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     } catch (error) {
       alert('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
-  };
-  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeImportSource) return;
-    if (!selectedUnitId) {
-      alert('Selecione a unidade antes de importar a planilha.');
-      return;
-    }
-
-    try {
-      const { rawRows, headerRowIndex } = await parseExcel(file);
-      setImportSheetMatrix(rawRows);
-      applyHeaderRowSelection(rawRows, headerRowIndex, activeImportSource);
-      setIsImportMappingModalOpen(true);
-    } catch (error) {
-      console.error('[excel-import] falha ao ler arquivo:', error);
-    }
-  };
-
-  const handleConfirmImportMapping = () => {
-    if (!activeImportSource || importSheetRows.length === 0 || !selectedUnitId) return;
-
-    const mappedSource = buildImportSourceWithMapping();
-
-    const processedData = processExcelData(importSheetRows, mappedSource);
-    setImportPreviews(processedData.previews);
-
-    const firstPreview = processedData.previews[0];
-    if (firstPreview) {
-      setImportBindingSnapshot({
-        sourceId: mappedSource?.id || fallbackImportSource.id,
-        sourceName: mappedSource?.name || fallbackImportSource.name,
-        matchedColumns: {
-          ...firstPreview.matchedColumns,
-          badge: assistedImportBadgeColumns.join(', '),
-        },
-        importedAt: new Date().toISOString(),
-      });
-    }
-
-    setIsImportMappingModalOpen(false);
-    setIsImportModalOpen(true);
-  };
-
-  const finalizeImport = async () => {
-    if (importSheetRows.length === 0 || !selectedUnitId) {
-      alert('Selecione a unidade antes de concluir a importação.');
-      return;
-    }
-
-    const mappedSource = buildImportSourceWithMapping();
-    const processedData = processExcelData(importSheetRows, mappedSource);
-    setImportPreviews(processedData.previews);
-
-    if (processedData.summary.success === 0) return;
-
-    if (onPersistImport) {
-      const importRows = processedData.previews.flatMap((preview) => (
-        preview.badges.map((badge) => ({
-          row: {
-            ...preview.row,
-            selo: badge.badgeName,
-            valor_indicador: badge.badgeValue.toString(),
-          },
-          user_id: preview.user?.id,
-          badge_id: badge.badge?.id,
-          tone: preview.tone,
-          status: preview.status,
-          reason: preview.reason,
-        }))
-      ));
-
-      const importedCount = await onPersistImport(
-        mappedSource.id || fallbackImportSource.id,
-        mappedSource?.name || fallbackImportSource.name,
-        {
-          ...(processedData.previews[0]?.matchedColumns || {}),
-          badge: assistedImportBadgeColumns.join(', '),
-        },
-        importRows,
-      );
-      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
-      alert(`${foundUsers} colaboradores encontrados, ${importedCount} selos atribuidos e ${processedData.summary.failed} erros.`);
-    } else {
-      setUserBadges(prev => {
-        const existingKeys = new Set(prev.map((badge) => `${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
-        const nextBadges = processedData.importedBadges.filter((badge) => !existingKeys.has(`${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
-        return [...prev, ...nextBadges];
-      });
-      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
-      alert(`${foundUsers} colaboradores encontrados, ${processedData.summary.success} selos atribuidos e ${processedData.summary.failed} erros.`);
-    }
-
-    setIsImportModalOpen(false);
   };
 
   // Filters
@@ -1496,37 +798,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {view === 'award' && (
             <div className="space-y-8 animate-in fade-in">
-              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
-                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <select
-                    value={selectedUnitId || ''}
-                    onChange={(e) => setSelectedUnitId(e.target.value || null)}
-                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
-                  >
-                    <option value="">Selecionar unidade</option>
-                    {productiveUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
-                  </select>
-                  <select
-                    value={selectedImportSourceId ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    setSelectedImportSourceId(e.target.value)
-                    }
-                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
-                  >
-                    {importSources.filter(Boolean).map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
-                  </select>
-                  {canConfigureImportSource && (
-                    <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
-                      Configurar fonte
-                    </button>
-                  )}
-                  <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={!selectedUnitId} className="bg-emerald-600 disabled:bg-slate-300 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
-                </div>
+              <header>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
+                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -1553,31 +827,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="space-y-8">
-                  {activeImportSource && (
-                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
-                          <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource?.name || 'Fonte sem nome'}</p>
-                          <p className="text-xs text-cyan-600 font-bold mt-2">Unidade selecionada: {productiveUnits.find((unit) => unit.id === selectedUnitId)?.name || 'Nenhuma unidade selecionada'}</p>
-                        </div>
-                        {canConfigureImportSource && (
-                          <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
-                            editar mapeamento
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descrição cadastrada.'}</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {(Object.entries(activeImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
-                          <div key={field} className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</div>
-                            <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2013,183 +1262,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'atualizar' : 'cadastrar'}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {isImportSourceModalOpen && canConfigureImportSource && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingImportSource ? 'Editar fonte Excel' : 'Nova fonte Excel'}</h2>
-            <form onSubmit={handleSaveImportSource} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Fonte</label>
-                  <input name="name" defaultValue={editingImportSource?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DescriÃ§Ã£o</label>
-                  <input name="description" defaultValue={editingImportSource?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Empresa</label>
-                  <input name="company_column" defaultValue={editingImportSource?.columns.company || 'empresa'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Unidade</label>
-                  <input name="productive_unit_column" defaultValue={editingImportSource?.columns.productive_unit || 'unidade_produtiva'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Colaborador</label>
-                  <input name="user_column" defaultValue={editingImportSource?.columns.user || 'explorador'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Selo</label>
-                  <input name="badge_column" defaultValue={editingImportSource?.columns.badge || 'selo'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Marcação</label>
-                  <input name="tone_column" defaultValue={editingImportSource?.columns.tone || 'marcacao'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Autorização</label>
-                  <input name="award_column" defaultValue={editingImportSource?.columns.award || 'premio'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => { setIsImportSourceModalOpen(false); setEditingImportSource(null); }} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Salvar Fonte</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isImportMappingModalOpen && activeImportSource && (
-        <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Mapeamento assistido do Excel</h2>
-            <p className="text-sm text-slate-500 mb-8">Revise os cabeçalhos detectados antes de gerar a pré-visualização dos selos.</p>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 flex-1 overflow-hidden">
-              <div className="rounded-[32px] border border-slate-100 bg-slate-50/70 p-6 overflow-y-auto">
-                <div className="mb-6">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Linha de cabeçalho</div>
-                  <select
-                    value={importHeaderRowIndex}
-                    onChange={(e) => applyHeaderRowSelection(importSheetMatrix, Number(e.target.value), activeImportSource)}
-                    className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
-                  >
-                    {getHeaderRowOptions(importSheetMatrix).map((option) => (
-                      <option key={option.index} value={option.index}>
-                        {`Linha ${option.index + 1}: ${option.preview}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Cabeçalhos detectados</div>
-                <div className="flex flex-wrap gap-3">
-                  {importSheetHeaders.map(header => (
-                    <span key={header} className="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-slate-700">
-                      {header}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[32px] border border-slate-100 bg-white p-6 overflow-y-auto space-y-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mapeamento sugerido</div>
-                {(['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[]).map(field => (
-                  <label key={field} className="space-y-2 block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</span>
-                    <select
-                      value={assistedImportColumns[field]}
-                      onChange={(e) => setAssistedImportColumns(prev => ({ ...prev, [field]: e.target.value }))}
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
-                    >
-                      <option value="">Nao mapear</option>
-                      {importSheetHeaders.map(header => <option key={header} value={header}>{header}</option>)}
-                    </select>
-                  </label>
-                ))}
-                <div className="space-y-3">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS.badge}</div>
-                  <div className="rounded-2xl bg-slate-50 p-4 space-y-2 max-h-56 overflow-y-auto">
-                    {importSheetHeaders.map((header) => {
-                      const checked = assistedImportBadgeColumns.includes(header);
-                      return (
-                        <label key={header} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => setAssistedImportBadgeColumns((prev) => (
-                              checked ? prev.filter((column) => column !== header) : [...prev, header]
-                            ))}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                          />
-                          <span>{header}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400">
-                    Selecione uma ou mais colunas de selo. Colunas com o nome do selo no cabeçalho também funcionam.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-8">
-              <button type="button" onClick={() => setIsImportMappingModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-              <button type="button" onClick={handleConfirmImportMapping} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Gerar pré-visualização</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Global Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">pré-visualização da importação</h2>
-            <div className="flex-1 overflow-y-auto pr-2 border border-slate-100 rounded-3xl">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">unidade</th><th className="px-6 py-4">selos</th><th className="px-6 py-4">totais</th><th className="px-6 py-4">observações</th><th className="px-6 py-4">status</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {importPreviews.map((p, idx) => (
-                    <tr key={idx} className={`text-xs ${p.status === 'invalid' ? 'bg-rose-50/30' : ''}`}>
-                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.userName}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">{p.companyName}</td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">{p.productiveUnitName}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {p.badges.map((badge) => (
-                            <span key={`${p.userName}-${badge.columnName}`} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
-                              {badge.badgeName} ({badge.badgeValue})
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">
-                        {Object.keys(p.numericMeta || {}).length > 0 ? Object.entries(p.numericMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">
-                        {Object.keys(p.textMeta || {}).length > 0 ? Object.entries(p.textMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
-                      </td>
-                      <td className="px-6 py-4">{p.status === 'valid' ? <span className="text-emerald-700 font-black uppercase">válido</span> : <span className="text-rose-700 font-black uppercase">{p.reason}</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="pt-8 flex gap-4">
-              <button onClick={() => setIsImportModalOpen(false)} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-              <button onClick={finalizeImport} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">processar importações</button>
-            </div>
           </div>
         </div>
       )}
