@@ -20,12 +20,12 @@ const ToastContainer: React.FC = () => {
   if (items.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none">
+    <div className="fixed top-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none">
       {items.map(t => (
         <div
           key={t.id}
           className={cn(
-            'px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold max-w-sm animate-in slide-in-from-bottom-4 fade-in',
+            'px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold max-w-sm animate-in slide-in-from-top-4 fade-in',
             t.type === 'success' && 'bg-emerald-600 text-white',
             t.type === 'error' && 'bg-red-600 text-white',
             t.type === 'info' && 'bg-slate-900 text-white',
