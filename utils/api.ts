@@ -92,7 +92,7 @@ export const fetchCurrentUser = async () => {
   const apiBaseUrl = getApiBaseUrl();
   const token = getStoredAuthToken();
 
-  if (!apiBaseUrl || !token) {
+  if (!token) {
     return null;
   }
 
