@@ -1,13 +1,75 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone } from '../types';
+import * as XLSX from 'xlsx';
+import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { ImageUpload } from '../components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 import { cn } from '../utils/cn';
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '../utils/api';
+import { toast } from '../utils/toast';
 
 const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
+
+const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+// Maps normalized Excel column header keywords → badge ID (more specific keys must come first)
+const EXCEL_COLUMN_TO_BADGE_ID: Record<string, string> = {
+  'vol nps': 'ind-vol-nps',
+  'volume nps': 'ind-vol-nps',
+  'qtd nps': 'ind-vol-nps',
+  'quantidade nps': 'ind-vol-nps',
+  'avaliacoes nps': 'ind-vol-nps',
+  'avaliacao nps': 'ind-vol-nps',
+  'qtd. avaliacao': 'ind-vol-nps',
+  'nps': 'ind-nps',
+  'recoleta': 'ind-recoletas',
+  'recoletas': 'ind-recoletas',
+  '5s': 'ind-5s',
+  'auditoria': 'ind-5s',
+  'leitura': 'ind-docs',
+  'documento': 'ind-docs',
+  'documentos': 'ind-docs',
+  'nc': 'ind-nc',
+  'nao conformidade': 'ind-nc',
+  'nao conformidades': 'ind-nc',
+  'nao conformid': 'ind-nc',
+  'ponto': 'ind-ponto',
+  'ajuste de ponto': 'ind-ponto',
+  'assiduidade': 'ind-ponto',
+  'absenteismo': 'ind-ponto',
+  'iapp': 'ind-iapp',
+  'curso': 'ind-curso',
+  'cursos': 'ind-curso',
+  'aceleradoras': 'ind-aceleradoras',
+  'atitudes': 'ind-aceleradoras',
+  'faturamento': 'ind-faturamento',
+  'guia': 'ind-faturamento',
+  'advertencia': 'ind-advertencia',
+  'advertencias': 'ind-advertencia',
+  'reincidente': 'ind-reincidente',
+  'criterio reincidente': 'ind-reincidente',
+};
+
+const TONE_FROM_VALUE: Record<number, BadgeTone | null> = { 3: 'gold', 2: 'silver', 1: 'bronze', 0: null, [-1]: 'loss_1', [-2]: 'loss_2' };
+
+const normalizeStr = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+const stringSimilarity = (a: string, b: string): number => {
+  const na = normalizeStr(a);
+  const nb = normalizeStr(b);
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  const longer = na.length > nb.length ? na : nb;
+  const shorter = na.length > nb.length ? nb : na;
+  let matches = 0;
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) matches++;
+  }
+  return matches / longer.length;
+};
 
 interface AdminPanelProps {
   currentUser: Profile;
@@ -127,6 +189,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
+
+  // Excel monthly import state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  useEffect(() => {
+    document.body.style.overflow = isImportModalOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isImportModalOpen]);
+  type ImportStep = 'select' | 'matching' | 'preview' | 'done';
+  const [importStep, setImportStep] = useState<ImportStep>('select');
+  const [importMonth, setImportMonth] = useState<number>(new Date().getMonth() + 1);
+  const [importYear, setImportYear] = useState<number>(new Date().getFullYear());
+  const [importRows, setImportRows] = useState<IndicatorRow[]>([]);
+  const [importColumnIds, setImportColumnIds] = useState<string[]>([]);
+  const [userMatches, setUserMatches] = useState<UserMatchResult[]>([]);
+  const [importError, setImportError] = useState<string>('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ awardedCount: number } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
 
   const [userSearch, setUserSearch] = useState('');
 
@@ -255,9 +335,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       try {
         await onReviewSubmission(submissionId, status);
         setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
-        alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+        toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
+        toast.error(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
       }
       return;
     }
@@ -268,13 +348,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       upsertUserBadge(submission.user_id, submission.badge_id, 'bronze');
     }
     
-    alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+    toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
   };
 
   const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canManageGlobalCatalog) {
-      alert('Somente o desenvolvedor pode manter a biblioteca global de selos.');
+      toast.error('Somente o desenvolvedor pode manter a biblioteca global de selos.');
       return;
     }
     const formData = new FormData(e.currentTarget);
@@ -295,13 +375,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempBadgeImageUrl(undefined);
     } catch (error) {
       console.error('Error saving badge:', error);
-      alert('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
   const handleDeleteBadge = async () => {
     if (!canManageGlobalCatalog) {
-      alert('Somente o desenvolvedor pode remover selos da biblioteca global.');
+      toast.error('Somente o desenvolvedor pode remover selos da biblioteca global.');
       return;
     }
     if (badgeToDelete) {
@@ -330,7 +410,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempCompanyLogoUrl(undefined);
     } catch (error) {
       console.error('Error saving company:', error);
-      alert('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -340,7 +420,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const companyId = formData.get('company_id') as string;
 
     if (!companyId) {
-      alert('Selecione a empresa da unidade produtiva.');
+      toast.error('Selecione a empresa da unidade produtiva.');
       return;
     }
 
@@ -357,7 +437,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setEditingProductiveUnit(null);
     } catch (error) {
       console.error('Error saving productive unit:', error);
-      alert('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -393,7 +473,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempUserAvatarUrl(undefined);
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -405,7 +485,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       .filter(email => email !== '' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
 
     if (emails.length === 0) {
-      alert('Por favor, insira e-mails válidos para o convite.');
+      toast.error('Por favor, insira e-mails válidos para o convite.');
       return;
     }
 
@@ -416,7 +496,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (onBulkInviteUsers) {
       const result = await onBulkInviteUsers(emails, bulkInviteCompanyId || undefined, validProductiveUnitId);
       setUsers(prev => [...prev, ...result.createdUsers]);
-      alert(
+      toast.success(
         result.skippedEmails.length > 0
           ? `${result.createdUsers.length} convites persistidos. ${result.skippedEmails.length} e-mail(s) ja existiam e foram ignorados.`
           : `${result.createdUsers.length} convites persistidos com sucesso para os novos colaboradores!`,
@@ -435,7 +515,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }));
 
       setUsers(prev => [...prev, ...newUsers]);
-      alert(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
+      toast.success(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
     }
 
     setIsBulkInviteModalOpen(false);
@@ -447,7 +527,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDeleteUser = async () => {
     if (userToDelete) {
       if (userToDelete.id === adminProfile.id) {
-        alert("Você não pode excluir seu próprio perfil administrativo.");
+        toast.error('Você não pode excluir seu próprio perfil administrativo.');
         setIsDeleteUserModalOpen(false);
         return;
       }
@@ -459,7 +539,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         setIsDeleteUserModalOpen(false);
         setUserToDelete(null);
       } catch (error) {
-        alert('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
     }
   };
@@ -474,7 +554,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         setIsDeleteCompanyModalOpen(false);
         setCompanyToDelete(null);
       } catch (error) {
-        alert('Erro ao excluir empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+        toast.error('Erro ao excluir empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
     }
   };
@@ -521,11 +601,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         }));
       }
 
-      alert(`${selectedUsers.length} colaboradores foram premiados!`);
+      toast.success(`${selectedUsers.length} colaboradores foram premiados!`);
       setSelectedUsers([]);
       setSelectedAwardBadge('');
     } catch (error) {
-      alert('Erro ao premiar colaboradores: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao premiar colaboradores: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     } finally {
       setIsAwardingBadges(false);
     }
@@ -539,7 +619,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
       upsertUserBadge(targetUserId, badgeId, tone);
     } catch (error) {
-      alert('Erro ao atribuir selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao atribuir selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -554,7 +634,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
       setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
     } catch (error) {
-      alert('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -574,6 +654,158 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     totalCompanies: companies.length,
     totalProductiveUnits: productiveUnits.length
   }), [users, badges, submissions, companies, productiveUnits]);
+
+  const handleExcelUpload = useCallback((file: File) => {
+    setImportError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const targetSheetName = normalizeStr(MONTH_NAMES_PT[importMonth - 1]);
+        const matchedSheet = workbook.SheetNames.find(
+          n => normalizeStr(n) === targetSheetName || normalizeStr(n).startsWith(targetSheetName.slice(0, 3)),
+        );
+
+        if (!matchedSheet) {
+          setImportError(`Aba "${MONTH_NAMES_PT[importMonth - 1].toUpperCase()}" não encontrada no arquivo. Abas disponíveis: ${workbook.SheetNames.join(', ')}`);
+          return;
+        }
+
+        const ws = workbook.Sheets[matchedSheet];
+        const rawRows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+        // Find header row — search up to 20 rows for a row containing "nome" and at least 1 indicator keyword
+        let headerRowIndex = -1;
+        let nameColIndex = -1;
+        const columnBadgeIds: (string | null)[] = [];
+
+        for (let ri = 0; ri < Math.min(rawRows.length, 20); ri++) {
+          const row = rawRows[ri] as unknown[];
+          let nameIdx = -1;
+          const candidate: (string | null)[] = row.map((cell, ci) => {
+            if (!cell) return null;
+            const normalized = normalizeStr(String(cell));
+            if (normalized.includes('nome') && nameIdx === -1) { nameIdx = ci; return null; }
+            for (const [key, badgeId] of Object.entries(EXCEL_COLUMN_TO_BADGE_ID)) {
+              if (normalized.includes(key)) return badgeId;
+            }
+            return null;
+          });
+          const hits = candidate.filter(Boolean).length;
+          if (nameIdx !== -1 && hits >= 1) {
+            headerRowIndex = ri;
+            nameColIndex = nameIdx;
+            columnBadgeIds.push(...candidate);
+            break;
+          }
+        }
+
+        if (headerRowIndex === -1) {
+          setImportError('Não foi possível identificar a linha de cabeçalho. Verifique se a planilha contém uma coluna "Nome do Colaborador" e colunas de indicadores como NPS, Recoletas, etc.');
+          return;
+        }
+
+        const detectedBadgeIds = [...new Set(columnBadgeIds.filter(Boolean) as string[])];
+        setImportColumnIds(detectedBadgeIds);
+
+        const dataRows: IndicatorRow[] = [];
+        for (let ri = headerRowIndex + 1; ri < rawRows.length; ri++) {
+          const row = rawRows[ri] as unknown[];
+          const nameCell = row[nameColIndex];
+          if (!nameCell || typeof nameCell !== 'string') continue;
+          const name = nameCell.trim();
+          if (!name || normalizeStr(name) === 'total' || normalizeStr(name).startsWith('total')) continue;
+
+          const indicators: Record<string, number> = {};
+          columnBadgeIds.forEach((badgeId, colIdx) => {
+            if (!badgeId) return;
+            const val = row[colIdx];
+            const num = val !== null && val !== undefined ? Number(val) : 0;
+            if (!isNaN(num) && num !== 0) {
+              indicators[badgeId] = num;
+            }
+          });
+
+          if (Object.keys(indicators).length > 0) {
+            dataRows.push({ excelName: name, indicators });
+          }
+        }
+
+        if (dataRows.length === 0) {
+          setImportError('Nenhuma linha de dados encontrada após o cabeçalho.');
+          return;
+        }
+
+        // Auto-match users
+        const companyUsers = currentUser.company_id
+          ? users.filter(u => u.company_id === currentUser.company_id)
+          : users;
+
+        const matches: UserMatchResult[] = dataRows.map(row => {
+          let bestUser: Profile | null = null;
+          let bestScore = 0;
+          for (const u of companyUsers) {
+            const score = stringSimilarity(row.excelName, u.full_name);
+            if (score > bestScore) { bestScore = score; bestUser = u; }
+          }
+          return {
+            excelName: row.excelName,
+            matchedUserId: bestScore >= 0.8 ? bestUser?.id ?? null : null,
+            matchedUserName: bestScore >= 0.8 ? bestUser?.full_name ?? null : null,
+            confidence: bestScore >= 0.8 ? 'auto' : 'manual',
+          };
+        });
+
+        setImportRows(dataRows);
+        setUserMatches(matches);
+        setImportStep('matching');
+      } catch (err) {
+        setImportError('Erro ao processar o arquivo: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }, [importMonth, users, currentUser.company_id]);
+
+  const handleConfirmImport = async () => {
+    setIsImporting(true);
+    setImportError('');
+    try {
+      const awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }> = [];
+      importRows.forEach((row, idx) => {
+        const match = userMatches[idx];
+        if (!match.matchedUserId || match.confidence === 'ignored') return;
+        Object.entries(row.indicators).forEach(([badgeId, value]) => {
+          const tone = TONE_FROM_VALUE[value];
+          if (tone) awards.push({ userId: match.matchedUserId!, badgeId, tone });
+        });
+      });
+
+      if (awards.length === 0) {
+        setImportError('Nenhum selo a importar após filtragem.');
+        return;
+      }
+
+      const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
+      setImportResult(result);
+      setImportStep('done');
+    } catch (err) {
+      setImportError('Erro na importação: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const resetImport = () => {
+    setImportStep('select');
+    setImportRows([]);
+    setImportColumnIds([]);
+    setUserMatches([]);
+    setImportError('');
+    setImportResult(null);
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -798,9 +1030,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {view === 'award' && (
             <div className="space-y-8 animate-in fade-in">
-              <header>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
-                <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
+              <header className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
+                  <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
+                </div>
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all active:scale-95 whitespace-nowrap"
+                >
+                  📊 Importar Planilha Mensal
+                </button>
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -873,6 +1113,171 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Import Modal */}
+          {isImportModalOpen && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+              <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Importar Planilha Mensal</h3>
+                    <p className="text-xs text-slate-400 font-bold mt-1">Importe os selos do mês diretamente da planilha de indicadores</p>
+                  </div>
+                  <button
+                    onClick={() => { setIsImportModalOpen(false); resetImport(); }}
+                    className="text-slate-400 hover:text-slate-700 font-black text-xl leading-none ml-4"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {importError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-bold px-4 py-3 rounded-2xl mb-4">
+                    {importError}
+                  </div>
+                )}
+
+                {importStep === 'select' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Mês</label>
+                        <select value={importMonth} onChange={e => setImportMonth(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                          {MONTH_NAMES_PT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ano</label>
+                        <select value={importYear} onChange={e => setImportYear(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                          {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Arquivo .xlsx</label>
+                      <input
+                        ref={importFileRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={e => { if (e.target.files?.[0]) handleExcelUpload(e.target.files[0]); }}
+                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try { await seedIndicatorBadgesWithApi(); toast.success('Selos de indicadores criados/atualizados com sucesso!'); }
+                        catch (err) { toast.error('Erro ao criar selos: ' + (err instanceof Error ? err.message : 'Erro')); }
+                      }}
+                      className="text-xs font-black text-indigo-600 underline"
+                    >
+                      Criar selos de indicadores (executar uma vez)
+                    </button>
+                  </div>
+                )}
+
+                {importStep === 'matching' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{importRows.length} colaboradores encontrados</span>
+                      <button onClick={resetImport} className="text-xs font-black text-slate-400 hover:text-slate-700">← Voltar</button>
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Indicadores detectados: {importColumnIds.map(id => badges.find(b => b.id === id)?.name || id).join(', ')}</div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {importRows.map((row, idx) => {
+                        const match = userMatches[idx];
+                        const companyUsers = currentUser.company_id ? users.filter(u => u.company_id === currentUser.company_id) : users;
+                        return (
+                          <div key={idx} className={cn("flex items-center gap-3 p-3 rounded-2xl border-2", match.confidence === 'ignored' ? 'border-slate-100 bg-slate-50 opacity-50' : match.matchedUserId ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50')}>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm text-slate-900 truncate">{row.excelName}</div>
+                              <div className="text-[10px] text-slate-400 font-bold">{Object.keys(row.indicators).length} indicadores</div>
+                            </div>
+                            <select
+                              value={match.matchedUserId || ''}
+                              onChange={e => {
+                                const uid = e.target.value;
+                                setUserMatches(prev => prev.map((m, i) => i === idx ? {
+                                  ...m,
+                                  matchedUserId: uid || null,
+                                  matchedUserName: companyUsers.find(u => u.id === uid)?.full_name || null,
+                                  confidence: uid ? 'manual' : 'ignored',
+                                } : m));
+                              }}
+                              className="text-xs font-bold bg-white border border-slate-200 rounded-xl px-2 py-1 max-w-[180px]"
+                            >
+                              <option value="">— Ignorar —</option>
+                              {companyUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                            </select>
+                            <span className="text-lg">{match.confidence === 'ignored' ? '❌' : match.matchedUserId ? '✅' : '⚠️'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
+                  </div>
+                )}
+
+                {importStep === 'preview' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Preview — {MONTH_NAMES_PT[importMonth - 1]} {importYear}</span>
+                      <button onClick={() => setImportStep('matching')} className="text-xs font-black text-slate-400 hover:text-slate-700">← Ajustar matching</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            <th className="text-left font-black text-slate-400 uppercase tracking-widest pb-2 pr-3">Colaborador</th>
+                            {importColumnIds.map(id => (
+                              <th key={id} className="text-center font-black text-slate-400 uppercase tracking-widest pb-2 px-2">{badges.find(b => b.id === id)?.name || id}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importRows.map((row, idx) => {
+                            const match = userMatches[idx];
+                            const ignored = match.confidence === 'ignored' || !match.matchedUserId;
+                            return (
+                              <tr key={idx} className={cn("border-b border-slate-50", ignored && "opacity-40")}>
+                                <td className="py-2 pr-3 font-bold text-slate-700">{match.matchedUserName || row.excelName}</td>
+                                {importColumnIds.map(id => {
+                                  const val = row.indicators[id];
+                                  const tone = val !== undefined ? TONE_FROM_VALUE[val] : null;
+                                  const colors: Record<string, string> = { gold: 'bg-yellow-100 text-yellow-800', silver: 'bg-slate-100 text-slate-700', bronze: 'bg-orange-100 text-orange-800', loss_1: 'bg-red-100 text-red-700', loss_2: 'bg-red-200 text-red-900' };
+                                  return (
+                                    <td key={id} className="text-center py-2 px-2">
+                                      {tone ? <span className={cn('px-2 py-0.5 rounded-lg font-black', colors[tone])}>{val}</span> : <span className="text-slate-200">—</span>}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      onClick={handleConfirmImport}
+                      disabled={isImporting}
+                      className="w-full py-4 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest disabled:opacity-50"
+                    >
+                      {isImporting ? 'Importando...' : 'Confirmar importação'}
+                    </button>
+                  </div>
+                )}
+
+                {importStep === 'done' && importResult && (
+                  <div className="text-center py-8 space-y-4">
+                    <div className="text-5xl">🎉</div>
+                    <div className="text-2xl font-black text-slate-900">{importResult.awardedCount} selos importados</div>
+                    <div className="text-sm text-slate-400 font-bold">{MONTH_NAMES_PT[importMonth - 1]} {importYear}</div>
+                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Fechar</button>
+                  </div>
+                )}
               </div>
             </div>
           )}

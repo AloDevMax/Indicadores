@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Badge, Profile, UserBadge } from '../types';
+import { toast } from '../utils/toast';
 
 interface SolicitationModalProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBadgeId || !proofDescription) {
-      alert('Por favor, selecione um selo e descreva sua conquista.');
+      toast.error('Por favor, selecione um selo e descreva sua conquista.');
       return;
     }
 
@@ -49,9 +50,9 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
       setSelectedBadgeId('');
       setProofDescription('');
       setSelectedFile(null);
-      alert('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
+      toast.success('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Falha ao enviar solicita��o.');
+      toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
     } finally {
       setSubmitting(false);
     }

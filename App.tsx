@@ -20,6 +20,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
+import ToastContainer from './components/ToastContainer';
 import './index.css';
 import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
 import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteCompanyWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
@@ -506,6 +507,7 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
+      <ToastContainer />
     </HashRouter>
   );
 };

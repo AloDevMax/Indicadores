@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite",
-    "dev:server": "node dist/server/index.mjs",
+    "dev:server": "node --env-file=.env dist/server/index.mjs",
     "db:push": "node scripts/dbPush.mjs",
     "db:check": "node scripts/verifyDb.mjs",
     "db:test": "node scripts/testDbConnection.mjs",
