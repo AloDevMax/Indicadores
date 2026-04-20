@@ -1,47 +1,92 @@
-﻿import React, { useMemo, useState } from 'react';
-import { Profile, Badge, BadgeLegendSettings, UserBadge } from '../types';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Badge, BadgeLegendSettings, Profile, UserBadge } from '../types';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
-
-interface RankingProps {
-  users: Profile[];
-  badges: Badge[];
-  userBadges: UserBadge[];
-  badgeLegends: BadgeLegendSettings;
-}
+import { fetchBootstrapData } from '../utils/api';
 
 const CATEGORIES = ['todos', 'qualidade', 'segurança', 'eficiência', 'processos', 'serviço'];
 
-const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegends }) => {
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+const Ranking: React.FC = () => {
+  const now = new Date();
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
+  const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [filterMonth, setFilterMonth] = useState(now.getUTCMonth());
+  const [filterYear, setFilterYear] = useState(now.getUTCFullYear());
+
+  const referenceDate = useMemo(() => new Date(Date.UTC(filterYear, filterMonth, 15)), [filterMonth, filterYear]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchBootstrapData().then(data => {
+      if (cancelled || !data) return;
+      setUsers(data.users || []);
+      setBadges(data.badges || []);
+      setUserBadges(data.userBadges || []);
+      setBadgeLegends(data.badgeLegends || null);
+    }).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const filteredExplorers = useMemo(() => users.filter(u => u.role === 'user'), [users]);
 
   const sortedUsers = useMemo(() => {
     return [...filteredExplorers]
       .map(user => {
-        const metrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
+        const metrics = getUserMonthlyBadgeMetrics(user.id, userBadges, referenceDate);
         const categoryCount = selectedCategory === 'todos'
           ? metrics.monthlyScore
           : userBadges.filter(ub => ub.user_id === user.id)
               .filter(ub => badges.find(b => b.id === ub.badge_id)?.category.toLowerCase() === selectedCategory)
               .length;
-
         return { ...user, monthlyScore: metrics.monthlyScore, monthlyMetrics: metrics, categoryCount };
       })
       .sort((a, b) => (b.categoryCount || 0) - (a.categoryCount || 0));
-  }, [selectedCategory, filteredExplorers, userBadges, badges]);
+  }, [selectedCategory, filteredExplorers, userBadges, badges, referenceDate]);
 
   const topThree = sortedUsers.slice(0, 3);
   const remainingUsers = sortedUsers.slice(3);
 
   const getUserBadges = (userId: string) => badges.filter(b => userBadges.some(ub => ub.user_id === userId && ub.badge_id === b.id));
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="animate-bounce text-indigo-600 font-bold text-sm uppercase tracking-widest">Carregando ranking...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <header className="text-center space-y-6">
         <h1 className="text-4xl font-black text-slate-900 tracking-tight">hall da fama</h1>
         <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">saldo mensal de selos por colaborador</p>
+
+        <div className="flex items-center justify-center gap-3 mt-2">
+          <select
+            value={filterMonth}
+            onChange={e => setFilterMonth(Number(e.target.value))}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-600"
+          >
+            {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+          <select
+            value={filterYear}
+            onChange={e => setFilterYear(Number(e.target.value))}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-600"
+          >
+            {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
 
         <div className="flex flex-wrap justify-center gap-2 mt-4 max-w-2xl mx-auto">
           {CATEGORIES.map(cat => (
@@ -108,16 +153,18 @@ const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegen
         </div>
       </div>
 
-      <section className="max-w-4xl mx-auto bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
-        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">legenda minimizada</div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
-          {Object.entries(badgeLegends).map(([tone, label]) => (
-            <div key={tone} className="bg-slate-50 rounded-2xl px-4 py-3">
-              <span className="font-black text-slate-900">{BADGE_TONE_LABELS[tone as keyof typeof badgeLegends]}:</span> {label}
-            </div>
-          ))}
-        </div>
-      </section>
+      {badgeLegends && (
+        <section className="max-w-4xl mx-auto bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">legenda minimizada</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
+            {Object.entries(badgeLegends).map(([tone, label]) => (
+              <div key={tone} className="bg-slate-50 rounded-2xl px-4 py-3">
+                <span className="font-black text-slate-900">{BADGE_TONE_LABELS[tone as keyof typeof badgeLegends]}:</span> {label}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {selectedUser && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -150,6 +197,9 @@ const Ranking: React.FC<RankingProps> = ({ users, badges, userBadges, badgeLegen
                       <div><div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div><div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{badge.category}</div></div>
                     </div>
                   ))}
+                  {getUserBadges(selectedUser.id).length === 0 && (
+                    <div className="col-span-2 py-8 text-center text-slate-400 font-bold text-xs uppercase">Nenhum selo conquistado</div>
+                  )}
                 </div>
               </div>
             </div>

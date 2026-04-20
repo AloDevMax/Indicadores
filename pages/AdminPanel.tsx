@@ -788,7 +788,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
 
       const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
-      setImportResult(result);
+      if (result.awardedBadges?.length) {
+        const ids = new Set(result.awardedBadges.map(b => `${b.user_id}:${b.badge_id}`));
+        setUserBadges(prev => [
+          ...prev.filter(ub => !ids.has(`${ub.user_id}:${ub.badge_id}`)),
+          ...result.awardedBadges!,
+        ]);
+      }
+      setImportResult({ awardedCount: result.awardedCount });
       setImportStep('done');
     } catch (err) {
       setImportError('Erro na importação: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
@@ -1169,7 +1176,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <button
                       onClick={async () => {
-                        try { await seedIndicatorBadgesWithApi(); toast.success('Selos de indicadores criados/atualizados com sucesso!'); }
+                        try {
+                          const seeded = await seedIndicatorBadgesWithApi();
+                          setBadges(prev => {
+                            const existingIds = new Set(prev.map(b => b.id));
+                            const newOnes = seeded.filter(b => !existingIds.has(b.id));
+                            return newOnes.length ? [...prev, ...newOnes] : prev.map(b => seeded.find(s => s.id === b.id) || b);
+                          });
+                          toast.success('Selos de indicadores criados/atualizados com sucesso!');
+                        }
                         catch (err) { toast.error('Erro ao criar selos: ' + (err instanceof Error ? err.message : 'Erro')); }
                       }}
                       className="text-xs font-black text-indigo-600 underline"

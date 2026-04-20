@@ -433,7 +433,7 @@ const App: React.FC = () => {
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking users={visibleUsers} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/login" />}
+                element={user ? <Ranking /> : <Navigate to="/login" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/login" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/login" />} />

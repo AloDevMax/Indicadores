@@ -264,8 +264,8 @@ export const importMonthlyBadgesWithApi = async (
   awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }>,
   month: number,
   year: number,
-): Promise<{ awardedCount: number }> => {
-  return postJson<{ awardedCount: number }>(
+): Promise<{ awardedCount: number; awardedBadges?: UserBadge[] }> => {
+  return postJson<{ awardedCount: number; awardedBadges?: UserBadge[] }>(
     '/api/admin/import-monthly-badges',
     { awards, month, year },
     requireAuthToken(),
