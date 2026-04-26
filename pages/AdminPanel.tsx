@@ -1034,7 +1034,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </td>
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl">ver conquistas</button>
+                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl">Ver Conquistas</button>
                               <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                               <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
                             </div>
@@ -1066,7 +1066,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
                   <div className="mb-6 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. selecione colaboradores</h3>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. Selecione colaboradores</h3>
                     <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-indigo-600">{selectedUsers.length} selecionados</div>
                   </div>
                   <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-600" />
@@ -1123,7 +1123,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                   <div className="bg-indigo-900 p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
-                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar premiação</h3>
+                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar Premiação</h3>
                     <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
@@ -1584,7 +1584,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 min-h-[100px] text-slate-900" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de apoio</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de Apoio</label>
                 <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-center text-slate-900" required />
               </div>
               <div className="space-y-2">
@@ -1628,14 +1628,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isCompanyModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'editar empresa' : 'nova empresa'}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</h2>
             <form onSubmit={handleSaveCompany} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da organização</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Organização</label>
                 <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">categoria do setor</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria do Setor</label>
                 <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
                   <option value="">Selecionar categoria...</option>
                   {COMPANY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -1649,8 +1649,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 fieldName="logo"
               />
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'atualizar' : 'cadastrar'}</button>
+                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'Atualizar' : 'Cadastrar'}</button>
               </div>
             </form>
           </div>
@@ -1660,11 +1660,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isDeleteCompanyModalOpen && companyToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">deletar empresa?</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">Deletar Empresa?</h2>
             <p className="text-sm text-slate-600 mb-8">Tem certeza que deseja deletar <strong>{companyToDelete.name}</strong>? Esta ação não pode ser desfeita.</p>
             <div className="flex gap-4">
-              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">cancelar</button>
-              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">deletar</button>
+              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">Deletar</button>
             </div>
           </div>
         </div>
@@ -1673,22 +1673,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isProductiveUnitModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'editar unidade produtiva' : 'nova unidade produtiva'}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'Editar Unidade Produtiva' : 'Nova Unidade Produtiva'}</h2>
             <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">empresa</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
                 <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
                   <option value="">Selecionar empresa...</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da unidade</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Unidade</label>
                 <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'atualizar' : 'cadastrar'}</button>
+                <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'Atualizar' : 'Cadastrar'}</button>
               </div>
             </form>
           </div>
@@ -1714,15 +1714,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.monthlyScore}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">saldo do mes</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Saldo do Mês</div>
                   </div>
                   <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.positiveCount}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">selos ativos</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Selos Ativos</div>
                   </div>
                   <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.lossCount}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">perdas</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Perdas</div>
                   </div>
                 </div>
               </div>
@@ -1759,7 +1759,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   );
                 })}
               </div>
-              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">fechar</button>
+              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Fechar</button>
             </div>
           </div>
         );

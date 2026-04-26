@@ -134,8 +134,8 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex-1 w-full space-y-4">
             <div className="flex justify-between items-end gap-4">
               <div>
-                <h3 className="text-xl md:text-2xl font-black text-slate-900">saldo do mês</h3>
-                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">bronze, prata, ouro e perdas</p>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900">Saldo do Mês</h3>
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Bronze, Prata, Ouro e Perdas</p>
               </div>
               <div className="text-[10px] md:text-xs font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 md:px-4 md:py-2 rounded-xl">
                 {monthlyMetrics.positiveCount} positivos
@@ -159,25 +159,25 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="bg-indigo-600 p-8 md:p-10 rounded-[32px] md:rounded-[40px] shadow-xl shadow-indigo-200 text-white flex flex-col justify-center items-center text-center space-y-2">
           <div className="text-4xl md:text-5xl font-black">{monthlyMetrics.lossCount}</div>
-          <div className="font-black uppercase text-[10px] tracking-[0.2em] opacity-80">perdas do mês</div>
+          <div className="font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Perdas do Mês</div>
         </div>
       </div>
 
       <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">resumo de selos</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo de Selos</div>
             <h3 className="text-xl font-black text-slate-900 mt-2">Distribuição pessoal de selos</h3>
           </div>
           <div className="bg-indigo-50 text-indigo-700 px-4 py-3 rounded-2xl text-center min-w-[110px]">
             <div className="text-2xl font-black">{myBadgeSummary.total}</div>
-            <div className="text-[10px] font-black uppercase tracking-widest">total</div>
+            <div className="text-[10px] font-black uppercase tracking-widest">Total</div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-3">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">lista de selos</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lista de Selos</div>
             <div className="flex flex-wrap gap-2">
               {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
                 Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
@@ -195,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="space-y-3">
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">contagem por tipo</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Contagem por Tipo</div>
             <div className="grid grid-cols-2 gap-3">
               {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
                 Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
@@ -219,7 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
         <button className="text-left w-full">
-          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">legenda minimizada</div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda Minimizada</div>
         </button>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
           {Object.entries(badgeLegends).map(([tone, label]) => (
@@ -233,10 +233,10 @@ const Dashboard: React.FC<DashboardProps> = ({
       {linkedImportSource && (
         <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-4">
           <div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">fonte excel vinculada ao dashboard</div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fonte Excel Vinculada ao Dashboard</div>
             <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name || 'Fonte sem nome'}</h3>
             {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
-            {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">último vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
+            {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">Último Vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {(Object.entries(linkedImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
@@ -251,7 +251,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       {mySubmissions.length > 0 && (
         <section className="space-y-4">
-          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest px-1">solicitações recentes</h3>
+          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest px-1">Solicitações Recentes</h3>
           <div className="flex flex-col gap-3">
             {mySubmissions.slice(0, 3).map(sub => (
               <div key={sub.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group">
@@ -341,7 +341,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                               </div>
                               <div className="text-right">
                                 <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">saldo do mês</div>
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saldo do Mês</div>
                               </div>
                             </div>
 

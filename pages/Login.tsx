@@ -45,12 +45,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             🛡️
           </div>
           <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">LabQuest</h1>
-          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">arena da excelência</p>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Arena da Excelência</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">endereço de email</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Endereço de Email</label>
             <input 
               type="email" 
               value={email}
@@ -62,7 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">senha de acesso</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Senha de Acesso</label>
             <input 
               type="password" 
               value={password}

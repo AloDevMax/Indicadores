@@ -29,7 +29,7 @@ const Landing: React.FC = () => {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
           <div>
             <div className="text-xl font-black tracking-tight text-indigo-700">LabQuest</div>
-            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">performance operacional</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Performance Operacional</div>
           </div>
 
           <div className="flex items-center gap-3">
