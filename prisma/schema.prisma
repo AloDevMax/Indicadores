@@ -17,6 +17,7 @@ enum Role {
   admin
   user
   developer
+  supervisor
 }
 
 enum BadgeTone {

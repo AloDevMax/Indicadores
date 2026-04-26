@@ -425,7 +425,8 @@ export const persistImportRun = async ({
         await client.query(
           `delete from user_badges
            where user_id = $1
-             and badge_id = $2`,
+             and badge_id = $2
+             and date_trunc('month', awarded_at) = date_trunc('month', now())`,
           [row.user_id, row.badge_id],
         );
 
@@ -489,7 +490,7 @@ export const importMonthlyBadges = async ({ reviewerId, awards, month, year }) =
     }
 
     const inserted = [];
-    for (const { userId, badgeId, tone } of awards) {
+    for (const { userId, badgeId, tone } of uniquePairs) {
       const result = await client.query(
         `insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
          values (gen_random_uuid(), $1, $2, $3, $4, make_date($5, $6, 1)::timestamp)

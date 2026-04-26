@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '../types';
+import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { ImageUpload } from '../components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
@@ -137,10 +137,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
+  const isSupervisor = currentUser.role === 'supervisor';
   const canManageGlobalCatalog = isDeveloper;
   const allowedViews = isDeveloper
     ? new Set(['overview', 'submissions', 'users', 'award', 'badges', 'companies'])
-    : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
+    : isSupervisor
+      ? new Set(['overview', 'submissions', 'users', 'award'])
+      : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
 
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
@@ -455,7 +458,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
       avatar_url: tempUserAvatarUrl || editingUser?.avatar_url || '',
-      role: formData.get('role') as 'admin' | 'user',
+      role: formData.get('role') as Role,
       company_id: companyId,
       productive_unit_id: validProductiveUnitId,
       level: editingUser?.level || 1,
@@ -640,12 +643,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filters
   const filteredUsers = useMemo(() => {
-    return users.filter(u => 
+    return users.filter(u =>
       u.full_name.toLowerCase().includes(userSearch.toLowerCase()) &&
       (selectedCompanyFilter === '' || u.company_id === selectedCompanyFilter) &&
-      (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter)
+      (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter) &&
+      (!isSupervisor || u.productive_unit_id === currentUser.productive_unit_id)
     );
-  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter]);
+  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
 
   const stats = useMemo(() => ({
     totalUsers: users.length,
@@ -752,9 +756,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           }
           return {
             excelName: row.excelName,
-            matchedUserId: bestScore >= 0.8 ? bestUser?.id ?? null : null,
-            matchedUserName: bestScore >= 0.8 ? bestUser?.full_name ?? null : null,
-            confidence: bestScore >= 0.8 ? 'auto' : 'manual',
+            matchedUserId: bestScore === 1 ? bestUser?.id ?? null : null,
+            matchedUserName: bestScore === 1 ? bestUser?.full_name ?? null : null,
+            confidence: bestScore === 1 ? 'auto' : 'manual',
           };
         });
 
@@ -975,7 +979,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="">Todas as Unidades</option>
                     {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
-                  <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
                   <button onClick={() => openUserModal()} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
               </div>
@@ -1511,7 +1514,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="user">Colaborador</option>
-                    <option value="admin">Gestor</option>
+                    {!isSupervisor && <option value="supervisor">Supervisor</option>}
+                    {!isSupervisor && <option value="admin">Gestor</option>}
+                    {isDeveloper && <option value="developer">Desenvolvedor</option>}
                   </select>
                 </div>
                 <div className="space-y-2">

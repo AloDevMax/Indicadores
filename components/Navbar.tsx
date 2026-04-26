@@ -13,9 +13,12 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
-  const isAdmin = user.role === 'admin' || user.role === 'developer';
+  const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
+  const isSupervisor = user.role === 'supervisor';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
+  const adminBadgeLabel = user.role === 'developer' ? 'Dev' : isSupervisor ? 'Supervisor' : 'Admin';
+  const roleSubtitle = user.role === 'developer' ? 'Desenvolvedor' : isSupervisor ? 'Supervisor' : 'Gestor';
 
   return (
     <nav className={`bg-white border-b h-16 sticky top-0 z-[60] flex items-center transition-colors duration-300 ${isAdmin ? 'border-indigo-100' : 'border-slate-200'}`}>
@@ -34,7 +37,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
             </span>
             {isAdmin && (
               <span className="bg-indigo-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md tracking-widest shadow-sm">
-                Admin
+                {adminBadgeLabel}
               </span>
             )}
           </Link>
@@ -44,7 +47,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
           <div className="hidden sm:flex flex-col items-end">
             <span className="text-xs font-black text-slate-900 leading-none">{user.full_name}</span>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-              {isAdmin ? 'Gestor' : `Saldo do mes ${monthlyMetrics.monthlyScore}`}
+              {isAdmin ? roleSubtitle : `Saldo do mês ${monthlyMetrics.monthlyScore}`}
             </span>
           </div>
           <div className="h-8 w-[1px] bg-slate-100 mx-1"></div>
