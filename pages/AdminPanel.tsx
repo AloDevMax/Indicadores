@@ -1128,7 +1128,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* Import Modal */}
           {isImportModalOpen && (
             <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-              <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+              <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Importar Planilha Mensal</h3>
