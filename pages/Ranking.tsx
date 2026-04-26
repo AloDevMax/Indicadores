@@ -5,7 +5,12 @@ import { fetchBootstrapData } from '../utils/api';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const Ranking: React.FC = () => {
+interface RankingProps {
+  currentUser: Profile;
+}
+
+const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
+  const isSupervisor = currentUser.role === 'supervisor';
   const now = new Date();
   const [users, setUsers] = useState<Profile[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -13,7 +18,7 @@ const Ranking: React.FC = () => {
   const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [filterMonth, setFilterMonth] = useState(now.getUTCMonth());
   const [filterYear, setFilterYear] = useState(now.getUTCFullYear());
 
@@ -34,18 +39,22 @@ const Ranking: React.FC = () => {
     return () => { cancelled = true; };
   }, []);
 
-  const filteredExplorers = useMemo(() => users.filter(u => u.role === 'user'), [users]);
+  const filteredExplorers = useMemo(() => users.filter(u => {
+    if (u.role !== 'user') return false;
+    if (isSupervisor) return u.productive_unit_id === currentUser.productive_unit_id;
+    return true;
+  }), [users, isSupervisor, currentUser.productive_unit_id]);
 
   const categories = useMemo(() => {
     const unique = [...new Set(badges.map(b => b.category).filter(Boolean))].sort();
-    return ['todos', ...unique];
+    return ['Todos', ...unique];
   }, [badges]);
 
   const sortedUsers = useMemo(() => {
     return [...filteredExplorers]
       .map(user => {
         const metrics = getUserMonthlyBadgeMetrics(user.id, userBadges, referenceDate);
-        const categoryScore = selectedCategory === 'todos'
+        const categoryScore = selectedCategory === 'Todos'
           ? metrics.monthlyScore
           : metrics.monthlyBadges
               .filter(ub => badges.find(b => b.id === ub.badge_id)?.category === selectedCategory)
@@ -61,7 +70,7 @@ const Ranking: React.FC = () => {
   const topThree = sortedUsers.slice(0, 3);
   const remainingUsers = sortedUsers.slice(3);
 
-  const scoreLabel = selectedCategory === 'todos' ? 'saldo do mês' : selectedCategory.toLowerCase();
+  const scoreLabel = selectedCategory === 'Todos' ? 'saldo do mês' : selectedCategory.toLowerCase();
 
   if (loading) {
     return (
@@ -74,8 +83,8 @@ const Ranking: React.FC = () => {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <header className="text-center space-y-6">
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight">hall da fama</h1>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">saldo mensal de selos por colaborador</p>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Hall da fama</h1>
+        <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">Saldo mensal de selos por colaborador</p>
 
         <div className="flex items-center justify-center gap-3 mt-2">
           <select
