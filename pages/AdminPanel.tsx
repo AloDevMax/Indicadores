@@ -174,15 +174,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isBulkInviteModalOpen, setIsBulkInviteModalOpen] = useState(false);
   const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
-  const [sendEmailOnAward, setSendEmailOnAward] = useState(false);
-
-  const sendEmailNotification = (to: string, subject: string, message: string) => {
-    /* no mock local, log + toast */
-    console.log('ENVIANDO EMAIL PARA', to, subject, message);
-    // Em backend real, chamar API de envio de e-mail aqui.
-    return true;
-  };
-
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
   const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
@@ -199,6 +190,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     document.body.style.overflow = isImportModalOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isImportModalOpen]);
+
+  useEffect(() => {
+    document.body.style.overflow = isUserModalOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isUserModalOpen]);
   type ImportStep = 'select' | 'matching' | 'preview' | 'done';
   const [importStep, setImportStep] = useState<ImportStep>('select');
   const [importMonth, setImportMonth] = useState<number>(new Date().getMonth() + 1);
@@ -596,10 +592,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             ]
           };
 
-          if (sendEmailOnAward && u.email_verified) {
-            sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
-          }
-
           return updatedUser;
         }));
       }
@@ -652,12 +644,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
 
   const stats = useMemo(() => ({
-    totalUsers: users.length,
+    totalUsers: isSupervisor
+      ? users.filter(u => u.productive_unit_id === currentUser.productive_unit_id).length
+      : users.length,
     activeBadges: badges.length,
     pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
     totalCompanies: companies.length,
     totalProductiveUnits: productiveUnits.length
-  }), [users, badges, submissions, companies, productiveUnits]);
+  }), [users, badges, submissions, companies, productiveUnits, isSupervisor, currentUser.productive_unit_id]);
 
   const handleExcelUpload = useCallback((file: File) => {
     setImportError('');
@@ -897,7 +891,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
                             <div className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
                           </div>
-                          <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
+                          {!isSupervisor && (
+                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
+                          )}
                         </div>
                       )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
                     </div>
@@ -924,7 +920,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Pedidos de Validação</h2>
               <div className="space-y-4">
-                {submissions.filter(s => s.status === 'pending').map(sub => {
+                {submissions.filter(s => {
+                  if (s.status !== 'pending') return false;
+                  if (isSupervisor) {
+                    const submitter = users.find(u => u.id === s.user_id);
+                    return submitter?.productive_unit_id === currentUser.productive_unit_id;
+                  }
+                  return true;
+                }).map(sub => {
                   const user = users.find(u => u.id === sub.user_id);
                   const company = companies.find(c => c.id === user?.company_id);
                   return (
@@ -945,7 +948,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   );
                 })}
-                {submissions.filter(s => s.status === 'pending').length === 0 && (
+                {submissions.filter(s => {
+                  if (s.status !== 'pending') return false;
+                  if (isSupervisor) {
+                    const submitter = users.find(u => u.id === s.user_id);
+                    return submitter?.productive_unit_id === currentUser.productive_unit_id;
+                  }
+                  return true;
+                }).length === 0 && (
                   <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
                     <span className="text-5xl block mb-4">✅</span>
                     <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Fila de Solicitações Vazia</p>
@@ -1111,12 +1121,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         </button>
                       ))}
                     </div>
-                  </div>
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 mb-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
-                      <input type="checkbox" checked={sendEmailOnAward} onChange={(e) => setSendEmailOnAward(e.target.checked)} className="h-4 w-4" />
-                      Enviar notificação por e-mail aos colaboradores ao premiar
-                    </label>
                   </div>
                   <div className="bg-indigo-900 p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
                     <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar premiação</h3>
@@ -1493,8 +1497,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* User Modal */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-xl overflow-hidden">
+          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
             <form onSubmit={handleSaveUser} className="space-y-5">
               <div className="space-y-2">

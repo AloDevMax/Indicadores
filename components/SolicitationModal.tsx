@@ -70,7 +70,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-6 pb-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo voc� conquistou?</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo você conquistou?</label>
             <select
               value={selectedBadgeId}
               onChange={(e) => setSelectedBadgeId(e.target.value)}
@@ -90,13 +90,13 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
               value={proofDescription}
               onChange={(e) => setProofDescription(e.target.value)}
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
-              placeholder="Detalhe sua a��o de qualidade aqui..."
+              placeholder="Detalhe sua ação de qualidade aqui..."
               required
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">3. Anexe uma evid�ncia (opcional)</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">3. Anexe uma evidência (opcional)</label>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" id="proof-upload-global" />
             <label htmlFor="proof-upload-global" className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-600 transition-all group">
               <span className="text-2xl group-hover:scale-110 transition-transform">??</span>
@@ -107,7 +107,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
           </div>
 
           <button type="submit" disabled={submitting} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
-            {submitting ? 'Enviando...' : 'Enviar Solicita��o'}
+            {submitting ? 'Enviando...' : 'Enviar Solicitação'}
           </button>
         </form>
       </div>
