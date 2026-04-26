@@ -116,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           onClick={onOpenSolicitation}
           className="hidden md:flex bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 items-center justify-center gap-3 active:scale-95"
         >
-          <span>✨</span> solicitar meu selo
+          <span>✨</span> Solicitar meu selo
         </button>
       </header>
 
@@ -275,7 +275,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       <section className="space-y-6">
-        <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">galeria de conquistas</h3>
+        <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">Galeria de conquistas</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
           {(allBadges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
@@ -294,9 +294,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <section className="space-y-6">
         <div className="px-1">
-          <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight">selos por colaborador</h3>
+          <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight">Selos por colaborador</h3>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">
-            {isAdmin ? 'visão geral da operação' : 'visão da sua empresa ou unidade'}
+            {isAdmin ? 'Visão geral da operação' : 'Visão da sua empresa ou unidade'}
           </p>
         </div>
 
