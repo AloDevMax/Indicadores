@@ -49,7 +49,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
       <header className="space-y-4">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">meu inventário</h1>
-          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">cores mensais dos meus selos</p>
+          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Cores Mensais dos Meus Selos</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as const).map(tone => (
@@ -62,7 +62,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
       </header>
 
       <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
-        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">legenda minimizada</div>
+        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda Minimizada</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
           {Object.entries(badgeLegends).map(([tone, label]) => (
             <div key={tone} className="bg-slate-50 rounded-2xl px-4 py-3">
@@ -83,7 +83,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">filtrar período:</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Período:</label>
             <select
               value={monthFilter}
               onChange={(e) => setMonthFilter(e.target.value)}
@@ -105,7 +105,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
           })}
           {filteredUnlockedBadges.length === 0 && (
             <div className="col-span-full py-12 text-center bg-white rounded-[32px] border border-dashed border-slate-200">
-              <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">nenhum selo registrado neste período.</p>
+              <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Nenhum Selo Registrado neste Período.</p>
             </div>
           )}
         </div>
@@ -145,7 +145,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
                 ))}
                 {mySubmissions.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">nenhuma solicitação enviada até o momento.</td>
+                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">Nenhuma Solicitação Enviada até o Momento.</td>
                   </tr>
                 )}
               </tbody>

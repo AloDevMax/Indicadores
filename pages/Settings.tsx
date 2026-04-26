@@ -98,7 +98,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
             ⚙️
           </div>
           <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Configurações</h1>
-          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">gerencie seu perfil</p>
+          <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Gerencie seu Perfil</p>
         </div>
 
         <div className="relative z-10">

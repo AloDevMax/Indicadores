@@ -29,11 +29,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   
   if (!user) return null;
 
-  const isAdmin = user.role === 'admin' || user.role === 'developer';
+  const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
   const isDeveloper = user.role === 'developer';
+  const isSupervisor = user.role === 'supervisor';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
-  
+
   const toggleExpandCompany = (companyId: string) => {
     const newExpanded = new Set(expandedCompanies);
     if (newExpanded.has(companyId)) {
@@ -54,13 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     { to: '/ranking', label: user.role === 'developer' ? 'Ranking Global' : 'Ranking da Empresa', icon: '🥇' },
   ];
 
+  const rankingLabel = isDeveloper ? 'Ranking Global' : isSupervisor ? 'Ranking da Unidade' : 'Ranking da Empresa';
   const adminLinks = [
     { to: '/admin', label: 'Visão Geral', icon: '📊' },
-    { to: '/ranking', label: isDeveloper ? 'Ranking Global' : 'Ranking da Empresa', icon: '🥇' },
+    { to: '/ranking', label: rankingLabel, icon: '🥇' },
     { to: '/admin/award', label: 'Premiar Selos', icon: '🏆' },
     { to: '/admin/submissions', label: 'Solicitações', icon: '📨' },
     { to: '/admin/users', label: 'Colaboradores', icon: '👥' },
-    { to: '/admin/companies', label: 'Empresas', icon: '🏢' },
+    ...(!isSupervisor ? [{ to: '/admin/companies', label: 'Empresas', icon: '🏢' }] : []),
     ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: '🛡️' }] : []),
   ];
 

@@ -18,7 +18,7 @@ export const BADGE_TONE_LABELS: Record<BadgeTone, string> = {
 
 export const isSameMonth = (dateIso: string, reference = new Date()) => {
   const date = new Date(dateIso);
-  return date.getFullYear() === reference.getFullYear() && date.getMonth() === reference.getMonth();
+  return date.getUTCFullYear() === reference.getUTCFullYear() && date.getUTCMonth() === reference.getUTCMonth();
 };
 
 export const getUserMonthlyBadges = (userId: string, userBadges: UserBadge[], reference = new Date()) =>

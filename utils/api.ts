@@ -92,7 +92,7 @@ export const fetchCurrentUser = async () => {
   const apiBaseUrl = getApiBaseUrl();
   const token = getStoredAuthToken();
 
-  if (!apiBaseUrl || !token) {
+  if (!token) {
     return null;
   }
 
@@ -251,6 +251,23 @@ export const removeUserBadgeWithApi = async (userId: string, badgeId: string) =>
   await postJson(
     '/api/admin/user-badges/remove',
     { user_id: userId, badge_id: badgeId },
+    requireAuthToken(),
+  );
+};
+
+export const seedIndicatorBadgesWithApi = async (): Promise<Badge[]> => {
+  const payload = await postJson<{ badges: Badge[] }>('/api/admin/seed-indicator-badges', {}, requireAuthToken());
+  return payload.badges;
+};
+
+export const importMonthlyBadgesWithApi = async (
+  awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }>,
+  month: number,
+  year: number,
+): Promise<{ awardedCount: number; awardedBadges?: UserBadge[] }> => {
+  return postJson<{ awardedCount: number; awardedBadges?: UserBadge[] }>(
+    '/api/admin/import-monthly-badges',
+    { awards, month, year },
     requireAuthToken(),
   );
 };

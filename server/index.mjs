@@ -9,8 +9,8 @@ import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
-import { awardBadges, createSubmission, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, updateUserProfile } from './admin/repository.mjs';
+import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
 
@@ -93,27 +93,31 @@ app.use('/api/upload', uploadRouter);
 const isAdminOrDeveloper = (user) => user.role === 'admin' || user.role === 'developer';
 const isDeveloper = (user) => user.role === 'developer';
 const isManager = (user) => user.role === 'admin';
+const isSupervisor = (user) => user.role === 'supervisor';
+const canManageUnit = (user) => isAdminOrDeveloper(user) || isSupervisor(user);
 
 const ensureManagerCompanyScope = (user, companyId) => {
-  if (!isManager(user)) return true;
-  return Boolean(companyId) && user.company_id === companyId;
+  if (isDeveloper(user)) return true;
+  if (isSupervisor(user)) return Boolean(companyId) && user.company_id === companyId;
+  if (isManager(user)) return Boolean(companyId) && user.company_id === companyId;
+  return true;
 };
 
 const ensureUsersWithinScope = async (user, targetUserIds) => {
-  if (!isManager(user)) return true;
+  if (isDeveloper(user)) return true;
 
   const users = await listUsers();
   const allowedUserIds = new Set(
-    users
-      .filter((entry) => entry.company_id === user.company_id)
-      .map((entry) => entry.id),
+    isSupervisor(user)
+      ? users.filter((u) => u.productive_unit_id === user.productive_unit_id).map((u) => u.id)
+      : users.filter((u) => u.company_id === user.company_id).map((u) => u.id),
   );
 
   return targetUserIds.every((targetUserId) => allowedUserIds.has(targetUserId));
 };
 
 const ensureSubmissionWithinScope = async (user, submissionId) => {
-  if (!isManager(user)) return true;
+  if (isDeveloper(user)) return true;
 
   const client = await createPgClient();
 
@@ -123,12 +127,17 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
 
     const users = await listUsers();
     const submissionUser = users.find((entry) => entry.id === submission.user_id);
-    return Boolean(submissionUser?.company_id) && submissionUser.company_id === user.company_id;
+    if (!submissionUser) return false;
+
+    if (isSupervisor(user)) {
+      return submissionUser.productive_unit_id === user.productive_unit_id;
+    }
+    return Boolean(submissionUser.company_id) && submissionUser.company_id === user.company_id;
   }
 
   try {
     const result = await client.query(
-      `select u.company_id
+      `select u.company_id, u.productive_unit_id
        from badge_submissions s
        inner join users u on u.id = s.user_id
        where s.id = $1
@@ -136,7 +145,12 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
       [submissionId],
     );
 
-    return Boolean(result.rows[0]?.company_id) && result.rows[0].company_id === user.company_id;
+    if (!result.rows[0]) return false;
+
+    if (isSupervisor(user)) {
+      return result.rows[0].productive_unit_id === user.productive_unit_id;
+    }
+    return Boolean(result.rows[0].company_id) && result.rows[0].company_id === user.company_id;
   } finally {
     await client.end();
   }
@@ -200,9 +214,48 @@ app.get('/api/health', async (_req, res) => {
   res.json(health);
 });
 
-app.post('/api/admin/award-badges', async (req, res) => {
+app.post('/api/admin/seed-indicator-badges', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+
+  const badges = await seedIndicatorBadges();
+  res.status(200).json({ badges });
+});
+
+app.post('/api/admin/import-monthly-badges', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
+
+  const { awards, month, year } = req.body;
+
+  if (!Array.isArray(awards) || !month || !year) {
+    return res.status(400).json({ error: 'Parâmetros inválidos: awards, month e year são obrigatórios.' });
+  }
+
+  const userIds = [...new Set(awards.map(a => a.userId || a.user_id).filter(Boolean))];
+  if (!(await ensureUsersWithinScope(auth.body.user, userIds))) {
+    return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
+  }
+
+  const normalizedAwards = awards.map(a => ({
+    userId: a.userId || a.user_id,
+    badgeId: a.badgeId || a.badge_id,
+    tone: a.tone,
+  }));
+
+  const result = await importMonthlyBadges({
+    reviewerId: auth.body.user.id,
+    awards: normalizedAwards,
+    month: Number(month),
+    year: Number(year),
+  });
+
+  res.status(200).json(result);
+});
+
+app.post('/api/admin/award-badges', async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, req.body.user_ids || req.body.userIds || []))) {
     return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
   }
@@ -218,9 +271,8 @@ app.post('/api/admin/award-badges', async (req, res) => {
 });
 
 app.post('/api/admin/user-badges/remove', async (req, res) => {
-  
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, [req.body.user_id || req.body.userId].filter(Boolean)))) {
     return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
   }
@@ -250,7 +302,7 @@ app.post('/api/submissions', async (req, res) => {
 app.post('/api/submissions/:id/review', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
-  if (!isAdminOrDeveloper(auth.body.user)) {
+  if (!canManageUnit(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
   if (!(await ensureSubmissionWithinScope(auth.body.user, req.params.id))) {
@@ -279,11 +331,17 @@ app.post('/api/admin/companies', async (req, res) => {
 
 app.post('/api/admin/users', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
   if (req.body.role === 'developer' && !isDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Somente o desenvolvedor pode manter esse papel.' });
+  }
+  if (isSupervisor(auth.body.user) && req.body.role && req.body.role !== 'user') {
+    return res.status(403).json({ error: 'Supervisores só podem cadastrar colaboradores.' });
+  }
+  if (req.body.role === 'supervisor' && !req.body.productive_unit_id) {
+    return res.status(400).json({ error: 'Supervisor precisa de uma unidade produtiva.' });
   }
   if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.company_id)) {
     return res.status(403).json({ error: 'Gestores só podem cadastrar usuários da própria empresa.' });
@@ -323,7 +381,7 @@ app.post('/api/admin/badges/delete', async (req, res) => {
 
 app.post('/api/admin/import-runs', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
   }
 
@@ -349,7 +407,7 @@ app.post('/api/admin/import-runs', async (req, res) => {
 
 app.post('/api/admin/users/delete', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, [req.body.id].filter(Boolean)))) {
     return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
   }
@@ -392,7 +450,7 @@ app.post('/api/admin/productive-units', async (req, res) => {
 
 app.post('/api/admin/users/bulk-invite', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+  if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.company_id)) {
     return res.status(403).json({ error: 'Gestores só podem convidar usuários da própria empresa.' });
   }

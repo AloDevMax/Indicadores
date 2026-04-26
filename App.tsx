@@ -20,6 +20,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
 import SolicitationModal from './components/SolicitationModal';
+import ToastContainer from './components/ToastContainer';
 import './index.css';
 import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from './types';
 import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteCompanyWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from './utils/api';
@@ -314,42 +315,23 @@ const App: React.FC = () => {
   };
 
   const visibleCompanies = useMemo(() => {
-  if (!user) return [];
-
-  if (user.role === 'developer') {
-    return companies;
-  }
-
-  if (user.role === 'admin' || user.role === 'user') {
+    if (!user) return [];
+    if (user.role === 'developer') return companies;
     return companies.filter((company) => company.id === user.company_id);
-  }
-
-  return [];
-}, [companies, user]);
+  }, [companies, user]);
 
   const visibleProductiveUnits = useMemo(() => {
-  if (!user) return [];
-
-  if (user.role === 'developer') {
-    return productiveUnits;
-  }
-
-  return productiveUnits.filter(
-    (unit) => unit.company_id === user.company_id
-  );
-}, [productiveUnits, user]);
+    if (!user) return [];
+    if (user.role === 'developer') return productiveUnits;
+    if (user.role === 'supervisor') return productiveUnits.filter((u) => u.id === user.productive_unit_id);
+    return productiveUnits.filter((unit) => unit.company_id === user.company_id);
+  }, [productiveUnits, user]);
 
   const visibleUsers = useMemo(() => {
-  if (!user) return [];
-
-  if (user.role === 'developer') {
+    if (!user) return [];
+    // bootstrap já filtra os dados por role — retornar diretamente
     return users;
-  }
-
-  return users.filter(
-    (profile) => profile.company_id === user.company_id
-  );
-}, [users, user]);
+  }, [users]);
 
   if (loading) {
     return (
@@ -384,7 +366,7 @@ const App: React.FC = () => {
                 path="/"
                 element={
                   user
-                    ? (user.role === 'admin' || user.role === 'developer' ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
+                    ? (['admin', 'developer', 'supervisor'].includes(user.role) ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Landing />
                 }
               />
@@ -432,7 +414,7 @@ const App: React.FC = () => {
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking users={visibleUsers} badges={badges} userBadges={userBadges} badgeLegends={badgeLegends} /> : <Navigate to="/login" />}
+                element={user ? <Ranking currentUser={user} /> : <Navigate to="/login" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/login" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/login" />} />
@@ -447,7 +429,7 @@ const App: React.FC = () => {
               <Route
                 path="/admin/*"
                 element={
-                  user?.role === 'admin' || user?.role === 'developer' ? (
+                  user?.role && ['admin', 'developer', 'supervisor'].includes(user.role) ? (
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}
@@ -460,9 +442,6 @@ const App: React.FC = () => {
                       setProductiveUnits={setProductiveUnits}
                       badgeLegends={badgeLegends}
                       setBadgeLegends={setBadgeLegends}
-                      importSources={importSources}
-                      setImportSources={setImportSources}
-                      setImportBindingSnapshot={setImportBindingSnapshot}
                       users={visibleUsers}
                       setUsers={setUsers}
                       userBadges={userBadges}
@@ -477,10 +456,8 @@ const App: React.FC = () => {
                       onSaveUser={handleSaveUser}
                       onBulkInviteUsers={handleBulkInviteUsers}
                       onDeleteUser={handleDeleteUser}
-                      onSaveImportSource={handleSaveImportSource}
                       onAwardBadges={handleAwardBadges}
                       onRemoveUserBadge={handleRemoveUserBadge}
-                      onPersistImport={handlePersistImport}
                       onReviewSubmission={handleReviewSubmission}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
@@ -511,6 +488,7 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
+      <ToastContainer />
     </HashRouter>
   );
 };

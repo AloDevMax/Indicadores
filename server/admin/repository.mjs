@@ -46,6 +46,57 @@ export const saveBadge = async (badge) => {
   }
 };
 
+const INDICATOR_BADGES = [
+  { id: 'ind-nps', name: 'NPS', description: 'Net Promoter Score', category: 'Qualidade', icon_name: '⭐', points: 0 },
+  { id: 'ind-vol-nps', name: 'Volume NPS', description: 'Quantidade de avaliações NPS', category: 'Qualidade', icon_name: '📊', points: 0 },
+  { id: 'ind-recoletas', name: 'Recoletas', description: 'Taxa de recoletas por paciente', category: 'Qualidade', icon_name: '🔬', points: 0 },
+  { id: 'ind-5s', name: 'Auditoria 5S', description: 'Resultado da auditoria 5S', category: 'Qualidade', icon_name: '🏠', points: 0 },
+  { id: 'ind-docs', name: 'Leitura de Documentos', description: 'Leitura de documentos do mês', category: 'Qualidade', icon_name: '📄', points: 0 },
+  { id: 'ind-nc', name: 'Não Conformidades', description: 'Ausência de NCs vencidas', category: 'Qualidade', icon_name: '✅', points: 0 },
+  { id: 'ind-ponto', name: 'Ajuste de Ponto', description: 'Registros de ponto ajustados', category: 'RH', icon_name: '⏰', points: 0 },
+  { id: 'ind-iapp', name: 'IAPP', description: 'Erros de baixa com impacto logístico', category: 'Logística', icon_name: '🚚', points: 0 },
+  { id: 'ind-curso', name: 'Curso Extra', description: 'Certificado de curso extra', category: 'Desenvolvimento', icon_name: '🎓', points: 0 },
+  { id: 'ind-aceleradoras', name: 'Atitudes Aceleradoras', description: 'Ações além das funções normais', category: 'Comportamental', icon_name: '🚀', points: 0 },
+  { id: 'ind-faturamento', name: 'Faturamento', description: 'Pendência de guia no faturamento', category: 'Qualidade', icon_name: '💰', points: 0 },
+  { id: 'ind-advertencia', name: 'Advertência', description: 'Advertência recebida no mês', category: 'Comportamental', icon_name: '⚠️', points: 0 },
+  { id: 'ind-reincidente', name: 'Critério Reincidente', description: 'Critério não pontuado por 2 meses consecutivos', category: 'Qualidade', icon_name: '🔁', points: 0 },
+];
+
+export const seedIndicatorBadges = async () => {
+  const client = await createPgClient();
+
+  if (!client) {
+    for (const badge of INDICATOR_BADGES) {
+      if (!memoryAdminStore.badges.some(b => b.id === badge.id)) {
+        memoryAdminStore.badges.push(badge);
+      }
+    }
+    return INDICATOR_BADGES;
+  }
+
+  try {
+    const results = [];
+    for (const badge of INDICATOR_BADGES) {
+      const result = await client.query(
+        `insert into badges (id, name, description, category, icon_name, points)
+         values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update
+         set name = excluded.name,
+             description = excluded.description,
+             category = excluded.category,
+             icon_name = excluded.icon_name,
+             points = excluded.points
+         returning id, name, description, category, icon_name, points`,
+        [badge.id, badge.name, badge.description, badge.category, badge.icon_name, badge.points],
+      );
+      results.push(result.rows[0]);
+    }
+    return results;
+  } finally {
+    await client.end();
+  }
+};
+
 export const deleteBadge = async (badgeId) => {
   const client = await createPgClient();
 

@@ -6,14 +6,11 @@ import { createPgClient } from './client.mjs';
 
 const mapRows = (rows, mapper) => rows.map(mapper);
 
-const filterDataForManager = (payload, currentUser) => {
-  if (!currentUser || currentUser.role !== 'admin' || !currentUser.company_id) {
-    return payload;
-  }
+const filterDataForAdmin = (payload, currentUser) => {
+  if (!currentUser || !currentUser.company_id) return payload;
 
   const companyId = currentUser.company_id;
   const productiveUnits = payload.productiveUnits.filter((unit) => unit.company_id === companyId);
-  const productiveUnitIds = new Set(productiveUnits.map((unit) => unit.id));
   const users = payload.users.filter((user) => user.company_id === companyId);
   const userIds = new Set(users.map((user) => user.id));
 
@@ -24,10 +21,51 @@ const filterDataForManager = (payload, currentUser) => {
     users,
     userBadges: payload.userBadges.filter((badge) => userIds.has(badge.user_id)),
     submissions: payload.submissions.filter((submission) => userIds.has(submission.user_id)),
-    importSources: payload.importSources,
-    badgeLegends: payload.badgeLegends,
-    badges: payload.badges,
   };
+};
+
+const filterDataForSupervisor = (payload, currentUser) => {
+  const unitId = currentUser.productive_unit_id;
+  if (!unitId) return payload;
+
+  const users = payload.users.filter((u) => u.productive_unit_id === unitId);
+  const userIds = new Set(users.map((u) => u.id));
+
+  return {
+    ...payload,
+    companies: payload.companies.filter((c) => c.id === currentUser.company_id),
+    productiveUnits: payload.productiveUnits.filter((u) => u.id === unitId),
+    users,
+    userBadges: payload.userBadges.filter((ub) => userIds.has(ub.user_id)),
+    submissions: payload.submissions.filter((s) => userIds.has(s.user_id)),
+  };
+};
+
+const filterDataForUser = (payload, currentUser) => {
+  const unitId = currentUser.productive_unit_id;
+  const unitUsers = unitId
+    ? payload.users.filter((u) => u.productive_unit_id === unitId)
+    : payload.users.filter((u) => u.id === currentUser.id);
+
+  return {
+    ...payload,
+    companies: payload.companies.filter((c) => c.id === currentUser.company_id),
+    productiveUnits: unitId ? payload.productiveUnits.filter((u) => u.id === unitId) : [],
+    users: unitUsers,
+    userBadges: payload.userBadges.filter((ub) => ub.user_id === currentUser.id),
+    submissions: payload.submissions.filter((s) => s.user_id === currentUser.id),
+    importSources: [],
+  };
+};
+
+const applyRoleFilter = (payload, currentUser) => {
+  if (!currentUser) return payload;
+  const { role } = currentUser;
+  if (role === 'developer') return payload;
+  if (role === 'admin') return filterDataForAdmin(payload, currentUser);
+  if (role === 'supervisor') return filterDataForSupervisor(payload, currentUser);
+  if (role === 'user') return filterDataForUser(payload, currentUser);
+  return payload;
 };
 
 export const loadBootstrapData = async (currentUser = null) => {
@@ -35,7 +73,7 @@ export const loadBootstrapData = async (currentUser = null) => {
 
   if (!client) {
     const users = await listUsers();
-    return filterDataForManager({
+    return applyRoleFilter({
       source: 'seed',
       ...seedData,
       badges: memoryAdminStore.badges,
@@ -144,7 +182,7 @@ export const loadBootstrapData = async (currentUser = null) => {
       return accumulator;
     }, new Map());
 
-    return filterDataForManager({
+    return applyRoleFilter({
       source: 'database',
       badges: badges.rows,
       companies: companies.rows,

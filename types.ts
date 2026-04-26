@@ -1,5 +1,5 @@
 
-export type Role = 'admin' | 'user' | 'developer';
+export type Role = 'admin' | 'user' | 'developer' | 'supervisor';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
 export type ImportSourceField = 'company' | 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
@@ -96,6 +96,25 @@ export interface AppBootstrapPayload {
   users: Profile[];
   userBadges: UserBadge[];
   submissions: BadgeSubmission[];
+}
+
+export interface IndicatorRow {
+  excelName: string;
+  indicators: Record<string, number>; // badgeId → value (-2 to 3)
+}
+
+export interface UserMatchResult {
+  excelName: string;
+  matchedUserId: string | null;
+  matchedUserName: string | null;
+  confidence: 'auto' | 'manual' | 'ignored';
+}
+
+export interface MonthlyImportPreview {
+  month: number;
+  year: number;
+  rows: IndicatorRow[];
+  userMatches: UserMatchResult[];
 }
 
 export interface BadgeSubmission {

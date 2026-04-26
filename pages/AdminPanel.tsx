@@ -1,32 +1,75 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
+import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '../types';
 import BadgeCard from '../components/BadgeCard';
 import { ImageUpload } from '../components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
 import { cn } from '../utils/cn';
-
-const IMPORT_FIELD_ALIASES: Record<ImportSourceField, string[]> = {
-  company: ['empresa', 'companhia', 'organizacao', 'organização', 'company'],
-  productive_unit: ['unidade_produtiva', 'unidade produtiva', 'unidade', 'setor', 'area', 'área', 'productive_unit'],
-  user: ['explorador', 'colaborador', 'funcionario', 'funcionário', 'nome', 'usuario', 'usuário', 'user'],
-  badge: ['selo', 'badge', 'conquista'],
-  tone: ['marcacao', 'marcação', 'cor', 'tone', 'faixa'],
-  award: ['premio', 'prêmio', 'autorizar', 'autorizacao', 'autorização', 'award'],
-};
-
-const IMPORT_FIELD_LABELS: Record<ImportSourceField, string> = {
-  company: 'Empresa',
-  productive_unit: 'Unidade produtiva',
-  user: 'Colaborador',
-  badge: 'Selo',
-  tone: 'Marcação',
-  award: 'Autorização',
-};
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '../utils/api';
+import { toast } from '../utils/toast';
 
 const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
+
+const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+// Maps normalized Excel column header keywords → badge ID (more specific keys must come first)
+const EXCEL_COLUMN_TO_BADGE_ID: Record<string, string> = {
+  'vol nps': 'ind-vol-nps',
+  'volume nps': 'ind-vol-nps',
+  'qtd nps': 'ind-vol-nps',
+  'quantidade nps': 'ind-vol-nps',
+  'avaliacoes nps': 'ind-vol-nps',
+  'avaliacao nps': 'ind-vol-nps',
+  'qtd. avaliacao': 'ind-vol-nps',
+  'nps': 'ind-nps',
+  'recoleta': 'ind-recoletas',
+  'recoletas': 'ind-recoletas',
+  '5s': 'ind-5s',
+  'auditoria': 'ind-5s',
+  'leitura': 'ind-docs',
+  'documento': 'ind-docs',
+  'documentos': 'ind-docs',
+  'nc': 'ind-nc',
+  'nao conformidade': 'ind-nc',
+  'nao conformidades': 'ind-nc',
+  'nao conformid': 'ind-nc',
+  'ponto': 'ind-ponto',
+  'ajuste de ponto': 'ind-ponto',
+  'assiduidade': 'ind-ponto',
+  'absenteismo': 'ind-ponto',
+  'iapp': 'ind-iapp',
+  'curso': 'ind-curso',
+  'cursos': 'ind-curso',
+  'aceleradoras': 'ind-aceleradoras',
+  'atitudes': 'ind-aceleradoras',
+  'faturamento': 'ind-faturamento',
+  'guia': 'ind-faturamento',
+  'advertencia': 'ind-advertencia',
+  'advertencias': 'ind-advertencia',
+  'reincidente': 'ind-reincidente',
+  'criterio reincidente': 'ind-reincidente',
+};
+
+const TONE_FROM_VALUE: Record<number, BadgeTone | null> = { 3: 'gold', 2: 'silver', 1: 'bronze', 0: null, [-1]: 'loss_1', [-2]: 'loss_2' };
+
+const normalizeStr = (s: string) =>
+  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+const stringSimilarity = (a: string, b: string): number => {
+  const na = normalizeStr(a);
+  const nb = normalizeStr(b);
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  const longer = na.length > nb.length ? na : nb;
+  const shorter = na.length > nb.length ? nb : na;
+  let matches = 0;
+  for (let i = 0; i < shorter.length; i++) {
+    if (longer.includes(shorter[i])) matches++;
+  }
+  return matches / longer.length;
+};
 
 interface AdminPanelProps {
   currentUser: Profile;
@@ -40,9 +83,6 @@ interface AdminPanelProps {
   setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
   badgeLegends: BadgeLegendSettings;
   setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
-  importSources: ImportSourceConfig[];
-  setImportSources: React.Dispatch<React.SetStateAction<ImportSourceConfig[]>>;
-  setImportBindingSnapshot: React.Dispatch<React.SetStateAction<ImportBindingSnapshot | null>>;
   users: Profile[];
   setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
   userBadges: UserBadge[];
@@ -57,66 +97,12 @@ interface AdminPanelProps {
   onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
   onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
   onDeleteUser?: (_userId: string) => Promise<void>;
-  onSaveImportSource?: (_importSource: ImportSourceConfig) => Promise<ImportSourceConfig>;
   onAwardBadges?: (_userIds: string[], _badgeId: string, _tone: BadgeTone) => Promise<void>;
   onRemoveUserBadge?: (_userId: string, _badgeId: string) => Promise<void>;
-  onPersistImport?: (
-    _sourceId: string,
-    _sourceName: string,
-    _matchedColumns: Partial<Record<string, string>>,
-    _rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: BadgeTone; status: 'valid' | 'invalid'; reason?: string }>,
-  ) => Promise<number>;
   onReviewSubmission?: (_submissionId: string, _status: 'approved' | 'rejected') => Promise<void>;
   onOpenSolicitation?: () => void;
 }
 
-interface ImportPreviewBadge {
-  columnName: string;
-  badgeName: string;
-  badgeValue: number;
-  badge?: Badge;
-}
-
-interface ImportPreview {
-  row: Record<string, string>;
-  userName: string;
-  companyId?: string;
-  companyName: string;
-  productiveUnitId?: string;
-  productiveUnitName: string;
-  user?: Profile;
-  company?: Company;
-  productiveUnit?: ProductiveUnit;
-  badges: ImportPreviewBadge[];
-  badgeValues?: Record<string, number>;
-  numericMeta?: Record<string, number>;
-  textMeta?: Record<string, string>;
-  tone: BadgeTone;
-  sourceName: string;
-  matchedColumns: Partial<Record<ImportSourceField, string>>;
-  status: 'valid' | 'invalid';
-  reason?: string;
-}
-
-type ExcelSheetRow = unknown[];
-type ExcelRow = Record<string, unknown>;
-
-interface ParsedExcelData {
-  rawRows: ExcelSheetRow[];
-  headerRowIndex: number;
-  headers: string[];
-  rows: ExcelRow[];
-}
-
-interface ProcessedExcelData {
-  previews: ImportPreview[];
-  importedBadges: UserBadge[];
-  summary: {
-    processed: number;
-    success: number;
-    failed: number;
-  };
-}
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ 
   currentUser,
@@ -130,9 +116,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setProductiveUnits,
   badgeLegends,
   setBadgeLegends,
-  importSources,
-  setImportSources,
-  setImportBindingSnapshot,
   users,
   setUsers,
   userBadges,
@@ -147,23 +130,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onSaveUser,
   onBulkInviteUsers,
   onDeleteUser,
-  onSaveImportSource,
   onAwardBadges,
   onRemoveUserBadge,
-  onPersistImport,
   onReviewSubmission,
   onOpenSolicitation
 }) => {
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
+  const isSupervisor = currentUser.role === 'supervisor';
   const canManageGlobalCatalog = isDeveloper;
-  const canConfigureImportSource = isDeveloper;
   const allowedViews = isDeveloper
     ? new Set(['overview', 'submissions', 'users', 'award', 'badges', 'companies'])
-    : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
+    : isSupervisor
+      ? new Set(['overview', 'submissions', 'users', 'award'])
+      : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
@@ -193,44 +174,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isBulkInviteModalOpen, setIsBulkInviteModalOpen] = useState(false);
   const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
-  const [sendEmailOnAward, setSendEmailOnAward] = useState(false);
-
-  const sendEmailNotification = (to: string, subject: string, message: string) => {
-    /* no mock local, log + toast */
-    console.log('ENVIANDO EMAIL PARA', to, subject, message);
-    // Em backend real, chamar API de envio de e-mail aqui.
-    return true;
-  };
-
   const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
+  const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
   const [bulkInviteCompanyId, setBulkInviteCompanyId] = useState('');
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isImportMappingModalOpen, setIsImportMappingModalOpen] = useState(false);
-  const [isImportSourceModalOpen, setIsImportSourceModalOpen] = useState(false);
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
-  const [importPreviews, setImportPreviews] = useState<ImportPreview[]>([]);
   const [isLegendCollapsed, setIsLegendCollapsed] = useState(true);
-  const [selectedImportSourceId, setSelectedImportSourceId] = useState<string>(importSources[0]?.id || '');
-  const [editingImportSource, setEditingImportSource] = useState<ImportSourceConfig | null>(null);
-  const [importSheetMatrix, setImportSheetMatrix] = useState<ExcelSheetRow[]>([]);
-  const [importSheetRows, setImportSheetRows] = useState<Record<string, unknown>[]>([]);
-  const [importSheetHeaders, setImportSheetHeaders] = useState<string[]>([]);
-  const [importHeaderRowIndex, setImportHeaderRowIndex] = useState(0);
-  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null);
-  const [assistedImportColumns, setAssistedImportColumns] = useState<Record<ImportSourceField, string>>({
-    company: '',
-    productive_unit: '',
-    user: '',
-    badge: '',
-    tone: '',
-    award: '',
-  });
-  const [assistedImportBadgeColumns, setAssistedImportBadgeColumns] = useState<string[]>([]);
-  
+
+  // Excel monthly import state
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  useEffect(() => {
+    document.body.style.overflow = isImportModalOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isImportModalOpen]);
+
+  useEffect(() => {
+    document.body.style.overflow = isUserModalOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isUserModalOpen]);
+  type ImportStep = 'select' | 'matching' | 'preview' | 'done';
+  const [importStep, setImportStep] = useState<ImportStep>('select');
+  const [importMonth, setImportMonth] = useState<number>(new Date().getMonth() + 1);
+  const [importYear, setImportYear] = useState<number>(new Date().getFullYear());
+  const [importRows, setImportRows] = useState<IndicatorRow[]>([]);
+  const [importColumnIds, setImportColumnIds] = useState<string[]>([]);
+  const [userMatches, setUserMatches] = useState<UserMatchResult[]>([]);
+  const [importError, setImportError] = useState<string>('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ awardedCount: number } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
   const [userSearch, setUserSearch] = useState('');
 
   const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
@@ -278,12 +254,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setTempUserAvatarUrl(undefined);
   };
 
-  React.useEffect(() => {
-    if (!selectedImportSourceId && importSources[0]) {
-      setSelectedImportSourceId(importSources[0].id);
-    }
-  }, [importSources, selectedImportSourceId]);
-
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers(prev => 
       prev.includes(userId) 
@@ -306,58 +276,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
   const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
   const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(safeAdminProfile.id, userBadges);
-  const fallbackImportSource: ImportSourceConfig = {
-    id: 'default-import-source',
-    name: 'Fonte sem nome',
-    description: 'Fonte padrão de importação',
-    columns: {
-      company: 'empresa',
-      productive_unit: 'unidade_produtiva',
-      user: 'explorador',
-      badge: 'selo',
-      tone: 'marcacao',
-      award: 'premio',
-    },
-  };
-  const activeImportSource = importSources.find(source => source.id === selectedImportSourceId) || importSources[0] || fallbackImportSource;
-
-  const normalizeCell = (value: unknown) => value?.toString().trim() || '';
-  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-  const normalizeCompare = (value: unknown) => normalize(normalizeCell(value));
-  const allHeaderAliases = Object.values(IMPORT_FIELD_ALIASES).flat();
-  const badgeNegativeValues = new Set(['', '0', 'nao', 'não', 'n', 'false', '-', '--']);
-  const positiveBadgeTokens = new Set(['1', 'x', '✓', '✔', 'true', 'sim', 's', 'ok']);
-
-  const parseTone = (value: unknown): BadgeTone => {
-    const normalized = normalizeCompare(value);
-    if (normalized.includes('ouro') || normalized === 'gold') return 'gold';
-    if (normalized.includes('prata') || normalized === 'silver') return 'silver';
-    if (normalized.includes('bronze')) return 'bronze';
-    if (normalized.includes('loss_2') || normalized.includes('perda 2') || normalized.includes('perda2') || normalized.includes('vermelho intenso')) return 'loss_2';
-    if (normalized.includes('loss_1') || normalized.includes('perda 1') || normalized.includes('perda1') || normalized.includes('vermelho')) return 'loss_1';
-    return 'bronze';
-  };
-
-  const findMatchingRowKey = (row: ExcelRow, candidates: string[]) => {
-    const normalizedCandidates = candidates.map(normalizeCompare).filter(Boolean);
-    return Object.keys(row).find((key) =>
-      normalizedCandidates.some((candidate) => normalizeCompare(key) === candidate),
-    );
-  };
-
-  const getFieldValue = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig): string => {
-    const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    const matchedKey = findMatchingRowKey(row, candidates);
-    return matchedKey ? normalizeCell(row[matchedKey]) : '';
-  };
-
-  const getMatchedColumnName = (row: ExcelRow, field: ImportSourceField, source: ImportSourceConfig) => {
-    const columnName = source.columns[field];
-    const candidates = [columnName, ...IMPORT_FIELD_ALIASES[field]].filter(Boolean);
-    return findMatchingRowKey(row, candidates);
-  };
-
   const renderSquareImage = (src: string, alt: string) => (
     <img
       src={src}
@@ -365,414 +283,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       className="w-full h-full object-contain p-2 bg-white"
     />
   );
-
-  const suggestColumnForField = (headers: string[], field: ImportSourceField, source: ImportSourceConfig) => {
-    const candidates = [source.columns[field], ...IMPORT_FIELD_ALIASES[field]].map(normalizeCompare);
-
-    const exactMatch = headers.find(header => candidates.includes(normalizeCompare(header)));
-    if (exactMatch) return exactMatch;
-
-    const partialMatch = headers.find(header => candidates.some(candidate => normalizeCompare(header).includes(candidate) || candidate.includes(normalizeCompare(header))));
-    return partialMatch || '';
-  };
-
-  const normalizeHeaderCells = (headers: ExcelSheetRow): Array<string | null> => {
-    const usedHeaders = new Map<string, number>();
-
-    return headers.map((headerCell, index) => {
-      const rawHeader = normalizeCell(headerCell).replace(/^__EMPTY(?:_\d+)?$/i, '');
-      if (!rawHeader) {
-        return null;
-      }
-
-      const fallbackHeader = rawHeader || `Coluna ${index + 1}`;
-      const occurrences = usedHeaders.get(normalizeCompare(fallbackHeader)) || 0;
-      usedHeaders.set(normalizeCompare(fallbackHeader), occurrences + 1);
-
-      return occurrences === 0 ? fallbackHeader : `${fallbackHeader} (${occurrences + 1})`;
-    });
-  };
-
-  const normalizeHeaders = (headers: ExcelSheetRow): string[] => {
-    return normalizeHeaderCells(headers).filter((header): header is string => Boolean(header));
-  };
-
-  const extractHeaders = (rows: ExcelSheetRow[]) => {
-    const evaluateRowScore = (row: ExcelSheetRow) => {
-      const values = row.map(normalizeCell).filter(Boolean);
-      if (values.length === 0) return -1;
-
-      const aliasMatches = values.filter((value) =>
-        allHeaderAliases.some((alias) =>
-          normalizeCompare(value) === normalizeCompare(alias) ||
-          normalizeCompare(value).includes(normalizeCompare(alias)),
-        ),
-      ).length;
-      const textualValues = values.filter((value) => /[a-zA-ZÀ-ÿ]/.test(value)).length;
-
-      return aliasMatches * 5 + textualValues + (values.length >= 2 ? 2 : 0);
-    };
-
-    let bestRowIndex = rows.findIndex((row) => row.some((cell) => normalizeCell(cell)));
-    let bestScore = bestRowIndex >= 0 ? evaluateRowScore(rows[bestRowIndex]) : -1;
-
-    rows.slice(0, 10).forEach((row, index) => {
-      const score = evaluateRowScore(row);
-      if (score > bestScore) {
-        bestScore = score;
-        bestRowIndex = index;
-      }
-    });
-
-    const headerRowIndex = bestRowIndex >= 0 ? bestRowIndex : 0;
-    return {
-      headerRowIndex,
-      headers: normalizeHeaders(rows[headerRowIndex] || []),
-    };
-  };
-
-  const buildExcelRows = (rawRows: ExcelSheetRow[], headerRowIndex: number): ExcelRow[] => {
-    const headerRow = rawRows[headerRowIndex] || [];
-    const normalizedHeaderNames = normalizeHeaderCells(headerRow);
-
-    return rawRows
-      .slice(headerRowIndex + 1)
-      .map((row) => {
-        const nextRowEntries = headerRow.reduce<Array<[string, unknown]>>((entries, _headerCell, columnIndex) => {
-          const headerName = normalizedHeaderNames[columnIndex];
-          if (!headerName) {
-            return entries;
-          }
-
-          entries.push([headerName, row[columnIndex] ?? '']);
-          return entries;
-        }, []);
-
-        return Object.fromEntries(nextRowEntries);
-      })
-      .filter((row) => Object.values(row).some((value) => normalizeCell(value)));
-  };
-
-  const getHeaderRowOptions = (rawRows: ExcelSheetRow[]) => (
-    rawRows
-      .map((row, index) => ({
-        index,
-        preview: row.map(normalizeCell).filter(Boolean).slice(0, 4).join(' | '),
-      }))
-      .filter((row) => row.preview)
-      .slice(0, 12)
-  );
-
-  const isNegativeBadgeValue = (value: string) => badgeNegativeValues.has(normalizeCompare(value));
-
-  const findBadgeByName = (value: string) => (
-    badges.find((badge) => normalizeCompare(badge?.name || '') === normalizeCompare(value))
-  );
-
-  const classifyColumn = (header: string): 'badge' | 'numeric_meta' | 'text_meta' => {
-    const normalizedHeader = normalizeCompare(header);
-
-    if (
-      normalizedHeader.includes('total') ||
-      normalizedHeader.includes('bonificação') ||
-      normalizedHeader.includes('bonificacao') ||
-      normalizedHeader.includes('bonus')
-    ) {
-      return 'numeric_meta';
-    }
-
-    if (
-      normalizedHeader.includes('observação') ||
-      normalizedHeader.includes('observacao') ||
-      normalizedHeader.includes('nota') ||
-      normalizedHeader.includes('comentário') ||
-      normalizedHeader.includes('comentario')
-    ) {
-      return 'text_meta';
-    }
-
-    return 'badge';
-  };
-
-  const getDefaultIndicatorColumns = (headers: string[], source: ImportSourceConfig) => {
-    const fixedColumns = new Set(
-      (['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[])
-        .map((field) => suggestColumnForField(headers, field, source))
-        .filter(Boolean)
-        .map(normalizeCompare),
-    );
-
-    return headers.filter((header) => !fixedColumns.has(normalizeCompare(header)) && classifyColumn(header) === 'badge');
-  };
-
-  const getSelectedBadgeColumns = (source: ImportSourceConfig) => {
-    if (assistedImportBadgeColumns.length > 0) {
-      return assistedImportBadgeColumns;
-    }
-
-    return getDefaultIndicatorColumns(importSheetHeaders, source);
-  };
-
-  const parseIndicatorValue = (value: unknown) => {
-    const normalizedValue = normalizeCell(value);
-    if (isNegativeBadgeValue(normalizedValue)) {
-      return null;
-    }
-
-    if (positiveBadgeTokens.has(normalizeCompare(normalizedValue))) {
-      return 1;
-    }
-
-    const numericValue = Number(normalizedValue.replace(',', '.'));
-    if (Number.isFinite(numericValue) && numericValue > 0) {
-      return numericValue;
-    }
-
-    return null;
-  };
-
-  const getBadgeCandidatesFromRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreviewBadge[] => {
-    const badgeColumns = getSelectedBadgeColumns(source);
-    const resolvedBadges: ImportPreviewBadge[] = [];
-
-    badgeColumns.forEach((selectedColumnName) => {
-      const columnName = findMatchingRowKey(row, [selectedColumnName]) || selectedColumnName;
-      const badgeValue = parseIndicatorValue(row[columnName]);
-
-      if (badgeValue !== null) {
-        resolvedBadges.push({
-          columnName,
-          badgeName: columnName,
-          badgeValue,
-          badge: findBadgeByName(columnName),
-        });
-      }
-    });
-
-    return resolvedBadges;
-  };
-
-  const getNumericMetaFromRow = (row: ExcelRow, source: ImportSourceConfig) => {
-    return Object.fromEntries(
-      Object.keys(row)
-        .filter((header) => classifyColumn(header) === 'numeric_meta')
-        .map((header) => [header, parseIndicatorValue(row[findMatchingRowKey(row, [header]) || header])])
-        .filter((entry): entry is [string, number] => entry[1] !== null),
-    );
-  };
-
-  const getTextMetaFromRow = (row: ExcelRow) => {
-    return Object.fromEntries(
-      Object.keys(row)
-        .filter((header) => classifyColumn(header) === 'text_meta')
-        .map((header) => [header, normalizeCell(row[header])])
-        .filter((entry) => entry[1]),
-    );
-  };
-
-  const parseExcel = (file: File): Promise<ParsedExcelData> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = (event) => {
-      try {
-        const binary = event.target?.result;
-        const workbook = XLSX.read(binary, { type: 'binary' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = firstSheetName ? workbook.Sheets[firstSheetName] : undefined;
-        if (!worksheet) {
-          throw new Error('Nenhuma planilha encontrada no arquivo.');
-        }
-        const rawRows = XLSX.utils.sheet_to_json<ExcelSheetRow>(worksheet, { header: 1, defval: '' });
-        const { headerRowIndex, headers } = extractHeaders(rawRows);
-        const rows = buildExcelRows(rawRows, headerRowIndex);
-
-        resolve({ rawRows, headerRowIndex, rows, headers });
-      } catch (error) {
-        reject(error);
-      }
-    };
-
-    reader.onerror = () => reject(new Error('Falha ao ler o arquivo Excel.'));
-    reader.readAsBinaryString(file);
-  });
-
-  const mapRow = (row: ExcelRow, source: ImportSourceConfig): ImportPreview => {
-    const selectedBadgeColumns = getSelectedBadgeColumns(source);
-    const userValue = getFieldValue(row, 'user', source);
-    const toneValue = getFieldValue(row, 'tone', source);
-    const awardValue = getFieldValue(row, 'award', source).toUpperCase();
-    const badgeCandidates = getBadgeCandidatesFromRow(row, source);
-    const numericMeta = getNumericMetaFromRow(row, source);
-    const textMeta = getTextMetaFromRow(row);
-    const productiveUnitFound = productiveUnits.find((unit) => unit.id === selectedUnitId) || undefined;
-    const inferredCompanyId = currentUser.company_id || productiveUnitFound?.company_id;
-    const companyFound = companies.find((company) => company.id === inferredCompanyId);
-    const inferredCompanyName = companyFound?.name || 'Empresa vinculada';
-    const userFound = users.find(user =>
-      normalizeCompare(user.full_name) === normalizeCompare(userValue) &&
-      (!inferredCompanyId || user.company_id === inferredCompanyId) &&
-      (!selectedUnitId || user.productive_unit_id === selectedUnitId)
-    );
-    const tone = parseTone(toneValue);
-
-    let status: 'valid' | 'invalid' = 'valid';
-    let reason = '';
-
-    if (!selectedUnitId || !productiveUnitFound) { status = 'invalid'; reason = 'unidade nao selecionada'; }
-    else if (!userFound) { status = 'invalid'; reason = 'colaborador nao encontrado'; }
-    else if (badgeCandidates.length === 0) { status = 'invalid'; reason = 'nenhum indicador ativo encontrado'; }
-      else if (badgeCandidates.some((badge) => !badge.badge)) {
-        const missingBadges = badgeCandidates.filter((badge) => !badge.badge).map((badge) => badge.badgeName);
-        missingBadges.forEach((badgeName) => console.log('[excel-import] Badge nao encontrado:', badgeName));
-        status = 'invalid';
-        reason = 'selo nao encontrado';
-      }
-    else if (awardValue && awardValue !== 'S' && awardValue !== 'SIM') { status = 'invalid'; reason = 'premiacao nao autorizada'; }
-
-    return {
-      row: {
-        ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, normalizeCell(value)])),
-        explorador: userValue,
-        empresa: inferredCompanyName,
-        unidade_produtiva: productiveUnitFound?.name || 'Unidade nao selecionada',
-        selos: badgeCandidates.map((badge) => badge.badgeName).join(', '),
-        premio: awardValue,
-        marcacao: toneValue || tone,
-      },
-      userName: userValue,
-      companyId: inferredCompanyId,
-      companyName: inferredCompanyName,
-      productiveUnitId: productiveUnitFound?.id,
-      productiveUnitName: productiveUnitFound?.name || 'Unidade nao selecionada',
-      user: userFound,
-      company: companyFound,
-      productiveUnit: productiveUnitFound,
-      badges: badgeCandidates,
-      badgeValues: Object.fromEntries(badgeCandidates.map((badge) => [badge.badgeName, badge.badgeValue])),
-      numericMeta,
-      textMeta,
-      tone,
-      sourceName: source?.name || 'Fonte sem nome',
-      matchedColumns: {
-        company: 'empresa inferida do contexto',
-        productive_unit: productiveUnitFound?.name || 'unidade selecionada',
-        user: getMatchedColumnName(row, 'user', source),
-        badge: selectedBadgeColumns.join(', '),
-        tone: getMatchedColumnName(row, 'tone', source),
-          award: getMatchedColumnName(row, 'award', source),
-        },
-        status,
-        reason,
-      };
-  };
-
-  const processExcelData = (rows: ExcelRow[], source: ImportSourceConfig): ProcessedExcelData => {
-    const previews = rows.map((row) => mapRow(row, source));
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const existingKeys = new Set(
-      userBadges
-        .filter((badge) => badge.awarded_at.slice(0, 10) === todayKey)
-        .map((badge) => `${badge.user_id}:${badge.badge_id}:${todayKey}`),
-    );
-    const importedKeys = new Set<string>();
-    const importedBadges: UserBadge[] = [];
-    let foundUsers = 0;
-
-    previews.forEach((preview, index) => {
-      if (preview.user?.id) {
-        foundUsers += 1;
-      }
-      if (preview.status !== 'valid' || !preview.user?.id) {
-        if (preview.reason?.includes('colaborador')) {
-          console.log(`[excel-import] linha ${index + 1}: usuario nao encontrado`, preview.row);
-        }
-        if (preview.reason?.includes('selo')) {
-          console.log(`[excel-import] linha ${index + 1}: selo nao encontrado`, preview.row);
-        }
-        return;
-      }
-
-      const nextBadges = preview.badges.reduce<UserBadge[]>((awards, badge) => {
-        if (!badge.badge?.id) {
-          return awards;
-        }
-
-        const duplicateKey = `${preview.user?.id}:${badge.badge.id}:${todayKey}`;
-        if (existingKeys.has(duplicateKey) || importedKeys.has(duplicateKey)) {
-          return awards;
-        }
-
-        importedKeys.add(duplicateKey);
-        awards.push({
-          id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2, 11),
-          user_id: preview.user!.id,
-          badge_id: badge.badge.id,
-          awarded_at: new Date().toISOString(),
-          awarded_by: safeAdminProfile.id,
-          tone: preview.tone,
-          company_id: preview.companyId,
-          productive_unit_id: preview.productiveUnitId,
-        });
-        return awards;
-      }, []);
-
-      if (preview.badges.length > 0 && nextBadges.length === 0) {
-        preview.status = 'invalid';
-        preview.reason = 'selos duplicados no mesmo dia';
-      }
-
-      importedBadges.push(...nextBadges);
-    });
-
-    const summary = {
-      processed: rows.length,
-      success: importedBadges.length,
-      failed: previews.filter((preview) => preview.status === 'invalid').length,
-    };
-
-    console.log('[excel-import] total de linhas processadas:', summary.processed);
-    console.log('[excel-import] total de colaboradores encontrados:', foundUsers);
-    console.log('[excel-import] total de sucessos:', summary.success);
-    console.log('[excel-import] total de falhas:', summary.failed);
-
-    return {
-      previews,
-      importedBadges,
-      summary,
-    };
-  };
-
-  const applyHeaderRowSelection = (rawRows: ExcelSheetRow[], headerRowIndex: number, source: ImportSourceConfig) => {
-    const rows = buildExcelRows(rawRows, headerRowIndex);
-    const headers = extractHeaders([rawRows[headerRowIndex] || []]).headers;
-    const suggestedColumns: Record<ImportSourceField, string> = {
-      company: suggestColumnForField(headers, 'company', source),
-      productive_unit: suggestColumnForField(headers, 'productive_unit', source),
-      user: suggestColumnForField(headers, 'user', source),
-      badge: suggestColumnForField(headers, 'badge', source),
-      tone: suggestColumnForField(headers, 'tone', source),
-      award: suggestColumnForField(headers, 'award', source),
-    };
-    const suggestedBadgeColumns = getDefaultIndicatorColumns(headers, source);
-
-    setImportHeaderRowIndex(headerRowIndex);
-    setImportSheetRows(rows);
-    setImportSheetHeaders(headers);
-    setAssistedImportColumns(suggestedColumns);
-    setAssistedImportBadgeColumns(
-      suggestedBadgeColumns.length > 0
-        ? suggestedBadgeColumns
-        : (suggestedColumns.badge ? [suggestedColumns.badge] : []),
-    );
-  };
-
-  const buildImportSourceWithMapping = (): ImportSourceConfig => ({
-    ...(activeImportSource || fallbackImportSource),
-    columns: {
-      ...assistedImportColumns,
-      badge: assistedImportBadgeColumns[0] || assistedImportColumns.badge,
-    },
-  });
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
     console.log('Awarding badge:', { userId: targetUserId, badgeId });
@@ -823,9 +333,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (onReviewSubmission) {
       try {
         await onReviewSubmission(submissionId, status);
-        alert(`SolicitaÃ§Ã£o ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+        setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
+        toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
       } catch (error) {
-        alert(error instanceof Error ? error.message : 'Falha ao revisar solicitaÃ§Ã£o.');
+        toast.error(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
       }
       return;
     }
@@ -836,13 +347,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       upsertUserBadge(submission.user_id, submission.badge_id, 'bronze');
     }
     
-    alert(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+    toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
   };
 
   const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canManageGlobalCatalog) {
-      alert('Somente o desenvolvedor pode manter a biblioteca global de selos.');
+      toast.error('Somente o desenvolvedor pode manter a biblioteca global de selos.');
       return;
     }
     const formData = new FormData(e.currentTarget);
@@ -863,13 +374,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempBadgeImageUrl(undefined);
     } catch (error) {
       console.error('Error saving badge:', error);
-      alert('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
   const handleDeleteBadge = async () => {
     if (!canManageGlobalCatalog) {
-      alert('Somente o desenvolvedor pode remover selos da biblioteca global.');
+      toast.error('Somente o desenvolvedor pode remover selos da biblioteca global.');
       return;
     }
     if (badgeToDelete) {
@@ -898,7 +409,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempCompanyLogoUrl(undefined);
     } catch (error) {
       console.error('Error saving company:', error);
-      alert('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -908,7 +419,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const companyId = formData.get('company_id') as string;
 
     if (!companyId) {
-      alert('Selecione a empresa da unidade produtiva.');
+      toast.error('Selecione a empresa da unidade produtiva.');
       return;
     }
 
@@ -925,41 +436,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setEditingProductiveUnit(null);
     } catch (error) {
       console.error('Error saving productive unit:', error);
-      alert('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-    }
-  };
-
-  const handleSaveImportSource = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canConfigureImportSource) {
-      alert('Somente o desenvolvedor pode editar fontes globais de importação.');
-      return;
-    }
-    const formData = new FormData(e.currentTarget);
-
-    const importSourceData: ImportSourceConfig = {
-      id: editingImportSource?.id || Math.random().toString(36).substr(2, 9),
-      name: normalizeCell(formData.get('name')),
-      description: normalizeCell(formData.get('description')),
-      columns: {
-        company: normalizeCell(formData.get('company_column')),
-        productive_unit: normalizeCell(formData.get('productive_unit_column')),
-        user: normalizeCell(formData.get('user_column')),
-        badge: normalizeCell(formData.get('badge_column')),
-        tone: normalizeCell(formData.get('tone_column')) || 'marcacao',
-        award: normalizeCell(formData.get('award_column')) || 'premio',
-      },
-    };
-
-    try {
-      const savedImportSource = onSaveImportSource ? await onSaveImportSource(importSourceData) : importSourceData;
-      setImportSources(prev => editingImportSource ? prev.map(source => source.id === editingImportSource.id ? savedImportSource : source) : [...prev, savedImportSource]);
-      setSelectedImportSourceId(savedImportSource.id);
-      setIsImportSourceModalOpen(false);
-      setEditingImportSource(null);
-    } catch (error) {
-      console.error('Error saving import source:', error);
-      alert('Erro ao salvar fonte de importação: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -977,7 +454,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       email: formData.get('email') as string,
       full_name: formData.get('full_name') as string,
       avatar_url: tempUserAvatarUrl || editingUser?.avatar_url || '',
-      role: formData.get('role') as 'admin' | 'user',
+      role: formData.get('role') as Role,
       company_id: companyId,
       productive_unit_id: validProductiveUnitId,
       level: editingUser?.level || 1,
@@ -995,7 +472,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       setTempUserAvatarUrl(undefined);
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+      toast.error('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -1007,7 +484,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       .filter(email => email !== '' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
 
     if (emails.length === 0) {
-      alert('Por favor, insira e-mails válidos para o convite.');
+      toast.error('Por favor, insira e-mails válidos para o convite.');
       return;
     }
 
@@ -1018,7 +495,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     if (onBulkInviteUsers) {
       const result = await onBulkInviteUsers(emails, bulkInviteCompanyId || undefined, validProductiveUnitId);
       setUsers(prev => [...prev, ...result.createdUsers]);
-      alert(
+      toast.success(
         result.skippedEmails.length > 0
           ? `${result.createdUsers.length} convites persistidos. ${result.skippedEmails.length} e-mail(s) ja existiam e foram ignorados.`
           : `${result.createdUsers.length} convites persistidos com sucesso para os novos colaboradores!`,
@@ -1037,7 +514,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }));
 
       setUsers(prev => [...prev, ...newUsers]);
-      alert(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
+      toast.success(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
     }
 
     setIsBulkInviteModalOpen(false);
@@ -1049,27 +526,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleDeleteUser = async () => {
     if (userToDelete) {
       if (userToDelete.id === adminProfile.id) {
-        alert("Você não pode excluir seu próprio perfil administrativo.");
+        toast.error('Você não pode excluir seu próprio perfil administrativo.');
         setIsDeleteUserModalOpen(false);
         return;
       }
-      if (onDeleteUser) {
-        await onDeleteUser(userToDelete.id);
+      try {
+        if (onDeleteUser) {
+          await onDeleteUser(userToDelete.id);
+        }
+        setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+        setIsDeleteUserModalOpen(false);
+        setUserToDelete(null);
+      } catch (error) {
+        toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
-      setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
-      setIsDeleteUserModalOpen(false);
-      setUserToDelete(null);
     }
   };
 
   const handleDeleteCompany = async () => {
     if (companyToDelete) {
-      if (onDeleteCompany) {
-        await onDeleteCompany(companyToDelete.id);
+      try {
+        if (onDeleteCompany) {
+          await onDeleteCompany(companyToDelete.id);
+        }
+        setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
+        setIsDeleteCompanyModalOpen(false);
+        setCompanyToDelete(null);
+      } catch (error) {
+        toast.error('Erro ao excluir empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
-      setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
-      setIsDeleteCompanyModalOpen(false);
-      setCompanyToDelete(null);
     }
   };
 
@@ -1081,173 +566,251 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    if (onAwardBadges) {
-      await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
-    } else {
-      selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+    try {
+      setIsAwardingBadges(true);
+      if (onAwardBadges) {
+        await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
+      } else {
+        selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
+      }
+
+      if (badge) {
+        setUsers(prev => prev.map(u => {
+          if (!selectedUsers.includes(u.id)) return u;
+
+          const updatedUser = {
+            ...u,
+            notifications: [
+              ...(u.notifications || []),
+              {
+                id: Math.random().toString(36).slice(2, 10),
+                title: 'Selo concedido',
+                message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
+                sent_at: new Date().toISOString(),
+                read: false,
+              }
+            ]
+          };
+
+          return updatedUser;
+        }));
+      }
+
+      toast.success(`${selectedUsers.length} colaboradores foram premiados!`);
+      setSelectedUsers([]);
+      setSelectedAwardBadge('');
+    } catch (error) {
+      toast.error('Erro ao premiar colaboradores: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    } finally {
+      setIsAwardingBadges(false);
     }
-
-    if (badge) {
-      setUsers(prev => prev.map(u => {
-        if (!selectedUsers.includes(u.id)) return u;
-
-        const updatedUser = {
-          ...u,
-          notifications: [
-            ...(u.notifications || []),
-            {
-              id: Math.random().toString(36).slice(2, 10),
-              title: 'Selo concedido',
-              message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
-              sent_at: new Date().toISOString(),
-              read: false,
-            }
-          ]
-        };
-
-        if (sendEmailOnAward && u.email_verified) {
-          sendEmailNotification(u.email, 'Selo concedido', `Ola ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`);
-        }
-
-        return updatedUser;
-      }));
-    }
-
-    alert(`${selectedUsers.length} colaboradores foram premiados!`);
-    setSelectedUsers([]);
-    setSelectedAwardBadge('');
   };
 
   const handleAssignBadgeToUser = async (targetUserId: string, badgeId: string, tone: BadgeTone) => {
-    if (onAwardBadges) {
-      await onAwardBadges([targetUserId], badgeId, tone);
-      return;
+    try {
+      if (onAwardBadges) {
+        await onAwardBadges([targetUserId], badgeId, tone);
+        return;
+      }
+      upsertUserBadge(targetUserId, badgeId, tone);
+    } catch (error) {
+      toast.error('Erro ao atribuir selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
-    upsertUserBadge(targetUserId, badgeId, tone);
   };
 
   const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
     const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
     if (!badgeAward) return;
 
-    if (onRemoveUserBadge) {
-      await onRemoveUserBadge(targetUserId, badgeId);
-      return;
-    }
-
-    setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
-  };
-  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeImportSource) return;
-    if (!selectedUnitId) {
-      alert('Selecione a unidade antes de importar a planilha.');
-      return;
-    }
-
     try {
-      const { rawRows, headerRowIndex } = await parseExcel(file);
-      setImportSheetMatrix(rawRows);
-      applyHeaderRowSelection(rawRows, headerRowIndex, activeImportSource);
-      setIsImportMappingModalOpen(true);
+      if (onRemoveUserBadge) {
+        await onRemoveUserBadge(targetUserId, badgeId);
+        return;
+      }
+      setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
     } catch (error) {
-      console.error('[excel-import] falha ao ler arquivo:', error);
+      toast.error('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
-  };
-
-  const handleConfirmImportMapping = () => {
-    if (!activeImportSource || importSheetRows.length === 0 || !selectedUnitId) return;
-
-    const mappedSource = buildImportSourceWithMapping();
-
-    const processedData = processExcelData(importSheetRows, mappedSource);
-    setImportPreviews(processedData.previews);
-
-    const firstPreview = processedData.previews[0];
-    if (firstPreview) {
-      setImportBindingSnapshot({
-        sourceId: mappedSource?.id || fallbackImportSource.id,
-        sourceName: mappedSource?.name || fallbackImportSource.name,
-        matchedColumns: {
-          ...firstPreview.matchedColumns,
-          badge: assistedImportBadgeColumns.join(', '),
-        },
-        importedAt: new Date().toISOString(),
-      });
-    }
-
-    setIsImportMappingModalOpen(false);
-    setIsImportModalOpen(true);
-  };
-
-  const finalizeImport = async () => {
-    if (importSheetRows.length === 0 || !selectedUnitId) {
-      alert('Selecione a unidade antes de concluir a importação.');
-      return;
-    }
-
-    const mappedSource = buildImportSourceWithMapping();
-    const processedData = processExcelData(importSheetRows, mappedSource);
-    setImportPreviews(processedData.previews);
-
-    if (processedData.summary.success === 0) return;
-
-    if (onPersistImport) {
-      const importRows = processedData.previews.flatMap((preview) => (
-        preview.badges.map((badge) => ({
-          row: {
-            ...preview.row,
-            selo: badge.badgeName,
-            valor_indicador: badge.badgeValue.toString(),
-          },
-          user_id: preview.user?.id,
-          badge_id: badge.badge?.id,
-          tone: preview.tone,
-          status: preview.status,
-          reason: preview.reason,
-        }))
-      ));
-
-      const importedCount = await onPersistImport(
-        mappedSource.id || fallbackImportSource.id,
-        mappedSource?.name || fallbackImportSource.name,
-        {
-          ...(processedData.previews[0]?.matchedColumns || {}),
-          badge: assistedImportBadgeColumns.join(', '),
-        },
-        importRows,
-      );
-      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
-      alert(`${foundUsers} colaboradores encontrados, ${importedCount} selos atribuidos e ${processedData.summary.failed} erros.`);
-    } else {
-      setUserBadges(prev => {
-        const existingKeys = new Set(prev.map((badge) => `${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
-        const nextBadges = processedData.importedBadges.filter((badge) => !existingKeys.has(`${badge.user_id}:${badge.badge_id}:${badge.awarded_at.slice(0, 10)}`));
-        return [...prev, ...nextBadges];
-      });
-      const foundUsers = processedData.previews.filter((preview) => preview.user?.id).length;
-      alert(`${foundUsers} colaboradores encontrados, ${processedData.summary.success} selos atribuidos e ${processedData.summary.failed} erros.`);
-    }
-
-    setIsImportModalOpen(false);
   };
 
   // Filters
   const filteredUsers = useMemo(() => {
-    return users.filter(u => 
+    return users.filter(u =>
       u.full_name.toLowerCase().includes(userSearch.toLowerCase()) &&
       (selectedCompanyFilter === '' || u.company_id === selectedCompanyFilter) &&
-      (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter)
+      (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter) &&
+      (!isSupervisor || u.productive_unit_id === currentUser.productive_unit_id)
     );
-  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter]);
+  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
 
   const stats = useMemo(() => ({
-    totalUsers: users.length,
+    totalUsers: isSupervisor
+      ? users.filter(u => u.productive_unit_id === currentUser.productive_unit_id).length
+      : users.length,
     activeBadges: badges.length,
     pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
     totalCompanies: companies.length,
     totalProductiveUnits: productiveUnits.length
-  }), [users, badges, submissions, companies, productiveUnits]);
+  }), [users, badges, submissions, companies, productiveUnits, isSupervisor, currentUser.productive_unit_id]);
+
+  const handleExcelUpload = useCallback((file: File) => {
+    setImportError('');
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target!.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const targetSheetName = normalizeStr(MONTH_NAMES_PT[importMonth - 1]);
+        const matchedSheet = workbook.SheetNames.find(
+          n => normalizeStr(n) === targetSheetName || normalizeStr(n).startsWith(targetSheetName.slice(0, 3)),
+        );
+
+        if (!matchedSheet) {
+          setImportError(`Aba "${MONTH_NAMES_PT[importMonth - 1].toUpperCase()}" não encontrada no arquivo. Abas disponíveis: ${workbook.SheetNames.join(', ')}`);
+          return;
+        }
+
+        const ws = workbook.Sheets[matchedSheet];
+        const rawRows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+        // Find header row — search up to 20 rows for a row containing "nome" and at least 1 indicator keyword
+        let headerRowIndex = -1;
+        let nameColIndex = -1;
+        const columnBadgeIds: (string | null)[] = [];
+
+        for (let ri = 0; ri < Math.min(rawRows.length, 20); ri++) {
+          const row = rawRows[ri] as unknown[];
+          let nameIdx = -1;
+          const candidate: (string | null)[] = row.map((cell, ci) => {
+            if (!cell) return null;
+            const normalized = normalizeStr(String(cell));
+            if (normalized.includes('nome') && nameIdx === -1) { nameIdx = ci; return null; }
+            for (const [key, badgeId] of Object.entries(EXCEL_COLUMN_TO_BADGE_ID)) {
+              if (normalized.includes(key)) return badgeId;
+            }
+            return null;
+          });
+          const hits = candidate.filter(Boolean).length;
+          if (nameIdx !== -1 && hits >= 1) {
+            headerRowIndex = ri;
+            nameColIndex = nameIdx;
+            columnBadgeIds.push(...candidate);
+            break;
+          }
+        }
+
+        if (headerRowIndex === -1) {
+          setImportError('Não foi possível identificar a linha de cabeçalho. Verifique se a planilha contém uma coluna "Nome do Colaborador" e colunas de indicadores como NPS, Recoletas, etc.');
+          return;
+        }
+
+        const detectedBadgeIds = [...new Set(columnBadgeIds.filter(Boolean) as string[])];
+        setImportColumnIds(detectedBadgeIds);
+
+        const dataRows: IndicatorRow[] = [];
+        for (let ri = headerRowIndex + 1; ri < rawRows.length; ri++) {
+          const row = rawRows[ri] as unknown[];
+          const nameCell = row[nameColIndex];
+          if (!nameCell || typeof nameCell !== 'string') continue;
+          const name = nameCell.trim();
+          if (!name || normalizeStr(name) === 'total' || normalizeStr(name).startsWith('total')) continue;
+
+          const indicators: Record<string, number> = {};
+          columnBadgeIds.forEach((badgeId, colIdx) => {
+            if (!badgeId) return;
+            const val = row[colIdx];
+            const num = val !== null && val !== undefined ? Number(val) : 0;
+            if (!isNaN(num) && num !== 0) {
+              indicators[badgeId] = num;
+            }
+          });
+
+          if (Object.keys(indicators).length > 0) {
+            dataRows.push({ excelName: name, indicators });
+          }
+        }
+
+        if (dataRows.length === 0) {
+          setImportError('Nenhuma linha de dados encontrada após o cabeçalho.');
+          return;
+        }
+
+        // Auto-match users
+        const companyUsers = currentUser.company_id
+          ? users.filter(u => u.company_id === currentUser.company_id)
+          : users;
+
+        const matches: UserMatchResult[] = dataRows.map(row => {
+          let bestUser: Profile | null = null;
+          let bestScore = 0;
+          for (const u of companyUsers) {
+            const score = stringSimilarity(row.excelName, u.full_name);
+            if (score > bestScore) { bestScore = score; bestUser = u; }
+          }
+          return {
+            excelName: row.excelName,
+            matchedUserId: bestScore === 1 ? bestUser?.id ?? null : null,
+            matchedUserName: bestScore === 1 ? bestUser?.full_name ?? null : null,
+            confidence: bestScore === 1 ? 'auto' : 'manual',
+          };
+        });
+
+        setImportRows(dataRows);
+        setUserMatches(matches);
+        setImportStep('matching');
+      } catch (err) {
+        setImportError('Erro ao processar o arquivo: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }, [importMonth, users, currentUser.company_id]);
+
+  const handleConfirmImport = async () => {
+    setIsImporting(true);
+    setImportError('');
+    try {
+      const awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }> = [];
+      importRows.forEach((row, idx) => {
+        const match = userMatches[idx];
+        if (!match.matchedUserId || match.confidence === 'ignored') return;
+        Object.entries(row.indicators).forEach(([badgeId, value]) => {
+          const tone = TONE_FROM_VALUE[value];
+          if (tone) awards.push({ userId: match.matchedUserId!, badgeId, tone });
+        });
+      });
+
+      if (awards.length === 0) {
+        setImportError('Nenhum selo a importar após filtragem.');
+        return;
+      }
+
+      const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
+      if (result.awardedBadges?.length) {
+        const ids = new Set(result.awardedBadges.map(b => `${b.user_id}:${b.badge_id}`));
+        setUserBadges(prev => [
+          ...prev.filter(ub => !ids.has(`${ub.user_id}:${ub.badge_id}`)),
+          ...result.awardedBadges!,
+        ]);
+      }
+      setImportResult({ awardedCount: result.awardedCount });
+      setImportStep('done');
+    } catch (err) {
+      setImportError('Erro na importação: ' + (err instanceof Error ? err.message : 'Erro desconhecido'));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const resetImport = () => {
+    setImportStep('select');
+    setImportRows([]);
+    setImportColumnIds([]);
+    setUserMatches([]);
+    setImportError('');
+    setImportResult(null);
+    if (importFileRef.current) importFileRef.current.value = '';
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -1328,7 +891,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
                             <div className="text-[10px] font-black text-cyan-600 uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
                           </div>
-                          <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
+                          {!isSupervisor && (
+                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-cyan-600 hover:bg-white rounded-xl transition-all">✏️</button>
+                          )}
                         </div>
                       )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
                     </div>
@@ -1355,7 +920,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Pedidos de Validação</h2>
               <div className="space-y-4">
-                {submissions.filter(s => s.status === 'pending').map(sub => {
+                {submissions.filter(s => {
+                  if (s.status !== 'pending') return false;
+                  if (isSupervisor) {
+                    const submitter = users.find(u => u.id === s.user_id);
+                    return submitter?.productive_unit_id === currentUser.productive_unit_id;
+                  }
+                  return true;
+                }).map(sub => {
                   const user = users.find(u => u.id === sub.user_id);
                   const company = companies.find(c => c.id === user?.company_id);
                   return (
@@ -1376,7 +948,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   );
                 })}
-                {submissions.filter(s => s.status === 'pending').length === 0 && (
+                {submissions.filter(s => {
+                  if (s.status !== 'pending') return false;
+                  if (isSupervisor) {
+                    const submitter = users.find(u => u.id === s.user_id);
+                    return submitter?.productive_unit_id === currentUser.productive_unit_id;
+                  }
+                  return true;
+                }).length === 0 && (
                   <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
                     <span className="text-5xl block mb-4">✅</span>
                     <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Fila de Solicitações Vazia</p>
@@ -1410,7 +989,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="">Todas as Unidades</option>
                     {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
-                  <button onClick={() => setIsBulkInviteModalOpen(true)} className="bg-emerald-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg flex items-center gap-2"><span>📨</span> Convites em Lote</button>
                   <button onClick={() => openUserModal()} className="bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
               </div>
@@ -1456,7 +1034,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </td>
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl">ver conquistas</button>
+                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl">Ver Conquistas</button>
                               <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">✏️</button>
                               <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
                             </div>
@@ -1472,43 +1050,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {view === 'award' && (
             <div className="space-y-8 animate-in fade-in">
-              <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <header className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
                 </div>
-                <div className="flex gap-2 flex-wrap">
-                  <select
-                    value={selectedUnitId || ''}
-                    onChange={(e) => setSelectedUnitId(e.target.value || null)}
-                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
-                  >
-                    <option value="">Selecionar unidade</option>
-                    {productiveUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
-                  </select>
-                  <select
-                    value={selectedImportSourceId ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                    setSelectedImportSourceId(e.target.value)
-                    }
-                    className="px-6 py-4 bg-white border border-slate-200 rounded-2xl font-black text-xs uppercase tracking-widest text-slate-600 outline-none"
-                  >
-                    {importSources.filter(Boolean).map(source => <option key={source.id} value={source.id}>{source?.name || 'Fonte sem nome'}</option>)}
-                  </select>
-                  {canConfigureImportSource && (
-                    <button onClick={() => { setEditingImportSource(activeImportSource || null); setIsImportSourceModalOpen(true); }} className="bg-white text-indigo-600 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border border-indigo-100 shadow-sm">
-                      Configurar fonte
-                    </button>
-                  )}
-                  <input type="file" accept=".xlsx, .xls" ref={fileInputRef} onChange={handleExcelImport} className="hidden" />
-                  <button onClick={() => fileInputRef.current?.click()} disabled={!selectedUnitId} className="bg-emerald-600 disabled:bg-slate-300 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center gap-3"><span>Arquivo</span> Importar Excel</button>
-                </div>
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all active:scale-95 whitespace-nowrap"
+                >
+                  📊 Importar Planilha Mensal
+                </button>
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
                   <div className="mb-6 flex items-center justify-between">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. selecione colaboradores</h3>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. Selecione colaboradores</h3>
                     <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-indigo-600">{selectedUsers.length} selecionados</div>
                   </div>
                   <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-indigo-600" />
@@ -1529,31 +1087,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
 
                 <div className="space-y-8">
-                  {activeImportSource && (
-                    <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl space-y-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Fonte vinculada</h3>
-                          <p className="text-sm font-bold text-slate-900 mt-2">{activeImportSource?.name || 'Fonte sem nome'}</p>
-                          <p className="text-xs text-cyan-600 font-bold mt-2">Unidade selecionada: {productiveUnits.find((unit) => unit.id === selectedUnitId)?.name || 'Nenhuma unidade selecionada'}</p>
-                        </div>
-                        {canConfigureImportSource && (
-                          <button onClick={() => { setEditingImportSource(activeImportSource); setIsImportSourceModalOpen(true); }} className="px-4 py-3 rounded-2xl bg-slate-50 text-slate-600 font-black text-[10px] uppercase tracking-widest">
-                            editar mapeamento
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500">{activeImportSource.description || 'Sem descrição cadastrada.'}</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        {(Object.entries(activeImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
-                          <div key={field} className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</div>
-                            <div className="text-sm font-bold text-slate-900 mt-1">{column}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1589,17 +1122,184 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       ))}
                     </div>
                   </div>
-                  <div className="bg-white p-5 rounded-xl border border-slate-200 mb-4">
-                    <label className="flex items-center gap-2 text-sm text-slate-700">
-                      <input type="checkbox" checked={sendEmailOnAward} onChange={(e) => setSendEmailOnAward(e.target.checked)} className="h-4 w-4" />
-                      Enviar notificação por e-mail aos colaboradores ao premiar
-                    </label>
-                  </div>
                   <div className="bg-indigo-900 p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
-                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge}>Conceder selos agora</button>
+                    <h3 className="text-sm font-black text-indigo-200 uppercase tracking-widest">4. Confirmar Premiação</h3>
+                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-indigo-900 rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-indigo-50 transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Import Modal */}
+          {isImportModalOpen && (
+            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+              <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Importar Planilha Mensal</h3>
+                    <p className="text-xs text-slate-400 font-bold mt-1">Importe os selos do mês diretamente da planilha de indicadores</p>
+                  </div>
+                  <button
+                    onClick={() => { setIsImportModalOpen(false); resetImport(); }}
+                    className="text-slate-400 hover:text-slate-700 font-black text-xl leading-none ml-4"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {importError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-bold px-4 py-3 rounded-2xl mb-4">
+                    {importError}
+                  </div>
+                )}
+
+                {importStep === 'select' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Mês</label>
+                        <select value={importMonth} onChange={e => setImportMonth(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                          {MONTH_NAMES_PT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ano</label>
+                        <select value={importYear} onChange={e => setImportYear(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                          {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Arquivo .xlsx</label>
+                      <input
+                        ref={importFileRef}
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={e => { if (e.target.files?.[0]) handleExcelUpload(e.target.files[0]); }}
+                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-indigo-600 file:text-white"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const seeded = await seedIndicatorBadgesWithApi();
+                          setBadges(prev => {
+                            const existingIds = new Set(prev.map(b => b.id));
+                            const newOnes = seeded.filter(b => !existingIds.has(b.id));
+                            return newOnes.length ? [...prev, ...newOnes] : prev.map(b => seeded.find(s => s.id === b.id) || b);
+                          });
+                          toast.success('Selos de indicadores criados/atualizados com sucesso!');
+                        }
+                        catch (err) { toast.error('Erro ao criar selos: ' + (err instanceof Error ? err.message : 'Erro')); }
+                      }}
+                      className="text-xs font-black text-indigo-600 underline"
+                    >
+                      Criar selos de indicadores (executar uma vez)
+                    </button>
+                  </div>
+                )}
+
+                {importStep === 'matching' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">{importRows.length} colaboradores encontrados</span>
+                      <button onClick={resetImport} className="text-xs font-black text-slate-400 hover:text-slate-700">← Voltar</button>
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Indicadores detectados: {importColumnIds.map(id => badges.find(b => b.id === id)?.name || id).join(', ')}</div>
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {importRows.map((row, idx) => {
+                        const match = userMatches[idx];
+                        const companyUsers = currentUser.company_id ? users.filter(u => u.company_id === currentUser.company_id) : users;
+                        return (
+                          <div key={idx} className={cn("flex items-center gap-3 p-3 rounded-2xl border-2", match.confidence === 'ignored' ? 'border-slate-100 bg-slate-50 opacity-50' : match.matchedUserId ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50')}>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm text-slate-900 truncate">{row.excelName}</div>
+                              <div className="text-[10px] text-slate-400 font-bold">{Object.keys(row.indicators).length} indicadores</div>
+                            </div>
+                            <select
+                              value={match.matchedUserId || ''}
+                              onChange={e => {
+                                const uid = e.target.value;
+                                setUserMatches(prev => prev.map((m, i) => i === idx ? {
+                                  ...m,
+                                  matchedUserId: uid || null,
+                                  matchedUserName: companyUsers.find(u => u.id === uid)?.full_name || null,
+                                  confidence: uid ? 'manual' : 'ignored',
+                                } : m));
+                              }}
+                              className="text-xs font-bold bg-white border border-slate-200 rounded-xl px-2 py-1 max-w-[180px]"
+                            >
+                              <option value="">— Ignorar —</option>
+                              {companyUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
+                            </select>
+                            <span className="text-lg">{match.confidence === 'ignored' ? '❌' : match.matchedUserId ? '✅' : '⚠️'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
+                  </div>
+                )}
+
+                {importStep === 'preview' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Preview — {MONTH_NAMES_PT[importMonth - 1]} {importYear}</span>
+                      <button onClick={() => setImportStep('matching')} className="text-xs font-black text-slate-400 hover:text-slate-700">← Ajustar matching</button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            <th className="text-left font-black text-slate-400 uppercase tracking-widest pb-2 pr-3">Colaborador</th>
+                            {importColumnIds.map(id => (
+                              <th key={id} className="text-center font-black text-slate-400 uppercase tracking-widest pb-2 px-2">{badges.find(b => b.id === id)?.name || id}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importRows.map((row, idx) => {
+                            const match = userMatches[idx];
+                            const ignored = match.confidence === 'ignored' || !match.matchedUserId;
+                            return (
+                              <tr key={idx} className={cn("border-b border-slate-50", ignored && "opacity-40")}>
+                                <td className="py-2 pr-3 font-bold text-slate-700">{match.matchedUserName || row.excelName}</td>
+                                {importColumnIds.map(id => {
+                                  const val = row.indicators[id];
+                                  const tone = val !== undefined ? TONE_FROM_VALUE[val] : null;
+                                  const colors: Record<string, string> = { gold: 'bg-yellow-100 text-yellow-800', silver: 'bg-slate-100 text-slate-700', bronze: 'bg-orange-100 text-orange-800', loss_1: 'bg-red-100 text-red-700', loss_2: 'bg-red-200 text-red-900' };
+                                  return (
+                                    <td key={id} className="text-center py-2 px-2">
+                                      {tone ? <span className={cn('px-2 py-0.5 rounded-lg font-black', colors[tone])}>{val}</span> : <span className="text-slate-200">—</span>}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      onClick={handleConfirmImport}
+                      disabled={isImporting}
+                      className="w-full py-4 bg-indigo-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest disabled:opacity-50"
+                    >
+                      {isImporting ? 'Importando...' : 'Confirmar importação'}
+                    </button>
+                  </div>
+                )}
+
+                {importStep === 'done' && importResult && (
+                  <div className="text-center py-8 space-y-4">
+                    <div className="text-5xl">🎉</div>
+                    <div className="text-2xl font-black text-slate-900">{importResult.awardedCount} selos importados</div>
+                    <div className="text-sm text-slate-400 font-bold">{MONTH_NAMES_PT[importMonth - 1]} {importYear}</div>
+                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest">Fechar</button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1797,8 +1497,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* User Modal */}
       {isUserModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-xl overflow-hidden">
+          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
             <form onSubmit={handleSaveUser} className="space-y-5">
               <div className="space-y-2">
@@ -1818,7 +1518,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900">
                     <option value="user">Colaborador</option>
-                    <option value="admin">Gestor</option>
+                    {!isSupervisor && <option value="supervisor">Supervisor</option>}
+                    {!isSupervisor && <option value="admin">Gestor</option>}
+                    {isDeveloper && <option value="developer">Desenvolvedor</option>}
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1882,7 +1584,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 min-h-[100px] text-slate-900" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de apoio</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de Apoio</label>
                 <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-center text-slate-900" required />
               </div>
               <div className="space-y-2">
@@ -1926,14 +1628,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isCompanyModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'editar empresa' : 'nova empresa'}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</h2>
             <form onSubmit={handleSaveCompany} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da organização</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Organização</label>
                 <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">categoria do setor</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria do Setor</label>
                 <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
                   <option value="">Selecionar categoria...</option>
                   {COMPANY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
@@ -1947,8 +1649,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 fieldName="logo"
               />
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'atualizar' : 'cadastrar'}</button>
+                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">{editingCompany ? 'Atualizar' : 'Cadastrar'}</button>
               </div>
             </form>
           </div>
@@ -1958,11 +1660,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isDeleteCompanyModalOpen && companyToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">deletar empresa?</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">Deletar Empresa?</h2>
             <p className="text-sm text-slate-600 mb-8">Tem certeza que deseja deletar <strong>{companyToDelete.name}</strong>? Esta ação não pode ser desfeita.</p>
             <div className="flex gap-4">
-              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">cancelar</button>
-              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">deletar</button>
+              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
+              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">Deletar</button>
             </div>
           </div>
         </div>
@@ -1971,201 +1673,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {isProductiveUnitModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'editar unidade produtiva' : 'nova unidade produtiva'}</h2>
+            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'Editar Unidade Produtiva' : 'Nova Unidade Produtiva'}</h2>
             <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">empresa</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
                 <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required>
                   <option value="">Selecionar empresa...</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">nome da unidade</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Unidade</label>
                 <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
               </div>
               <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'atualizar' : 'cadastrar'}</button>
+                <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-cyan-600 text-white rounded-2xl shadow-xl hover:bg-cyan-700">{editingProductiveUnit ? 'Atualizar' : 'Cadastrar'}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {isImportSourceModalOpen && canConfigureImportSource && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingImportSource ? 'Editar fonte Excel' : 'Nova fonte Excel'}</h2>
-            <form onSubmit={handleSaveImportSource} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Fonte</label>
-                  <input name="name" defaultValue={editingImportSource?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DescriÃ§Ã£o</label>
-                  <input name="description" defaultValue={editingImportSource?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Empresa</label>
-                  <input name="company_column" defaultValue={editingImportSource?.columns.company || 'empresa'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Unidade</label>
-                  <input name="productive_unit_column" defaultValue={editingImportSource?.columns.productive_unit || 'unidade_produtiva'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Colaborador</label>
-                  <input name="user_column" defaultValue={editingImportSource?.columns.user || 'explorador'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Selo</label>
-                  <input name="badge_column" defaultValue={editingImportSource?.columns.badge || 'selo'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" required />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Marcação</label>
-                  <input name="tone_column" defaultValue={editingImportSource?.columns.tone || 'marcacao'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coluna Autorização</label>
-                  <input name="award_column" defaultValue={editingImportSource?.columns.award || 'premio'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900" />
-                </div>
-              </div>
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={() => { setIsImportSourceModalOpen(false); setEditingImportSource(null); }} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Salvar Fonte</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isImportMappingModalOpen && activeImportSource && (
-        <div className="fixed inset-0 z-[125] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
-            <h2 className="text-2xl font-black text-slate-900 mb-3 tracking-tight">Mapeamento assistido do Excel</h2>
-            <p className="text-sm text-slate-500 mb-8">Revise os cabeçalhos detectados antes de gerar a pré-visualização dos selos.</p>
-
-            <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6 flex-1 overflow-hidden">
-              <div className="rounded-[32px] border border-slate-100 bg-slate-50/70 p-6 overflow-y-auto">
-                <div className="mb-6">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Linha de cabeçalho</div>
-                  <select
-                    value={importHeaderRowIndex}
-                    onChange={(e) => applyHeaderRowSelection(importSheetMatrix, Number(e.target.value), activeImportSource)}
-                    className="w-full px-5 py-4 rounded-2xl bg-white border border-slate-200 font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
-                  >
-                    {getHeaderRowOptions(importSheetMatrix).map((option) => (
-                      <option key={option.index} value={option.index}>
-                        {`Linha ${option.index + 1}: ${option.preview}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Cabeçalhos detectados</div>
-                <div className="flex flex-wrap gap-3">
-                  {importSheetHeaders.map(header => (
-                    <span key={header} className="px-4 py-2 rounded-2xl bg-white border border-slate-200 text-sm font-bold text-slate-700">
-                      {header}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-[32px] border border-slate-100 bg-white p-6 overflow-y-auto space-y-4">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mapeamento sugerido</div>
-                {(['company', 'productive_unit', 'user', 'tone', 'award'] as ImportSourceField[]).map(field => (
-                  <label key={field} className="space-y-2 block">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS[field]}</span>
-                    <select
-                      value={assistedImportColumns[field]}
-                      onChange={(e) => setAssistedImportColumns(prev => ({ ...prev, [field]: e.target.value }))}
-                      className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-indigo-600 text-slate-900"
-                    >
-                      <option value="">Nao mapear</option>
-                      {importSheetHeaders.map(header => <option key={header} value={header}>{header}</option>)}
-                    </select>
-                  </label>
-                ))}
-                <div className="space-y-3">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{IMPORT_FIELD_LABELS.badge}</div>
-                  <div className="rounded-2xl bg-slate-50 p-4 space-y-2 max-h-56 overflow-y-auto">
-                    {importSheetHeaders.map((header) => {
-                      const checked = assistedImportBadgeColumns.includes(header);
-                      return (
-                        <label key={header} className="flex items-center gap-3 text-sm font-bold text-slate-700">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => setAssistedImportBadgeColumns((prev) => (
-                              checked ? prev.filter((column) => column !== header) : [...prev, header]
-                            ))}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
-                          />
-                          <span>{header}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[10px] font-bold text-slate-400">
-                    Selecione uma ou mais colunas de selo. Colunas com o nome do selo no cabeçalho também funcionam.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-8">
-              <button type="button" onClick={() => setIsImportMappingModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-              <button type="button" onClick={handleConfirmImportMapping} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700 transition-all">Gerar pré-visualização</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Global Import Modal */}
-      {isImportModalOpen && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 flex flex-col max-h-[90vh]">
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-8">pré-visualização da importação</h2>
-            <div className="flex-1 overflow-y-auto pr-2 border border-slate-100 rounded-3xl">
-              <table className="w-full text-left">
-                <thead className="sticky top-0 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                  <tr><th className="px-6 py-4">explorador</th><th className="px-6 py-4">empresa</th><th className="px-6 py-4">unidade</th><th className="px-6 py-4">selos</th><th className="px-6 py-4">totais</th><th className="px-6 py-4">observações</th><th className="px-6 py-4">status</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {importPreviews.map((p, idx) => (
-                    <tr key={idx} className={`text-xs ${p.status === 'invalid' ? 'bg-rose-50/30' : ''}`}>
-                      <td className="px-6 py-4"><div className="font-bold text-slate-900">{p.userName}</div>{p.user && <div className="text-[9px] text-emerald-600 font-black uppercase">vincular: {p.user.full_name}</div>}</td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">{p.companyName}</td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">{p.productiveUnitName}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          {p.badges.map((badge) => (
-                            <span key={`${p.userName}-${badge.columnName}`} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
-                              {badge.badgeName} ({badge.badgeValue})
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">
-                        {Object.keys(p.numericMeta || {}).length > 0 ? Object.entries(p.numericMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 font-bold">
-                        {Object.keys(p.textMeta || {}).length > 0 ? Object.entries(p.textMeta || {}).map(([key, value]) => `${key}: ${value}`).join(' | ') : '-'}
-                      </td>
-                      <td className="px-6 py-4">{p.status === 'valid' ? <span className="text-emerald-700 font-black uppercase">válido</span> : <span className="text-rose-700 font-black uppercase">{p.reason}</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="pt-8 flex gap-4">
-              <button onClick={() => setIsImportModalOpen(false)} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">cancelar</button>
-              <button onClick={finalizeImport} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-indigo-600 text-white rounded-2xl shadow-xl hover:bg-indigo-700">processar importações</button>
-            </div>
           </div>
         </div>
       )}
@@ -2189,15 +1714,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="flex items-center gap-3 flex-wrap">
                   <div className="bg-indigo-50 text-indigo-600 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.monthlyScore}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">saldo do mes</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Saldo do Mês</div>
                   </div>
                   <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.positiveCount}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">selos ativos</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Selos Ativos</div>
                   </div>
                   <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.lossCount}</div>
-                    <div className="text-[10px] font-black uppercase tracking-widest">perdas</div>
+                    <div className="text-[10px] font-black uppercase tracking-widest">Perdas</div>
                   </div>
                 </div>
               </div>
@@ -2234,7 +1759,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   );
                 })}
               </div>
-              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">fechar</button>
+              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Fechar</button>
             </div>
           </div>
         );

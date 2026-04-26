@@ -117,12 +117,13 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
   try {
     const result = await client.query(
       `insert into badge_submissions (
+        id,
         user_id,
         badge_id,
         proof_url,
         description,
         status
-      ) values ($1, $2, $3, $4, 'pending')
+      ) values (gen_random_uuid(), $1, $2, $3, $4, 'pending')
       returning
         id,
         user_id,
@@ -213,8 +214,8 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
       );
 
       const badgeResult = await client.query(
-        `insert into user_badges (user_id, badge_id, awarded_by, tone)
-         values ($1, $2, $3, 'bronze')
+        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+         values (gen_random_uuid(), $1, $2, $3, 'bronze')
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [submission.user_id, submission.badge_id, reviewerId],
       );
@@ -282,8 +283,8 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
       );
 
       const inserted = await client.query(
-        `insert into user_badges (user_id, badge_id, awarded_by, tone)
-         values ($1, $2, $3, $4)
+        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+         values (gen_random_uuid(), $1, $2, $3, $4)
          returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
         [userId, badgeId, reviewerId, tone],
       );
@@ -386,13 +387,14 @@ export const persistImportRun = async ({
 
     const importRunResult = await client.query(
       `insert into import_runs (
+        id,
         source_id,
         source_name,
         imported_by,
         status,
         matched_columns,
         summary
-      ) values ($1, $2, $3, 'completed', $4::jsonb, $5::jsonb)
+      ) values (gen_random_uuid(), $1, $2, $3, 'completed', $4::jsonb, $5::jsonb)
       returning id, source_id, source_name, imported_by, imported_at, status, matched_columns, summary`,
       [sourceId, sourceName, reviewerId, JSON.stringify(matchedColumns), JSON.stringify(summary)],
     );
@@ -423,13 +425,14 @@ export const persistImportRun = async ({
         await client.query(
           `delete from user_badges
            where user_id = $1
-             and badge_id = $2`,
+             and badge_id = $2
+             and date_trunc('month', awarded_at) = date_trunc('month', now())`,
           [row.user_id, row.badge_id],
         );
 
         const inserted = await client.query(
-          `insert into user_badges (user_id, badge_id, awarded_by, tone)
-           values ($1, $2, $3, $4)
+          `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
+           values (gen_random_uuid(), $1, $2, $3, $4)
            returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
           [row.user_id, row.badge_id, reviewerId, row.tone],
         );
@@ -446,6 +449,59 @@ export const persistImportRun = async ({
 
     await client.query('commit');
     return { importRun, awardedBadges, summary };
+  } catch (error) {
+    await client.query('rollback');
+    throw error;
+  } finally {
+    await client.end();
+  }
+};
+
+// awards: [{ userId, badgeId, tone }] — only non-zero values
+export const importMonthlyBadges = async ({ reviewerId, awards, month, year }) => {
+  const reviewer = await findUserById(reviewerId);
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
+    throw new Error('Apenas administradores podem importar badges mensais.');
+  }
+
+  const client = await createPgClient();
+
+  if (!client) {
+    const awardedBadges = await Promise.all(
+      awards.map((a) => upsertMemoryBadgeAward({ userId: a.userId, badgeId: a.badgeId, awardedBy: reviewerId, tone: a.tone })),
+    );
+    return { awardedCount: awardedBadges.length };
+  }
+
+  try {
+    await client.query('begin');
+
+    // Build list of (userId, badgeId) pairs being imported so we can delete previous entries for this month
+    const uniquePairs = [...new Map(awards.map(a => [`${a.userId}:${a.badgeId}`, a])).values()];
+
+    for (const { userId, badgeId } of uniquePairs) {
+      await client.query(
+        `delete from user_badges
+         where user_id = $1
+           and badge_id = $2
+           and date_trunc('month', awarded_at) = date_trunc('month', make_date($3, $4, 1)::timestamp)`,
+        [userId, badgeId, year, month],
+      );
+    }
+
+    const inserted = [];
+    for (const { userId, badgeId, tone } of uniquePairs) {
+      const result = await client.query(
+        `insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
+         values (gen_random_uuid(), $1, $2, $3, $4, make_date($5, $6, 1)::timestamp)
+         returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
+        [userId, badgeId, reviewerId, tone, year, month],
+      );
+      inserted.push(result.rows[0]);
+    }
+
+    await client.query('commit');
+    return { awardedCount: inserted.length, awardedBadges: inserted };
   } catch (error) {
     await client.query('rollback');
     throw error;
