@@ -39,3 +39,7 @@ Detailed architecture documentation lives in `/docs/`:
 - [Authorization](docs/architecture-authorization.md) — roles, scoping, developer account
 - [Excel Import System](docs/architecture-excel-import.md) — bulk badge assignment flow
 - [Key API Routes](docs/architecture-api-routes.md) — auth, submissions, admin endpoints
+
+## Troubleshooting
+
+- [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing the in-memory fallback in production and fixing `DATABASE_URL` issues on Render
