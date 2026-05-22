@@ -1,6 +1,6 @@
 ﻿import React from 'react';
-import { Badge, BadgeTone } from '../types';
-import { BADGE_TONE_LABELS } from '../utils/badgeMetrics';
+import { Badge, BadgeTone } from '@/shared/types';
+import { BADGE_TONE_LABELS } from '@/features/badges/badgeMetrics';
 
 interface BadgeCardProps {
   badge: Badge;

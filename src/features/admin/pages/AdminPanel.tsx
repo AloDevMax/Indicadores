@@ -2,13 +2,13 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '../types';
-import BadgeCard from '../components/BadgeCard';
-import { ImageUpload } from '../components/ImageUpload';
-import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
-import { cn } from '../utils/cn';
-import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '../utils/api';
-import { toast } from '../utils/toast';
+import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
+import BadgeCard from '@/features/badges/components/BadgeCard';
+import { ImageUpload } from '@/shared/components/ImageUpload';
+import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
+import { cn } from '@/shared/lib/cn';
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '@/shared/api';
+import { toast } from '@/shared/lib/toast';
 
 const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
 

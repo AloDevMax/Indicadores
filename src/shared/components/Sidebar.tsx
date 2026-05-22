@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Profile, UserBadge, Company, ProductiveUnit } from '../types';
-import { getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
+import { Profile, UserBadge, Company, ProductiveUnit } from '@/shared/types';
+import { getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 
 interface SidebarProps {
   user: Profile;

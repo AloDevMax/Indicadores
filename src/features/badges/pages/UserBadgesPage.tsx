@@ -1,7 +1,7 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { Profile, Badge, BadgeLegendSettings, UserBadge, BadgeSubmission } from '../types';
-import BadgeCard from '../components/BadgeCard';
-import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
+import { Profile, Badge, BadgeLegendSettings, UserBadge, BadgeSubmission } from '@/shared/types';
+import BadgeCard from '@/features/badges/components/BadgeCard';
+import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 
 interface UserBadgesPageProps {
   user: Profile;

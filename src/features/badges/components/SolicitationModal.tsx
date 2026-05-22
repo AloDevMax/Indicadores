@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { Badge, Profile, UserBadge } from '../types';
-import { toast } from '../utils/toast';
+import { Badge, Profile, UserBadge } from '@/shared/types';
+import { toast } from '@/shared/lib/toast';
 
 interface SolicitationModalProps {
   isOpen: boolean;

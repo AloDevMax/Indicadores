@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, BadgeLegendSettings, Profile, UserBadge } from '../types';
-import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, getUserMonthlyBadgeMetrics, getUserMonthlyBadges } from '../utils/badgeMetrics';
-import { fetchBootstrapData } from '../utils/api';
+import { Badge, BadgeLegendSettings, Profile, UserBadge } from '@/shared/types';
+import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, getUserMonthlyBadgeMetrics, getUserMonthlyBadges } from '@/features/badges/badgeMetrics';
+import { fetchBootstrapData } from '@/shared/api';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 

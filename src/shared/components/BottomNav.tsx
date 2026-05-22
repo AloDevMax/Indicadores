@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Profile } from '../types';
+import { Profile } from '@/shared/types';
 
 interface BottomNavProps {
   user: Profile;

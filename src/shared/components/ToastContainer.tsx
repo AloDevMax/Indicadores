@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { toast, ToastType } from '../utils/toast';
-import { cn } from '../utils/cn';
+import { toast, ToastType } from '@/shared/lib/toast';
+import { cn } from '@/shared/lib/cn';
 
 type ToastItem = { id: number; message: string; type: ToastType };
 

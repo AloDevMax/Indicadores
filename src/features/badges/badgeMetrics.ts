@@ -1,4 +1,4 @@
-import { BadgeTone, UserBadge } from '../types';
+import { BadgeTone, UserBadge } from '@/shared/types';
 
 export const BADGE_TONE_WEIGHTS: Record<BadgeTone, number> = {
   bronze: 1,

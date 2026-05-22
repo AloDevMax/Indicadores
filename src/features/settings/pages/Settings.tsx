@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Profile } from '../types';
+import { Profile } from '@/shared/types';
 
 interface SettingsProps {
   user: Profile;

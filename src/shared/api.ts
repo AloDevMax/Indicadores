@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, Company, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '../types';
+import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, Company, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');

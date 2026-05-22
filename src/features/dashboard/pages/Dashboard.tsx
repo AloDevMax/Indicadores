@@ -1,7 +1,7 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '../types';
-import BadgeCard from '../components/BadgeCard';
-import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '../utils/badgeMetrics';
+import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
+import BadgeCard from '@/features/badges/components/BadgeCard';
+import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 
 interface DashboardProps {
   user: Profile;

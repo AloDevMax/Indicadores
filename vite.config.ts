@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@': path.resolve(dirname(fileURLToPath(import.meta.url)), '.'),
+        '@': path.resolve(dirname(fileURLToPath(import.meta.url)), './src'),
       }
     }
   };

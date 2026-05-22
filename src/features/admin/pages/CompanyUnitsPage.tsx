@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchProductiveUnitsByCompanyId } from '../utils/api';
-import { ProductiveUnit, Company, Profile } from '../types';
+import { fetchProductiveUnitsByCompanyId } from '@/shared/api';
+import { ProductiveUnit, Company, Profile } from '@/shared/types';
 
 interface CompanyUnitsPageProps {
   companies: Company[];
