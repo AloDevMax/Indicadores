@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+.claude/
+docs/
+.specs/
+*.md
+.git/
+.gitignore
+generated/uploads/
