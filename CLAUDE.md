@@ -43,3 +43,10 @@ Detailed architecture documentation lives in `/docs/`:
 ## Troubleshooting
 
 - [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing the in-memory fallback in production and fixing `DATABASE_URL` issues on Render
+
+## Specs & Plans
+
+Design specs and implementation plans live in `.specs/`:
+
+- Specs: `.specs/YYYY-MM-DD-<topic>-design.md`
+- Plans: `.specs/YYYY-MM-DD-<topic>-plan.md`
