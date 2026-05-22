@@ -40,6 +40,10 @@ Detailed architecture documentation lives in `/docs/`:
 - [Excel Import System](docs/architecture-excel-import.md) — bulk badge assignment flow
 - [Key API Routes](docs/architecture-api-routes.md) — auth, submissions, admin endpoints
 
+## Docker
+
+- [Docker](docs/docker.md) — desenvolvimento local com banco em container, deploy na VPS com stack completo (app + postgres + nginx)
+
 ## Troubleshooting
 
 - [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing the in-memory fallback in production and fixing `DATABASE_URL` issues on Render
