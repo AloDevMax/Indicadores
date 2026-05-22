@@ -29,3 +29,5 @@ business-rules/
 
 # Claude Code
 .claude/
+.specs/
+.agents/
