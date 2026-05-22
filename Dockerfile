@@ -28,7 +28,11 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-RUN mkdir -p dist/public/uploads
+RUN mkdir -p dist/public/uploads && \
+    addgroup -S labquest && adduser -S labquest -G labquest && \
+    chown -R labquest:labquest /app
+
+USER labquest
 
 EXPOSE 4004
 
