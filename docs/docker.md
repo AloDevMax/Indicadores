@@ -51,7 +51,7 @@ docker compose ps
 docker compose logs app
 ```
 
-Acesso via `http://<IP-da-VPS>` na porta 80.
+Acesso via `http://<IP-da-VPS>:8081` (portas 80 e 8080 reservadas para outras aplicações na VPS).
 
 ### Fluxo de inicialização
 
