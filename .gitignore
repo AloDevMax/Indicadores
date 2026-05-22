@@ -26,3 +26,6 @@ Thumbs.db
 *.swp
 
 business-rules/
+
+# Claude Code
+.claude/
