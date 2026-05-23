@@ -1407,16 +1407,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
-              <div className="relative group">
-                <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-brand-red to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-red-light">🛡️</div>
-                <div className="absolute -bottom-3 -right-3 bg-yellow-400 text-slate-900 min-w-[56px] h-12 px-3 rounded-2xl flex items-center justify-center font-black border-4 border-white text-sm">{adminMonthlyMetrics.monthlyScore || 0}</div>
-              </div>
+              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-brand-red to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-red-light">🛡️</div>
               <div className="flex-1 w-full space-y-4">
                 <div className="flex justify-between items-end">
                   <h3 className="text-2xl font-black text-slate-900">Saldo do Mês</h3>
                   <div className="text-sm font-black text-brand-red bg-brand-red-light px-4 py-2 rounded-xl">{adminMonthlyMetrics.positiveCount} selos / {adminMonthlyMetrics.lossCount} perdas</div>
                 </div>
-                <div className="w-full h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white"><div className="h-full bg-brand-red" style={{ width: `${Math.min(100, Math.max(0, (adminMonthlyMetrics.positiveCount / 3) * 100))}%` }}></div></div>
+                <div className="text-4xl font-black text-slate-900">{adminMonthlyMetrics.monthlyScore || 0}</div>
               </div>
             </div>
             <div className="bg-brand-red p-10 rounded-[40px] shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">

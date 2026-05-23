@@ -350,7 +350,6 @@ const App: React.FC = () => {
           {user && (
             <Sidebar
               user={user}
-              userBadges={userBadges}
               isOpen={isSidebarOpen}
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}

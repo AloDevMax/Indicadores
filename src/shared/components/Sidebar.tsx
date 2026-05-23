@@ -1,11 +1,9 @@
 ﻿import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Profile, UserBadge, Company, ProductiveUnit } from '@/shared/types';
-import { getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
+import { Profile, Company, ProductiveUnit } from '@/shared/types';
 
 interface SidebarProps {
   user: Profile;
-  userBadges: UserBadge[];
   isOpen: boolean;
   onClose: () => void;
   adminViewMode?: 'management' | 'personal';
@@ -16,7 +14,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({
   user,
-  userBadges,
   isOpen,
   onClose,
   adminViewMode = 'management',
@@ -32,7 +29,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
   const isDeveloper = user.role === 'developer';
   const isSupervisor = user.role === 'supervisor';
-  const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
 
   const toggleExpandCompany = (companyId: string) => {
@@ -183,25 +179,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             })}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-slate-50">
-            <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-red-light flex items-center justify-center text-xl">
-                  {isAdmin ? '🛡️' : '👤'}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs font-black text-slate-900 truncate">{user.full_name}</p>
-                  <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{user.role}</p>
-                </div>
-              </div>
-              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-brand-red" style={{ width: `${Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100))}%` }}></div>
-              </div>
-              <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-tighter">
-                Saldo do mês: {monthlyMetrics.monthlyScore} • {monthlyMetrics.positiveCount} selos
-              </p>
-            </div>
-          </div>
         </div>
       </aside>
     </>
