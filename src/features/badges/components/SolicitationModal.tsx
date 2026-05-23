@@ -74,7 +74,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             <select
               value={selectedBadgeId}
               onChange={(e) => setSelectedBadgeId(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all appearance-none"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
               required
             >
               <option value="">Selecionar conquista...</option>
@@ -89,7 +89,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             <textarea
               value={proofDescription}
               onChange={(e) => setProofDescription(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-brand-red transition-all"
               placeholder="Detalhe sua ação de qualidade aqui..."
               required
             />
@@ -98,7 +98,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">3. Anexe uma evidência (opcional)</label>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" id="proof-upload-global" />
-            <label htmlFor="proof-upload-global" className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-indigo-600 transition-all group">
+            <label htmlFor="proof-upload-global" className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-brand-red transition-all group">
               <span className="text-2xl group-hover:scale-110 transition-transform">??</span>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
                 {selectedFile ? selectedFile.name : 'Carregar foto ou documento'}
@@ -106,7 +106,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             </label>
           </div>
 
-          <button type="submit" disabled={submitting} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl hover:bg-indigo-700 shadow-2xl shadow-indigo-100 transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark shadow-2xl shadow-brand-red-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
             {submitting ? 'Enviando...' : 'Enviar Solicitação'}
           </button>
         </form>

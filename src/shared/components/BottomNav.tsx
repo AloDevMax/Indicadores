@@ -31,7 +31,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
             end={link.to === '/admin'}
             className={({ isActive }) => `
               flex flex-col items-center gap-1 transition-all duration-300 flex-1
-              ${isActive ? 'text-indigo-600' : 'text-slate-400'}
+              ${isActive ? 'text-brand-red' : 'text-slate-400'}
             `}
           >
             <span className="text-xl leading-none">{link.icon}</span>
@@ -49,7 +49,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
         to="/dashboard"
         className={({ isActive }) => `
           flex flex-col items-center gap-1 transition-all duration-300 flex-1
-          ${isActive ? 'text-indigo-600' : 'text-slate-400'}
+          ${isActive ? 'text-brand-red' : 'text-slate-400'}
         `}
       >
         <span className="text-xl leading-none">📈</span>
@@ -60,11 +60,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
       <div className="relative -top-5 flex-1 flex justify-center">
         <button 
           onClick={onOpenSolicitation}
-          className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-2xl shadow-indigo-300 flex items-center justify-center text-2xl active:scale-90 transition-all border-4 border-white"
+          className="w-14 h-14 bg-brand-red text-white rounded-full shadow-2xl shadow-brand-orange flex items-center justify-center text-2xl active:scale-90 transition-all border-4 border-white"
         >
           ✨
         </button>
-        <span className="absolute bottom-[-1.5rem] text-[9px] font-black uppercase tracking-widest text-indigo-600">Solicitar</span>
+        <span className="absolute bottom-[-1.5rem] text-[9px] font-black uppercase tracking-widest text-brand-red">Solicitar</span>
       </div>
 
       {/* Ranking Link */}
@@ -72,7 +72,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
         to="/ranking"
         className={({ isActive }) => `
           flex flex-col items-center gap-1 transition-all duration-300 flex-1
-          ${isActive ? 'text-indigo-600' : 'text-slate-400'}
+          ${isActive ? 'text-brand-red' : 'text-slate-400'}
         `}
       >
         <span className="text-xl leading-none">🥇</span>

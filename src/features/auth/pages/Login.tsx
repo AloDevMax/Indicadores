@@ -38,13 +38,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   return (
     <div className="max-w-md mx-auto mt-10 md:mt-20 px-4">
       <div className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
         
         <div className="text-center mb-10 relative z-10">
-          <div className="w-20 h-20 bg-indigo-600 rounded-[24px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-indigo-100 rotate-3">
-            🛡️
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">LabQuest</h1>
+          <img src="/logo-vertical.jpeg" alt="LabVW" className="h-28 w-auto object-contain mx-auto mb-3" />
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Arena da Excelência</p>
         </div>
 
@@ -56,7 +53,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all"
               placeholder="seu@email.com"
               required
             />
@@ -68,7 +65,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-600 transition-all"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all"
               placeholder="••••••••"
               required
             />
@@ -76,7 +73,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 uppercase tracking-[0.2em] text-xs"
+            className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark transition-all shadow-xl shadow-brand-red-light active:scale-95 uppercase tracking-[0.2em] text-xs"
           >
             {loading ? 'entrando...' : 'iniciar jornada'}
           </button>
@@ -84,8 +81,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         </form>
 
         <div className="mt-6 text-center relative z-10">
-          <p className="text-sm text-slate-500">Nao tem conta? <Link to="/register" className="text-indigo-600 font-bold hover:text-indigo-700">Cadastre-se</Link></p>
-          <p className="mt-2 text-xs text-slate-400">Quer entender o produto antes? <Link to="/" className="font-bold text-slate-600 hover:text-indigo-700">Voltar para a pagina inicial</Link></p>
+          <p className="text-sm text-slate-500">Nao tem conta? <Link to="/register" className="text-brand-red font-bold hover:text-brand-red-dark">Cadastre-se</Link></p>
+          <p className="mt-2 text-xs text-slate-400">Quer entender o produto antes? <Link to="/" className="font-bold text-slate-600 hover:text-brand-red-dark">Voltar para a pagina inicial</Link></p>
         </div>
       </div>
     </div>

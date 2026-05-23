@@ -75,7 +75,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="animate-bounce text-indigo-600 font-bold text-sm uppercase tracking-widest">Carregando ranking...</div>
+        <div className="animate-bounce text-brand-red font-bold text-sm uppercase tracking-widest">Carregando ranking...</div>
       </div>
     );
   }
@@ -90,14 +90,14 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           <select
             value={filterMonth}
             onChange={e => setFilterMonth(Number(e.target.value))}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-600"
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-red"
           >
             {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
           </select>
           <select
             value={filterYear}
             onChange={e => setFilterYear(Number(e.target.value))}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-600"
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-red"
           >
             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -110,8 +110,8 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
               onClick={() => setSelectedCategory(cat)}
               className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 selectedCategory === cat
-                  ? 'bg-indigo-600 text-white shadow-lg'
-                  : 'bg-white text-slate-400 border border-slate-100 hover:border-indigo-200 hover:text-indigo-600'
+                  ? 'bg-brand-red text-white shadow-lg'
+                  : 'bg-white text-slate-400 border border-slate-100 hover:border-brand-red-light hover:text-brand-red'
               }`}
             >
               {cat}
@@ -130,10 +130,10 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           </button>
         )}
         {topThree[0] && (
-          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-indigo-600 p-10 rounded-[50px] shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
+          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-brand-red p-10 rounded-[50px] shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-6xl drop-shadow-lg">🥇</div>
             <div className="w-32 h-32 rounded-[40px] bg-white/20 mx-auto flex items-center justify-center text-5xl shadow-inner animate-pulse">👑</div>
-            <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-indigo-200 uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
+            <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-brand-red-light uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
             <div className="bg-white/10 py-3 rounded-[24px] border border-white/10"><span className="text-lg font-black">{topThree[0].categoryScore}</span></div>
           </button>
         )}
@@ -155,10 +155,10 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
               {remainingUsers.map((user, index) => (
                 <button key={user.id} onClick={() => setSelectedUser(user)} className="w-full text-left flex items-center justify-between p-6 rounded-[24px] bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent transition-all group">
                   <div className="flex items-center gap-6">
-                    <span className="w-10 text-center font-black text-slate-300 group-hover:text-indigo-600 transition-colors">#{index + 4}</span>
+                    <span className="w-10 text-center font-black text-slate-300 group-hover:text-brand-red transition-colors">#{index + 4}</span>
                     <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-xl shadow-sm">👤</div>
                     <div>
-                      <div className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{user.full_name}</div>
+                      <div className="font-black text-slate-900 group-hover:text-brand-red transition-colors">{user.full_name}</div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.monthlyMetrics.positiveCount} Selos Positivos</div>
                     </div>
                   </div>
@@ -192,11 +192,11 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-start mb-8 shrink-0">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-3xl bg-indigo-50 flex items-center justify-center text-4xl shadow-inner">👤</div>
+                <div className="w-20 h-20 rounded-3xl bg-brand-red-light flex items-center justify-center text-4xl shadow-inner">👤</div>
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
                   <div className="flex items-center gap-4 mt-2">
-                    <span className="bg-indigo-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                    <span className="bg-brand-red text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
                       saldo {getUserMonthlyBadgeMetrics(selectedUser.id, userBadges, referenceDate).monthlyScore}
                     </span>
                   </div>
@@ -211,7 +211,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                 return (
                   <>
                     <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-around text-center">
-                      <div><div className="text-2xl font-black text-indigo-600">{metrics.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
+                      <div><div className="text-2xl font-black text-brand-red">{metrics.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
                       <div><div className="text-2xl font-black text-slate-900">{metrics.positiveCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selos Positivos</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
@@ -236,7 +236,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-bold text-slate-900 text-sm truncate">{badge?.name || 'Selo'}</div>
-                                <div className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{toneLabel}</div>
+                                <div className="text-[9px] font-black text-brand-red uppercase tracking-widest">{toneLabel}</div>
                               </div>
                               <div className={`text-sm font-black shrink-0 ${isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                                 {weight > 0 ? `+${weight}` : weight}

@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;
-  const activeClass = 'bg-indigo-600 text-white shadow-lg shadow-indigo-100';
+  const activeClass = 'bg-brand-red text-white shadow-lg shadow-brand-red-light';
   const inactiveClass = 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
   return (
@@ -85,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       `}>
         <div className="flex flex-col h-full p-6 overflow-y-auto">
           <div className="md:hidden flex items-center justify-between mb-8">
-            <span className="text-xl font-black text-indigo-600 tracking-tighter">LabQuest</span>
+            <img src="/logo-horizontal.jpeg" alt="LabVW" className="h-8 w-auto object-contain" />
             <button onClick={onClose} className="text-slate-300 hover:text-slate-900 text-2xl">&times;</button>
           </div>
 
@@ -94,14 +94,14 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => setAdminViewMode('management')}
                 title="Gestão Operacional"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <span className="text-lg">📊</span>
               </button>
               <button
                 onClick={() => setAdminViewMode('personal')}
                 title="Minha Jornada"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-indigo-600 shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <span className="text-lg">👤</span>
               </button>
@@ -148,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                       navigate(`/empresas/${company.id}#${unit.id}`);
                                       if (window.innerWidth < 768) onClose();
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all truncate"
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-red-light hover:text-brand-red transition-all truncate"
                                   >
                                     <span className="text-sm">📍</span>
                                     <span className="flex-1 text-left truncate">{unit.name}</span>
@@ -186,7 +186,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="mt-auto pt-6 border-t border-slate-50">
             <div className="p-4 bg-slate-50 rounded-3xl border border-slate-100">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-xl">
+                <div className="w-10 h-10 rounded-xl bg-brand-red-light flex items-center justify-center text-xl">
                   {isAdmin ? '🛡️' : '👤'}
                 </div>
                 <div className="overflow-hidden">
@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
               <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500" style={{ width: `${Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100))}%` }}></div>
+                <div className="h-full bg-brand-red" style={{ width: `${Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100))}%` }}></div>
               </div>
               <p className="text-[9px] font-black text-slate-400 mt-2 uppercase tracking-tighter">
                 Saldo do mês: {monthlyMetrics.monthlyScore} • {monthlyMetrics.positiveCount} selos

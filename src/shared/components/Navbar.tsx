@@ -22,11 +22,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
 
   const rolePill = isDeveloper
-    ? { label: 'Dev', bg: 'bg-violet-600' }
+    ? { label: 'Dev', bg: 'bg-brand-orange' }
     : isSupervisor
-      ? { label: 'Supervisor', bg: 'bg-emerald-600' }
+      ? { label: 'Supervisor', bg: 'bg-brand-teal' }
       : isAdmin
-        ? { label: 'Admin', bg: 'bg-indigo-600' }
+        ? { label: 'Admin', bg: 'bg-brand-red' }
         : null;
 
   const roleSubtitle = isDeveloper
@@ -53,13 +53,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
             </svg>
           </button>
 
-          <Link to={homeRoute} className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-200">
-              <span className="text-white text-xs font-black tracking-tighter">LQ</span>
-            </div>
-            <span className="text-base font-black text-slate-900 tracking-tight hidden sm:block">
-              LabQuest
-            </span>
+          <Link to={homeRoute} className="flex items-center gap-3 group">
+            <img src="/logo-horizontal.jpeg" alt="LabVW" className="h-8 w-auto object-contain" />
             {rolePill && (
               <span className={`${rolePill.bg} text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest hidden sm:inline`}>
                 {rolePill.label}
