@@ -125,8 +125,6 @@ export const loadBootstrapData = async (currentUser = null) => {
           role,
           company_id,
           productive_unit_id,
-          level,
-          xp,
           email_verified,
           created_at
         from users

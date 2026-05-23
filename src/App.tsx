@@ -44,9 +44,9 @@ const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
 ];
 
 const INITIAL_USERS: Profile[] = [
-  { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
-  { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', level: 99, xp: 100000, created_at: new Date().toISOString(), email_verified: true },
-  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', level: 5, xp: 5200, created_at: '2023-01-01', email_verified: true },
+  { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', created_at: new Date().toISOString(), email_verified: true },
+  { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', created_at: new Date().toISOString(), email_verified: true },
+  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', created_at: '2023-01-01', email_verified: true },
 ];
 
 const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {

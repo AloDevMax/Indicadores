@@ -11,7 +11,7 @@ if (!databaseUrl) {
 console.log('📦 DATABASE_URL encontrada');
 console.log('🚀 Sincronizando schema com o banco de dados...\n');
 
-const child = exec('npx prisma db push --schema=prisma/schema.prisma --skip-generate', (error, stdout, stderr) => {
+const child = exec('npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss', (error, stdout, stderr) => {
   if (error) {
     if (stderr.includes('does not exist') || stderr.includes('Connection refused')) {
       console.warn('\n⚠️  Aviso: Banco de dados não acessível durante build');

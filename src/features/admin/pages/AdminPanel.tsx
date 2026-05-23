@@ -268,8 +268,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     email: 'admin@local',
     full_name: 'Administrador',
     role: 'admin',
-    level: 0,
-    xp: 0,
     created_at: new Date().toISOString(),
     email_verified: true,
   };
@@ -457,8 +455,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       role: formData.get('role') as Role,
       company_id: companyId,
       productive_unit_id: validProductiveUnitId,
-      level: editingUser?.level || 1,
-      xp: editingUser?.xp || 0,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
 
@@ -508,8 +504,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         role: 'user',
         company_id: bulkInviteCompanyId || undefined,
         productive_unit_id: validProductiveUnitId,
-        level: 1,
-        xp: 0,
         created_at: new Date().toISOString(),
       }));
 
@@ -1077,7 +1071,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-400'}`}>👤</div>
                           <div className="text-left">
                             <div className="font-bold text-sm text-slate-900">{u.full_name}</div>
-                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Nv {u.level} • {companies.find(c => c.id === u.company_id)?.name}</div>
+                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{companies.find(c => c.id === u.company_id)?.name}</div>
                           </div>
                         </div>
                         {selectedUsers.includes(u.id) && <span className="text-xl">✅</span>}

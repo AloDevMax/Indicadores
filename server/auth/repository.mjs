@@ -15,8 +15,6 @@ const BUILT_IN_DEVELOPER = {
   full_name: 'Alo de Castro',
   role: 'developer',
   persisted_role: 'admin',
-  level: 99,
-  xp: 100000,
   email_verified: true,
 };
 
@@ -43,8 +41,6 @@ const seedUsers = async () => {
       role: 'admin',
       company_id: null,
       productive_unit_id: null,
-      level: 99,
-      xp: 100000,
       email_verified: true,
       created_at: new Date().toISOString(),
       notifications: [],
@@ -57,8 +53,6 @@ const seedUsers = async () => {
       role: 'developer',
       company_id: null,
       productive_unit_id: null,
-      level: 99,
-      xp: 100000,
       email_verified: true,
       created_at: new Date().toISOString(),
       notifications: [],
@@ -71,8 +65,6 @@ const seedUsers = async () => {
       role: 'user',
       company_id: 'c1',
       productive_unit_id: 'pu1',
-      level: 5,
-      xp: 5200,
       email_verified: true,
       created_at: '2023-01-01T00:00:00.000Z',
       notifications: [],
@@ -90,8 +82,6 @@ const sanitizeUser = (user) => ({
   role: normalizeSystemRole(user.email, user.role),
   company_id: user.company_id || undefined,
   productive_unit_id: user.productive_unit_id || undefined,
-  level: user.level,
-  xp: user.xp,
   created_at: user.created_at,
   email_verified: Boolean(user.email_verified),
   notifications: user.notifications || [],
@@ -118,8 +108,6 @@ export const findUserByEmail = async (email) => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at
       from users
@@ -153,8 +141,6 @@ export const findUserById = async (userId) => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at
       from users
@@ -189,8 +175,6 @@ export const ensureBuiltInDeveloper = async () => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at
       from users
@@ -205,9 +189,7 @@ export const ensureBuiltInDeveloper = async () => {
          set password_hash = $2,
              full_name = $3,
              role = $4,
-             level = $5,
-             xp = $6,
-             email_verified = $7,
+             email_verified = $5,
              updated_at = now()
          where id = $1
          returning
@@ -219,8 +201,6 @@ export const ensureBuiltInDeveloper = async () => {
            role,
            company_id,
            productive_unit_id,
-           level,
-           xp,
            email_verified,
            created_at`,
         [
@@ -228,8 +208,6 @@ export const ensureBuiltInDeveloper = async () => {
           passwordHash,
           BUILT_IN_DEVELOPER.full_name,
           BUILT_IN_DEVELOPER.persisted_role,
-          BUILT_IN_DEVELOPER.level,
-          BUILT_IN_DEVELOPER.xp,
           BUILT_IN_DEVELOPER.email_verified,
         ],
       );
@@ -244,10 +222,8 @@ export const ensureBuiltInDeveloper = async () => {
         password_hash,
         full_name,
         role,
-        level,
-        xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) values ($1, $2, $3, $4, $5, $6)
       returning
         id,
         email,
@@ -257,8 +233,6 @@ export const ensureBuiltInDeveloper = async () => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at`,
       [
@@ -267,8 +241,6 @@ export const ensureBuiltInDeveloper = async () => {
         passwordHash,
         BUILT_IN_DEVELOPER.full_name,
         BUILT_IN_DEVELOPER.persisted_role,
-        BUILT_IN_DEVELOPER.level,
-        BUILT_IN_DEVELOPER.xp,
         BUILT_IN_DEVELOPER.email_verified,
       ],
     );
@@ -300,8 +272,6 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
       role: safeRole,
       company_id: null,
       productive_unit_id: null,
-      level: safeRole === 'admin' ? 99 : 1,
-      xp: safeRole === 'admin' ? 100000 : 0,
       email_verified: safeRole === 'admin',
       created_at: new Date().toISOString(),
     };
@@ -319,10 +289,8 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         password_hash,
         full_name,
         role,
-        level,
-        xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
+      ) values ($1, $2, $3, $4, $5, $6)
       returning
         id,
         email,
@@ -330,11 +298,9 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at`,
-      [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin' ? 99 : 1, safeRole === 'admin' ? 100000 : 0, safeRole === 'admin'],
+      [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin'],
     );
 
     return result.rows[0] ? mapUserRow(result.rows[0]) : null;
@@ -476,8 +442,6 @@ export const listUsers = async () => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified,
         created_at
       from users

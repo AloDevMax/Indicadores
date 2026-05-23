@@ -248,7 +248,7 @@ export const updateUserProfile = async (userId, updates) => {
       `update users
        set ${updateFields.join(', ')}
        where id = $1
-       returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+       returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
       updateValues,
     );
 
@@ -269,8 +269,6 @@ export const saveUser = async (user, password) => {
     const normalized = {
       ...user,
       id: user.id || crypto.randomUUID(),
-      level: user.level ?? 1,
-      xp: user.xp ?? 0,
       email_verified: user.email_verified ?? false,
       created_at: user.created_at || new Date().toISOString(),
       password: password,
@@ -287,8 +285,6 @@ export const saveUser = async (user, password) => {
         'role = $4',
         'company_id = $5',
         'productive_unit_id = $6',
-        'level = $7',
-        'xp = $8',
         'updated_at = now()'
       ];
       const updateValues = [
@@ -298,8 +294,6 @@ export const saveUser = async (user, password) => {
         user.role,
         user.company_id || null,
         user.productive_unit_id || null,
-        user.level ?? 1,
-        user.xp ?? 0,
       ];
 
       if (user.avatar_url !== undefined) {
@@ -317,7 +311,7 @@ export const saveUser = async (user, password) => {
         `update users
          set ${updateFields.join(', ')}
          where id = $1
-         returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+         returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
         updateValues,
       );
 
@@ -339,11 +333,9 @@ export const saveUser = async (user, password) => {
         role,
         company_id,
         productive_unit_id,
-        level,
-        xp,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false)
-      returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8, false)
+      returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
       [
         userId,
         user.email,
@@ -353,8 +345,6 @@ export const saveUser = async (user, password) => {
         user.role,
         user.company_id || null,
         user.productive_unit_id || null,
-        user.level ?? 1,
-        user.xp ?? 0,
       ],
     );
     return result.rows[0];
@@ -488,8 +478,6 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
         role: 'user',
         company_id: companyId || undefined,
         productive_unit_id: productiveUnitId || undefined,
-        level: 1,
-        xp: 0,
         email_verified: false,
         notifications: [],
         created_at: new Date().toISOString(),
@@ -532,12 +520,10 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
           role,
           company_id,
           productive_unit_id,
-          level,
-          xp,
           email_verified
-        ) values ($1, $2, $3, $4, 'user', $5, $6, 1, 0, false)
+        ) values ($1, $2, $3, $4, 'user', $5, $6, false)
         on conflict (email) do nothing
-        returning id, email, full_name, role, company_id, productive_unit_id, level, xp, email_verified, created_at`,
+        returning id, email, full_name, role, company_id, productive_unit_id, email_verified, created_at`,
         [
           userId,
           email,

@@ -22,8 +22,6 @@ create table if not exists users (
   role text not null check (role in ('admin', 'user', 'developer')),
   company_id text references companies(id) on delete set null,
   productive_unit_id text references productive_units(id) on delete set null,
-  level integer not null default 1,
-  xp integer not null default 0,
   email_verified boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

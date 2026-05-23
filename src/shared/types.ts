@@ -20,8 +20,6 @@ export interface Profile {
   role: Role;
   company_id?: string;
   productive_unit_id?: string;
-  level: number;
-  xp: number;
   created_at: string;
   email_verified?: boolean;
   notifications?: Notification[];
