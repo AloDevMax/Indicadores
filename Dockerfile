@@ -2,7 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
+COPY package*.json .npmrc ./
 COPY prisma/ ./prisma/
 COPY scripts/ ./scripts/
 COPY tsconfig*.json ./
