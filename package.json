@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:full": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite",
-    "dev:server": "node --env-file=.env dist/server/index.mjs",
+    "dev:server": "node --env-file=.env server/index.mjs",
     "db:push": "node scripts/dbPush.mjs",
     "db:check": "node scripts/verifyDb.mjs",
     "db:test": "node scripts/testDbConnection.mjs",
@@ -32,6 +32,7 @@
     "zod": "^3.23.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -39,6 +40,10 @@
     "@typescript-eslint/parser": "^8.56.0",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.1",
+    "eslint": "^10.4.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
     "prisma": "^6.19.2",
     "typescript": "~5.8.2",
     "vite": "^6.4.1"

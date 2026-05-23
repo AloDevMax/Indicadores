@@ -15,25 +15,40 @@ export default [
   { languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } } },
   { languageOptions: { globals: globals.browser } },
   {
-    files: ["server/**/*.js", "server/**/*.mjs", "server/**/*.cjs"],
+    files: ["server/**/*.{js,mjs,cjs}", "scripts/**/*.{js,mjs,cjs}"],
     languageOptions: {
-      globals: globals.node,
+      globals: { ...globals.node },
+    },
+    rules: {
+      "no-unused-vars": ["error", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrors: "none",
+      }],
     },
   },
   pluginJs.configs.recommended,
 
+  // Config files without project type-checking
   {
-    files: ["**/*.ts", "**/*.tsx"],
+    files: ["*.config.ts", "*.config.js"],
+    languageOptions: {
+      parser: tseslintParser,
+    },
+  },
+
+  {
+    files: ["src/**/*.{ts,tsx}"],
     languageOptions: {
       parser: tseslintParser,
       parserOptions: {
-        project: ["./tsconfig.json", "./tsconfig.app.json"],
+        project: ["./tsconfig.app.json"],
       },
     },
     plugins: {
       react: react,
-      "@typescript-eslint": tseslintPlugin, // Register the TypeScript ESLint plugin
-      "react-hooks": reactHooksPlugin, // Register the React Hooks plugin
+      "@typescript-eslint": tseslintPlugin,
+      "react-hooks": reactHooksPlugin,
     },
     settings: {
       react: {
@@ -41,18 +56,15 @@ export default [
       },
     },
     rules: {
-      // Common TypeScript ESLint rules
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/explicit-module-boundary-types": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
-
-      // Common React rules
-      "react/react-in-jsx-scope": "off", // Not needed with React 17+ JSX transform
-      "react/jsx-uses-react": "off", // Not needed with React 17+ JSX transform
-      "react/prop-types": "off", // Not needed with TypeScript
+      "react/react-in-jsx-scope": "off",
+      "react/jsx-uses-react": "off",
+      "react/prop-types": "off",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-      "no-unused-vars": "off", // Disable base ESLint no-unused-vars
+      "no-unused-vars": "off",
     },
   },
 ];

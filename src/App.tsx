@@ -256,7 +256,7 @@ const App: React.FC = () => {
     await deleteUserWithApi(userId);
   };
 
-  const handleSaveImportSource = async (importSource: ImportSourceConfig) => saveImportSourceWithApi(importSource);
+  const _handleSaveImportSource = async (importSource: ImportSourceConfig) => saveImportSourceWithApi(importSource);
 
   const handleAwardBadges = async (userIds: string[], badgeId: string, tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2') => {
     userIds.forEach((userId) => console.log('Awarding badge:', { userId, badgeId }));
@@ -283,7 +283,7 @@ const App: React.FC = () => {
     setUserBadges(prev => prev.filter(badge => !(badge.user_id === userId && badge.badge_id === badgeId)));
   };
 
-  const handlePersistImport = async (
+  const _handlePersistImport = async (
     sourceId: string,
     sourceName: string,
     matchedColumns: Partial<Record<string, string>>,

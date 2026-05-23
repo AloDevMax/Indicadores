@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { createPgClient } from '../db/client.mjs';
-import { deleteMemoryUser, findUserByEmail, upsertMemoryUser } from '../auth/repository.mjs';
+import { deleteMemoryUser, findUserByEmail, findUserById, upsertMemoryUser } from '../auth/repository.mjs';
 import { hashPassword } from '../auth/crypto.mjs';
 import { seedData } from '../data/seed.mjs';
 import { deleteUploadedFile } from '../uploads/uploadService.mjs';
@@ -209,19 +209,11 @@ export const updateUserProfile = async (userId, updates) => {
   const client = await createPgClient();
 
   if (!client) {
-    // For memory store, find and update the user
-    const userIndex = memory.users.findIndex(u => u.id === userId);
-    if (userIndex === -1) {
-      throw new Error('Usuário não encontrado.');
-    }
-
-    memory.users[userIndex] = {
-      ...memory.users[userIndex],
-      ...updates,
-      id: userId, // Ensure ID doesn't change
-    };
-
-    return sanitizeUser(memory.users[userIndex]);
+    const currentUser = await findUserById(userId);
+    if (!currentUser) throw new Error('Usuário não encontrado.');
+    const updated = { ...currentUser, ...updates, id: userId };
+    await upsertMemoryUser(updated);
+    return updated;
   }
 
   try {
@@ -375,9 +367,6 @@ export const deleteUser = async (userId) => {
   const client = await createPgClient();
 
   if (!client) {
-    const user = (await findUserByEmail('')) || null;
-    // Para memory store, iterar pelos usuários para encontrar o avatar
-    const memoryUsers = await findUserByEmail('');
     await deleteMemoryUser(userId);
     return { success: true };
   }

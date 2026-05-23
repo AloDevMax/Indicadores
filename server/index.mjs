@@ -10,7 +10,7 @@ import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, memoryAdminStore, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
 

@@ -23,7 +23,7 @@ export const validateImageFile = (mimeType, size) => {
   }
 };
 
-export const saveUploadedFile = async (buffer, mimeType, filename) => {
+export const saveUploadedFile = async (buffer, mimeType, _filename) => {
   validateImageFile(mimeType, buffer.length);
   
   const ext = mimeType.split('/')[1];

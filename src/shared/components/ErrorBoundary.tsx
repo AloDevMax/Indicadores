@@ -49,7 +49,7 @@ class ErrorBoundary extends Component<Props, State> {
                 Recarregar página
               </button>
             </div>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm text-gray-600 hover:text-gray-800">
                   Detalhes do erro (desenvolvimento)

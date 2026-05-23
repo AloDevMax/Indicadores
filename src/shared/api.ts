@@ -9,9 +9,6 @@ export const getApiBaseUrl = () => {
   return trimTrailingSlash(configured);
 };
 
-const isApiAvailable = () => {
-  return true;
-};
 
 const createJsonHeaders = (token?: string) => ({
   'Content-Type': 'application/json',

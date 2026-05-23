@@ -33,21 +33,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   onVerifyEmail,
 }) => {
   const isAdmin = ['admin', 'developer'].includes(user?.role);
-  // Só renderiza quando os dados essenciais estiverem disponíveis
-  if (!allBadges || allBadges.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-bounce text-brand-red font-bold text-xl uppercase tracking-widest">Carregando conquistas...</div>
-      </div>
-    );
-  }
 
   const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
   const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
   const myBadgeSummary = useMemo(() => getUserBadgeSummary(user.id, userBadges), [user.id, userBadges]);
   const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
-  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
-  const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
+
   const visibleCollaborators = useMemo(() => {
     const base = users.filter(profile => profile.role === 'user');
 
@@ -91,6 +82,18 @@ const Dashboard: React.FC<DashboardProps> = ({
       units: Array.from(group.units.values()),
     }));
   }, [companies, productiveUnits, visibleCollaborators]);
+
+  // Só renderiza quando os dados essenciais estiverem disponíveis
+  if (!allBadges || allBadges.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-bounce text-brand-red font-bold text-xl uppercase tracking-widest">Carregando conquistas...</div>
+      </div>
+    );
+  }
+
+  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
+  const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] space-y-8 md:space-y-12 animate-in fade-in duration-500 pb-24 md:pb-8">
