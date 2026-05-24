@@ -1,5 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { TrendingUp, Shield, Trophy, BarChart3, Award, Inbox, Users, Building2, MapPin, User } from 'lucide-react';
 import { Profile, Company, ProductiveUnit } from '@/shared/types';
 
 interface SidebarProps {
@@ -46,24 +47,24 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const userLinks = [
-    { to: '/dashboard', label: 'Meu Progresso', icon: '📈' },
-    { to: '/badges', label: 'Meus Selos', icon: '🛡️' },
-    { to: '/ranking', label: user.role === 'developer' ? 'Ranking Global' : 'Ranking da Empresa', icon: '🥇' },
+    { to: '/dashboard', label: 'Meu Progresso', icon: TrendingUp },
+    { to: '/badges', label: 'Meus Selos', icon: Shield },
+    { to: '/ranking', label: user.role === 'developer' ? 'Ranking Global' : 'Ranking da Empresa', icon: Trophy },
   ];
 
   const rankingLabel = isDeveloper ? 'Ranking Global' : isSupervisor ? 'Ranking da Unidade' : 'Ranking da Empresa';
   const adminLinks = [
-    { to: '/admin', label: 'Visão Geral', icon: '📊' },
-    { to: '/ranking', label: rankingLabel, icon: '🥇' },
-    { to: '/admin/award', label: 'Premiar Selos', icon: '🏆' },
-    { to: '/admin/submissions', label: 'Solicitações', icon: '📨' },
-    { to: '/admin/users', label: 'Colaboradores', icon: '👥' },
-    ...(!isSupervisor ? [{ to: '/admin/companies', label: 'Empresas', icon: '🏢' }] : []),
-    ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: '🛡️' }] : []),
+    { to: '/admin', label: 'Visão Geral', icon: BarChart3 },
+    { to: '/ranking', label: rankingLabel, icon: Trophy },
+    { to: '/admin/award', label: 'Premiar Selos', icon: Award },
+    { to: '/admin/submissions', label: 'Solicitações', icon: Inbox },
+    { to: '/admin/users', label: 'Colaboradores', icon: Users },
+    ...(!isSupervisor ? [{ to: '/admin/companies', label: 'Empresas', icon: Building2 }] : []),
+    ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: Shield }] : []),
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;
-  const activeClass = 'bg-brand-red text-white shadow-lg shadow-brand-red-light';
+  const activeClass = 'bg-brand-primary text-white shadow-lg shadow-brand-primary-light';
   const inactiveClass = 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
   return (
@@ -90,16 +91,16 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => setAdminViewMode('management')}
                 title="Gestão Operacional"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-brand-primary shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <span className="text-lg">📊</span>
+                <BarChart3 size={20} strokeWidth={2} />
               </button>
               <button
                 onClick={() => setAdminViewMode('personal')}
-                title="Minha Jornada"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                title="Painel Pessoal"
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-brand-primary shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
-                <span className="text-lg">👤</span>
+                <User size={20} strokeWidth={2} />
               </button>
             </div>
           )}
@@ -117,9 +118,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <div key={link.to}>
                     <button
                       onClick={() => navigate(link.to)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                     >
-                      <span className="text-lg">{link.icon}</span>
+                      <link.icon size={20} strokeWidth={2} />
                       <span className="flex-1 text-left">{link.label}</span>
                     </button>
                     <div className="ml-2 border-l-2 border-slate-100 pl-2 space-y-1">
@@ -144,9 +145,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                                       navigate(`/empresas/${company.id}#${unit.id}`);
                                       if (window.innerWidth < 768) onClose();
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-red-light hover:text-brand-red transition-all truncate"
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-primary-light hover:text-brand-primary transition-all truncate"
                                   >
-                                    <span className="text-sm">📍</span>
+                                    <MapPin size={16} strokeWidth={2} />
                                     <span className="flex-1 text-left truncate">{unit.name}</span>
                                   </button>
                                 ))}
@@ -168,11 +169,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                     if (window.innerWidth < 768) onClose();
                   }}
                   className={({ isActive }) => `
-                    flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm transition-all
+                    flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all
                     ${isActive ? activeClass : inactiveClass}
                   `}
                 >
-                  <span className="text-lg">{link.icon}</span>
+                  <link.icon size={20} strokeWidth={2} />
                   <span>{link.label}</span>
                 </NavLink>
               );

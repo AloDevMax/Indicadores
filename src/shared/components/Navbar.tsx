@@ -22,11 +22,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
 
   const rolePill = isDeveloper
-    ? { label: 'Dev', bg: 'bg-brand-orange' }
+    ? { label: 'Dev', bg: 'bg-brand-secondary' }
     : isSupervisor
-      ? { label: 'Supervisor', bg: 'bg-brand-teal' }
+      ? { label: 'Supervisor', bg: 'bg-brand-accent' }
       : isAdmin
-        ? { label: 'Admin', bg: 'bg-brand-red' }
+        ? { label: 'Admin', bg: 'bg-brand-primary' }
         : null;
 
   const roleSubtitle = isDeveloper
@@ -65,7 +65,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
 
         {/* Direita: usuário + logout */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-2xl bg-slate-50 border border-slate-100">
+          <div className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-lg bg-slate-50 border border-slate-100">
             {/* Avatar com iniciais */}
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0 shadow-sm ${rolePill?.bg ?? 'bg-slate-400'}`}>
               {getInitials(user.full_name)}

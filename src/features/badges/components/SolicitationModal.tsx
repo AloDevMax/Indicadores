@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Badge, Profile, UserBadge } from '@/shared/types';
 import { toast } from '@/shared/lib/toast';
 
@@ -21,20 +21,12 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 }) => {
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [proofDescription, setProofDescription] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const unlockedIds = useMemo(
     () => userBadges.filter((ub) => ub.user_id === user.id).map((ub) => ub.badge_id),
     [userBadges, user.id],
   );
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,8 +41,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
       onClose();
       setSelectedBadgeId('');
       setProofDescription('');
-      setSelectedFile(null);
-      toast.success('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
+      toast.success('Solicitação enviada com sucesso! Sua solicitação será revisada pelo Gestor.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
     } finally {
@@ -62,7 +53,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-md">
-      <div className="bg-white w-full max-w-lg rounded-t-[32px] md:rounded-[40px] p-8 md:p-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-t-2xl md:rounded-2xl p-8 md:p-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-8 sticky top-0 bg-white pb-2 z-10">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Solicitar Selo</h2>
           <button onClick={onClose} className="text-slate-300 hover:text-slate-900 transition-colors text-4xl leading-none">&times;</button>
@@ -70,14 +61,14 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-6 pb-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo você conquistou?</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo deseja solicitar?</label>
             <select
               value={selectedBadgeId}
               onChange={(e) => setSelectedBadgeId(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
               required
             >
-              <option value="">Selecionar conquista...</option>
+              <option value="">Selecionar selo...</option>
               {allBadges.filter((badge) => !unlockedIds.includes(badge.id)).map((badge) => (
                 <option key={badge.id} value={badge.id}>{badge?.name || 'Badge sem nome'}</option>
               ))}
@@ -89,24 +80,13 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             <textarea
               value={proofDescription}
               onChange={(e) => setProofDescription(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-brand-red transition-all"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-brand-primary transition-all"
               placeholder="Detalhe sua ação de qualidade aqui..."
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">3. Anexe uma evidência (opcional)</label>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" id="proof-upload-global" />
-            <label htmlFor="proof-upload-global" className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-brand-red transition-all group">
-              <span className="text-2xl group-hover:scale-110 transition-transform">??</span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
-                {selectedFile ? selectedFile.name : 'Carregar foto ou documento'}
-              </span>
-            </label>
-          </div>
-
-          <button type="submit" disabled={submitting} className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark shadow-2xl shadow-brand-red-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="w-full bg-brand-primary text-white font-black py-5 rounded-2xl hover:bg-brand-primary-dark shadow-2xl shadow-brand-primary-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
             {submitting ? 'Enviando...' : 'Enviar Solicitação'}
           </button>
         </form>

@@ -1,6 +1,7 @@
 ﻿import React from 'react';
 import { Badge, BadgeTone } from '@/shared/types';
 import { BADGE_TONE_LABELS } from '@/features/badges/badgeMetrics';
+import { Award } from 'lucide-react';
 
 interface BadgeCardProps {
   badge: Badge;
@@ -41,7 +42,7 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
   // Proteção contra badge undefined
   if (!badge) {
     return (
-      <div className="bg-white p-6 rounded-3xl shadow-lg border border-slate-100">
+      <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-100">
         <div className="w-16 h-16 rounded-2xl mb-4 bg-slate-200 animate-pulse"></div>
         <div className="h-4 bg-slate-200 rounded mb-2 animate-pulse"></div>
         <div className="h-3 bg-slate-200 rounded animate-pulse"></div>
@@ -55,7 +56,7 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
 
   return (
     <div className={`
-      relative group overflow-hidden rounded-3xl p-6 transition-all duration-300
+      relative group overflow-hidden rounded-xl p-6 transition-all duration-300
       ${unlocked
         ? `bg-white shadow-xl border-2 scale-100 ${toneStyle.card}`
         : 'bg-slate-50 border-2 border-dashed border-slate-200 opacity-60 grayscale scale-95'}
@@ -63,7 +64,7 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
     style={customBorderStyle}>
       <div className={`
         w-16 h-16 rounded-2xl mb-4 flex items-center justify-center text-3xl overflow-hidden
-        ${unlocked ? `${toneStyle.icon} ${!hasCustomImage ? 'animate-pulse' : ''}` : 'bg-slate-200 text-slate-400'}
+        ${unlocked ? `${toneStyle.icon}` : 'bg-slate-200 text-slate-400'}
       `}
       style={customIconStyle}>
         {hasCustomImage ? (
@@ -72,8 +73,10 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
             alt={badge.name}
             className="w-full h-full object-contain p-2 bg-white"
           />
+        ) : badge.icon_name ? (
+          badge.icon_name
         ) : (
-          badge.icon_name || '✨'
+          <Award size={24} strokeWidth={2} />
         )}
       </div>
 

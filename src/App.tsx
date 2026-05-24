@@ -335,8 +335,8 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-red-light">
-        <div className="animate-bounce text-brand-red font-bold text-xl uppercase tracking-widest">Carregando jornada...</div>
+      <div className="min-h-screen flex items-center justify-center bg-brand-primary-light">
+        <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando...</div>
       </div>
     );
   }

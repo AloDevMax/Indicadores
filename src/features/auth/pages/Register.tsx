@@ -51,10 +51,10 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
 
   return (
     <div className="max-w-md mx-auto mt-10 md:mt-20 px-4">
-      <div className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl border border-slate-100 relative overflow-hidden">
+      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl border border-slate-100 relative overflow-hidden">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Cadastro LabQuest</h1>
-          <p className="text-slate-500 text-sm">Crie sua conta e entre na jornada!</p>
+          <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2 tracking-tight">Cadastro LabQuest</h1>
+          <p className="text-slate-500 text-sm">Acesse a plataforma</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +65,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -77,7 +77,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -89,7 +89,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -101,7 +101,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -110,7 +110,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
 
           <button
             type="submit"
-            className="w-full bg-brand-red text-white font-black py-3 rounded-2xl hover:bg-brand-red-dark transition-all"
+            className="w-full bg-brand-primary text-white font-black py-3 rounded-lg hover:bg-brand-primary-dark transition-all"
             disabled={loading}
           >
             {loading ? 'Cadastrando...' : 'Criar minha conta'}
@@ -118,7 +118,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
         </form>
 
         <p className="text-center text-sm text-slate-500 mt-4">
-          Já tem conta? <Link to="/login" className="text-brand-red font-bold hover:text-brand-red-dark">Fazer login</Link>
+          Já tem conta? <Link to="/login" className="text-brand-primary font-bold hover:text-brand-primary-dark">Fazer login</Link>
         </p>
       </div>
     </div>

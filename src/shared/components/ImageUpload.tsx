@@ -92,7 +92,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           />
           <label
             htmlFor={`file-input-${fieldName}`}
-            className="px-4 py-2 bg-brand-red text-white rounded-lg hover:bg-brand-red-dark transition-colors cursor-pointer disabled:bg-slate-400"
+            className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-dark transition-colors cursor-pointer disabled:bg-slate-400"
           >
             {isUploading ? 'Enviando...' : 'Escolher arquivo'}
           </label>

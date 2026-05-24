@@ -26,7 +26,7 @@ const ToastContainer: React.FC = () => {
           key={t.id}
           className={cn(
             'px-5 py-4 rounded-2xl shadow-2xl text-sm font-bold max-w-sm animate-in slide-in-from-top-4 fade-in',
-            t.type === 'success' && 'bg-brand-teal text-white',
+            t.type === 'success' && 'bg-brand-accent text-white',
             t.type === 'error' && 'bg-red-600 text-white',
             t.type === 'info' && 'bg-slate-900 text-white',
           )}

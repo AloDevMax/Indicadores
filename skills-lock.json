@@ -12,6 +12,12 @@
       "sourceType": "github",
       "skillPath": "packages/skills-catalog/skills/(development)/tlc-spec-driven/SKILL.md",
       "computedHash": "e43524680b1d22ae7ef160c0bd40902cb995f3048f96535e8b39ce3347042b23"
+    },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "0a413bf988d06481f69bb81df2070741c3ba12dd9f1be2706d57f259c905992d"
     }
   }
 }
