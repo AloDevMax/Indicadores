@@ -135,7 +135,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg">1</div>
             <div className="w-32 h-32 rounded-2xl bg-white/20 mx-auto flex items-center justify-center shadow-inner"><User size={48} className="text-white" /></div>
             <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-brand-red-light uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
-            <div className="bg-white/10 py-3 rounded-[24px] border border-white/10"><span className="text-lg font-black">{topThree[0].categoryScore}</span></div>
+            <div className="bg-white/10 py-3 rounded-xl border border-white/10"><span className="text-lg font-black">{topThree[0].categoryScore}</span></div>
           </button>
         )}
         {topThree[2] && (
@@ -176,7 +176,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
       </div>
 
       {badgeLegends && (
-        <section className="max-w-4xl mx-auto bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
+        <section className="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-100 shadow-xl p-6 space-y-3">
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda Minimizada</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
             {Object.entries(badgeLegends).map(([tone, label]) => (

@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { BarChart3, User, Users, Shield, Inbox, Building2, Pencil, Trash2, CheckCircle, FileText, Award } from 'lucide-react';
 import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
@@ -812,9 +813,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Switcher */}
       {view === 'overview' && (
         <div className="flex justify-center mb-10">
-          <div className="bg-slate-200/50 p-1.5 rounded-[24px] flex gap-1 shadow-inner">
-            <button onClick={() => setActiveMode('management')} className={`px-8 py-3 rounded-[20px] text-xs font-black uppercase tracking-widest transition-all ${activeMode === 'management' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>📊 Gestão Operacional</button>
-            <button onClick={() => setActiveMode('personal')} className={`px-8 py-3 rounded-[20px] text-xs font-black uppercase tracking-widest transition-all ${activeMode === 'personal' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}>👤 Minha Jornada</button>
+          <div className="bg-slate-200/50 p-1.5 rounded-xl flex gap-1 shadow-inner">
+            <button onClick={() => setActiveMode('management')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'management' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><BarChart3 size={16} /> Gestão Operacional</button>
+            <button onClick={() => setActiveMode('personal')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'personal' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><User size={16} /> Painel Pessoal</button>
           </div>
         </div>
       )}
@@ -832,34 +833,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
                 {[
-                  { label: 'Colaboradores', val: stats.totalUsers, icon: '👥' },
-                  { label: 'Selos Ativos', val: stats.activeBadges, icon: '🛡️' },
-                  { label: 'Pendências', val: stats.pendingSubmissions, icon: '📨', color: 'text-amber-600' },
-                  { label: 'Empresas', val: stats.totalCompanies, icon: '🏢', color: 'text-emerald-600' },
-                ].map((kpi, idx) => (
-                  <div key={idx} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
+                  { label: 'Colaboradores', val: stats.totalUsers, icon: Users },
+                  { label: 'Selos Ativos', val: stats.activeBadges, icon: Shield },
+                  { label: 'Pendências', val: stats.pendingSubmissions, icon: Inbox, color: 'text-amber-600' },
+                  { label: 'Empresas', val: stats.totalCompanies, icon: Building2, color: 'text-emerald-600' },
+                ].map((kpi, idx) => {
+                  const IconComponent = kpi.icon;
+                  return (
+                  <div key={idx} className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl shadow-slate-200/40 relative overflow-hidden group">
                     <div className="relative z-10">
                       <div className={cn("text-3xl font-black leading-none", kpi.color || "text-slate-900")}>{kpi.val}</div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">{kpi.label}</div>
                     </div>
-                    <div className="absolute right-[-10px] bottom-[-10px] text-6xl opacity-[0.03] group-hover:rotate-12 transition-transform">{kpi.icon || ''}</div>
+                    <div className="absolute right-[-10px] bottom-[-10px] opacity-[0.03] group-hover:rotate-12 transition-transform"><IconComponent size={96} /></div>
                   </div>
-                ))}
+                );
+                })}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><span>🏢</span> Empresas no Ecossistema</h3>
+                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Building2 size={16} /> Empresas no Ecossistema</h3>
                   <div className="space-y-4">
                     {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg space-y-5 group hover:border-brand-red-light transition-all">
+                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg space-y-5 group hover:border-brand-red-light transition-all">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
+                        <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
                           {c.logo_url ? (
                             renderSquareImage(c.logo_url, c.name)
                           ) : (
-                            '🏢'
+                            <Building2 size={24} />
                           )}
                         </div>
                         <div>
@@ -871,10 +875,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <div className="flex gap-2">
                         {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all">✏️</button>
+                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
                         )}
                         {isDeveloper && (
-                          <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                          <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                         )}
                       </div>
                     </div>
@@ -886,7 +890,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <div className="text-[10px] font-black text-brand-teal uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
                           </div>
                           {!isSupervisor && (
-                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-teal hover:bg-white rounded-xl transition-all">✏️</button>
+                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-teal hover:bg-white rounded-xl transition-all"><Pencil size={16} /></button>
                           )}
                         </div>
                       )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
@@ -895,11 +899,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 ))}
                   </div>
                 </div>
-                <div className="bg-brand-dark p-8 rounded-[40px] shadow-2xl text-white">
-                  <h3 className="text-sm font-black text-brand-red-light uppercase tracking-widest mb-6">📡 Atividade de Rede</h3>
+                <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white">
+                  <h3 className="text-sm font-black text-brand-red-light uppercase tracking-widest mb-6 flex items-center gap-2"><Inbox size={16} /> Atividade de Rede</h3>
                   <div className="space-y-4">
                     {submissions.slice(0, 3).map(sub => (
-                      <div key={sub.id} className="bg-white/10 p-4 rounded-xl border border-white/5 text-xs">
+                      <div key={sub.id} className="bg-white/10 p-4 rounded-lg border border-white/5 text-xs">
                         <span className="font-black text-brand-orange">{sub.user_name}</span> solicitou <span className="font-black text-white">{sub.badge_name}</span>
                       </div>
                     ))}
@@ -925,7 +929,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   const user = users.find(u => u.id === sub.user_id);
                   const company = companies.find(c => c.id === user?.company_id);
                   return (
-                    <div key={sub.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg flex flex-col md:flex-row gap-6">
+                    <div key={sub.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex flex-col md:flex-row gap-6">
                       <div className="flex-1 space-y-3">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="bg-brand-red text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{sub.badge_name}</span>
@@ -950,8 +954,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   }
                   return true;
                 }).length === 0 && (
-                  <div className="py-20 text-center bg-white rounded-[40px] border border-dashed border-slate-200">
-                    <span className="text-5xl block mb-4">✅</span>
+                  <div className="py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+                    <CheckCircle size={48} className="mx-auto mb-4 text-emerald-600" />
                     <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Fila de Solicitações Vazia</p>
                   </div>
                 )}
@@ -986,7 +990,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <button onClick={() => openUserModal()} className="bg-brand-red text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
               </div>
-              <div className="bg-white rounded-[40px] border border-slate-100 shadow-xl overflow-hidden">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                     <tr>
@@ -1008,7 +1012,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 {u.avatar_url ? (
                                   <img src={u.avatar_url} alt={u.full_name} className="w-full h-full object-cover" />
                                 ) : (
-                                  <span className="text-lg">👤</span>
+                                  <User size={18} className="text-slate-400" />
                                 )}
                               </div>
                               <div className="flex-1">
@@ -1028,9 +1032,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </td>
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-brand-red uppercase tracking-widest bg-brand-red-light hover:bg-brand-red-light px-4 py-2 rounded-xl">Ver Conquistas</button>
-                              <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all">✏️</button>
-                              <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-brand-red uppercase tracking-widest bg-brand-red-light hover:bg-brand-red-light px-4 py-2 rounded-xl">Ver Selos</button>
+                              <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                              <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
@@ -1058,7 +1062,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
+                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
                   <div className="mb-6 flex items-center justify-between">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. Selecione colaboradores</h3>
                     <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-brand-red">{selectedUsers.length} selecionados</div>
@@ -1066,26 +1070,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-brand-red" />
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                     {filteredUsers.map(u => (
-                      <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
+                      <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-400'}`}>👤</div>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-400'}`}><User size={18} /></div>
                           <div className="text-left">
                             <div className="font-bold text-sm text-slate-900">{u.full_name}</div>
                             <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{companies.find(c => c.id === u.company_id)?.name}</div>
                           </div>
                         </div>
-                        {selectedUsers.includes(u.id) && <span className="text-xl">✅</span>}
+                        {selectedUsers.includes(u.id) && <CheckCircle size={20} className="text-emerald-600" />}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-8">
-                  <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
+                  <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {badges.map(badge => (
-                        <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
+                        <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
                           <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
                             {badge.image_url ? (
                               renderSquareImage(badge.image_url, badge.name)
@@ -1101,14 +1105,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       ))}
                     </div>
                   </div>
-                  <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl">
+                  <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcação do mês</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
                         <button
                           key={tone}
                           onClick={() => setSelectedAwardTone(tone)}
-                          className={cn("px-4 py-4 rounded-2xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-red bg-brand-red-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
+                          className={cn("px-4 py-4 rounded-xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-red bg-brand-red-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
                         >
                           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
                           <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
@@ -1116,9 +1120,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       ))}
                     </div>
                   </div>
-                  <div className="bg-brand-dark p-10 rounded-[40px] shadow-2xl text-white text-center space-y-6">
+                  <div className="bg-brand-dark p-10 rounded-2xl shadow-2xl text-white text-center space-y-6">
                     <h3 className="text-sm font-black text-brand-red-light uppercase tracking-widest">4. Confirmar Premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-brand-dark rounded-3xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-red-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
+                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-brand-dark rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-red-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
               </div>
@@ -1129,7 +1133,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* Import Modal */}
           {isImportModalOpen && (
             <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-              <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+              <div className="bg-white w-full max-w-4xl rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
                 <div className="flex items-start justify-between mb-6">
                   <div>
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Importar Planilha Mensal</h3>
@@ -1207,7 +1211,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         const match = userMatches[idx];
                         const companyUsers = currentUser.company_id ? users.filter(u => u.company_id === currentUser.company_id) : users;
                         return (
-                          <div key={idx} className={cn("flex items-center gap-3 p-3 rounded-2xl border-2", match.confidence === 'ignored' ? 'border-slate-100 bg-slate-50 opacity-50' : match.matchedUserId ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50')}>
+                          <div key={idx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2", match.confidence === 'ignored' ? 'border-slate-100 bg-slate-50 opacity-50' : match.matchedUserId ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50')}>
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm text-slate-900 truncate">{row.excelName}</div>
                               <div className="text-[10px] text-slate-400 font-bold">{Object.keys(row.indicators).length} indicadores</div>
@@ -1228,12 +1232,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                               <option value="">— Ignorar —</option>
                               {companyUsers.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}
                             </select>
-                            <span className="text-lg">{match.confidence === 'ignored' ? '❌' : match.matchedUserId ? '✅' : '⚠️'}</span>
+                            <span className="text-lg">{match.confidence === 'ignored' ? '❌' : match.matchedUserId ? <CheckCircle size={20} className="text-emerald-600" /> : '⚠️'}</span>
                           </div>
                         );
                       })}
                     </div>
-                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-brand-red text-white rounded-2xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
+                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-brand-red text-white rounded-xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
                   </div>
                 )}
 
@@ -1279,7 +1283,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <button
                       onClick={handleConfirmImport}
                       disabled={isImporting}
-                      className="w-full py-4 bg-brand-dark text-white rounded-2xl font-black text-sm uppercase tracking-widest disabled:opacity-50"
+                      className="w-full py-4 bg-brand-dark text-white rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50"
                     >
                       {isImporting ? 'Importando...' : 'Confirmar importação'}
                     </button>
@@ -1288,10 +1292,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
                 {importStep === 'done' && importResult && (
                   <div className="text-center py-8 space-y-4">
-                    <div className="text-5xl">🎉</div>
+                    <Award size={48} className="mx-auto text-amber-500" />
                     <div className="text-2xl font-black text-slate-900">{importResult.awardedCount} selos importados</div>
                     <div className="text-sm text-slate-400 font-bold">{MONTH_NAMES_PT[importMonth - 1]} {importYear}</div>
-                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-brand-red text-white rounded-2xl font-black text-xs uppercase tracking-widest">Fechar</button>
+                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-brand-red text-white rounded-xl font-black text-xs uppercase tracking-widest">Fechar</button>
                   </div>
                 )}
               </div>
@@ -1302,10 +1306,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Biblioteca de Selos</h2>
-                <button onClick={() => openBadgeModal()} className="bg-brand-red text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
+                <button onClick={() => openBadgeModal()} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
               </div>
 
-              <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+              <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
                 <button
                   onClick={() => setIsLegendCollapsed(prev => !prev)}
                   className="w-full flex items-center justify-between px-6 py-5 text-left"
@@ -1334,9 +1338,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {badges.map(badge => (
-                  <div key={badge.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex items-center justify-between group hover:border-brand-red-light transition-all">
+                  <div key={badge.id} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-brand-red-light transition-all">
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
+                      <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
                         {badge.image_url ? (
                           renderSquareImage(badge.image_url, badge.name)
                         ) : (
@@ -1349,8 +1353,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all">✏️</button>
-                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 ))}
@@ -1363,19 +1367,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
-                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-brand-red text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
+                  <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
+                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-lg flex items-center justify-between group hover:border-brand-red-light transition-all flex-col md:flex-row gap-4">
+                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex items-center justify-between group hover:border-brand-red-light transition-all flex-col md:flex-row gap-4">
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
+                      <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
                         {c.logo_url ? (
                           renderSquareImage(c.logo_url, c.name)
                         ) : (
-                          '🏢'
+                          <Building2 size={24} />
                         )}
                       </div>
                       <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
@@ -1383,10 +1387,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="flex gap-2">
                       {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all">✏️</button>
+                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
                       )}
                       {isDeveloper && (
-                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">🗑️</button>
+                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                       )}
                     </div>
                   </div>
@@ -1399,15 +1403,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="space-y-12 animate-in fade-in duration-500">
           <header className="flex flex-col md:flex-row justify-between items-end md:items-center gap-6">
             <div>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Olá, Gestor {adminProfile.full_name.split(' ')[0]}</h2>
-              <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Sua Própria Jornada de Qualidade</p>
+              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Olá, {adminProfile.full_name.split(' ')[0]}</h2>
+              <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Seu Painel de Progresso</p>
             </div>
-            <button onClick={onOpenSolicitation} className="bg-brand-red text-white px-8 py-4 rounded-2xl font-black text-sm hover:bg-brand-red-dark shadow-xl flex items-center gap-3 transition-all active:scale-95">✨ Solicitar Meu Selo</button>
+            <button onClick={onOpenSolicitation} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-sm hover:bg-brand-red-dark shadow-xl flex items-center gap-3 transition-all active:scale-95"><Award size={18} /> Solicitar Meu Selo</button>
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 bg-white p-10 rounded-[40px] shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
-              <div className="w-32 h-32 rounded-[40px] bg-gradient-to-br from-brand-red to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-red-light">🛡️</div>
+            <div className="lg:col-span-2 bg-white p-10 rounded-2xl shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
+              <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-brand-red to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-red-light"><Shield size={64} className="text-white" /></div>
               <div className="flex-1 w-full space-y-4">
                 <div className="flex justify-between items-end">
                   <h3 className="text-2xl font-black text-slate-900">Saldo do Mês</h3>
@@ -1416,14 +1420,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="text-4xl font-black text-slate-900">{adminMonthlyMetrics.monthlyScore || 0}</div>
               </div>
             </div>
-            <div className="bg-brand-red p-10 rounded-[40px] shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
+            <div className="bg-brand-red p-10 rounded-2xl shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
               <div className="text-5xl font-black">{userBadges.filter(ub => ub.user_id === adminProfile.id).length}</div>
-              <div className="font-black uppercase text-[10px] tracking-[0.3em] opacity-80">Selos Conquistados</div>
+              <div className="font-black uppercase text-[10px] tracking-[0.3em] opacity-80">Selos Obtidos</div>
             </div>
           </div>
 
           <div className="space-y-8">
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Minha Galeria</h3>
+            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Minha Galeria de Selos</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {badges.map(badge => {
                 const badgeAward = userBadges.find(ub => ub.user_id === adminProfile.id && ub.badge_id === badge.id);
@@ -1437,7 +1441,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Bulk Invite Modal */}
       {isBulkInviteModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-lg rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Convites em Lote</h2>
             <form onSubmit={handleBulkInvite} className="space-y-5">
               <div className="space-y-2">
@@ -1489,7 +1493,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* User Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 bg-slate-900/50 backdrop-blur-xl overflow-hidden">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-2xl rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingUser ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
             <form onSubmit={handleSaveUser} className="space-y-5">
               <div className="space-y-2">
@@ -1548,10 +1552,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Delete User Confirmation Modal */}
       {isDeleteUserModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 text-center">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 text-center">
             <div className="text-5xl mb-6">⚠️</div>
-            <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Excluir Explorador?</h2>
-            <p className="text-slate-500 text-sm mb-8">Esta ação removerá <b>{userToDelete?.full_name}</b> e todo seu histórico de conquistas permanentemente.</p>
+            <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Excluir Colaborador?</h2>
+            <p className="text-slate-500 text-sm mb-8">Esta ação removerá <b>{userToDelete?.full_name}</b> e todo seu histórico de selos permanentemente.</p>
             <div className="flex gap-4">
               <button onClick={() => { setIsDeleteUserModalOpen(false); setUserToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
               <button onClick={handleDeleteUser} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-all">Confirmar</button>
@@ -1563,16 +1567,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Badge Modal */}
       {isBadgeModalOpen && canManageGlobalCatalog && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-lg rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 uppercase tracking-tight">{editingBadge ? 'Editar Selo' : 'Novo Selo'}</h2>
             <form onSubmit={handleSaveBadge} className="space-y-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Conquista</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Selo</label>
                 <input name="name" defaultValue={editingBadge?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição da Missão</label>
-                <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red min-h-[100px] text-slate-900" required />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição do Selo</label>
+                <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red min-h-[100px] text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de Apoio</label>
@@ -1603,7 +1607,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Delete Badge Confirmation Modal */}
       {isDeleteBadgeModalOpen && canManageGlobalCatalog && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 text-center">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 text-center">
             <div className="text-5xl mb-6">⚠️</div>
             <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Excluir Selo?</h2>
             <p className="text-slate-500 text-sm mb-8">O selo <b>{badgeToDelete?.name}</b> será removido permanentemente da biblioteca.</p>
@@ -1618,7 +1622,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Company Modal */}
       {isCompanyModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</h2>
             <form onSubmit={handleSaveCompany} className="space-y-6">
               <div className="space-y-2">
@@ -1650,7 +1654,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {isDeleteCompanyModalOpen && companyToDelete && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">Deletar Empresa?</h2>
             <p className="text-sm text-slate-600 mb-8">Tem certeza que deseja deletar <strong>{companyToDelete.name}</strong>? Esta ação não pode ser desfeita.</p>
             <div className="flex gap-4">
@@ -1663,7 +1667,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {isProductiveUnitModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'Editar Unidade Produtiva' : 'Nova Unidade Produtiva'}</h2>
             <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
               <div className="space-y-2">
@@ -1694,7 +1698,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
         return (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-            <div className="bg-white w-full max-w-6xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="bg-white w-full max-w-6xl rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 max-h-[90vh] flex flex-col">
               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">Cartela de selos de {viewingUserBadges.full_name}</h2>
@@ -1703,15 +1707,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className="bg-brand-red-light text-brand-red px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                  <div className="bg-brand-red-light text-brand-red px-4 py-3 rounded-xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.monthlyScore}</div>
                     <div className="text-[10px] font-black uppercase tracking-widest">Saldo do Mês</div>
                   </div>
-                  <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                  <div className="bg-amber-50 text-amber-700 px-4 py-3 rounded-xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.positiveCount}</div>
                     <div className="text-[10px] font-black uppercase tracking-widest">Selos Ativos</div>
                   </div>
-                  <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-2xl text-center min-w-[120px]">
+                  <div className="bg-rose-50 text-rose-700 px-4 py-3 rounded-xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.lossCount}</div>
                     <div className="text-[10px] font-black uppercase tracking-widest">Perdas</div>
                   </div>
@@ -1723,7 +1727,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   const isAssigned = Boolean(badgeAward);
 
                   return (
-                    <div key={badge.id} className="p-6 rounded-[32px] border border-slate-100 bg-slate-50/70">
+                    <div key={badge.id} className="p-6 rounded-xl border border-slate-100 bg-slate-50/70">
                       <BadgeCard badge={badge} unlocked={isAssigned} tone={badgeAward?.tone} date={badgeAward?.awarded_at} />
                       <div className="mt-4 space-y-3">
                         <div className="grid grid-cols-2 gap-2">
@@ -1731,7 +1735,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button
                               key={tone}
                               onClick={() => handleAssignBadgeToUser(viewingUserBadges.id, badge.id, tone)}
-                              className={`px-3 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${badgeAward?.tone === tone ? 'bg-brand-red text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                              className={`px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${badgeAward?.tone === tone ? 'bg-brand-red text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                               {BADGE_TONE_LABELS[tone]}
                             </button>
@@ -1741,7 +1745,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           {badgeLegends[badgeAward?.tone || 'bronze']}
                         </p>
                         {isAssigned && (
-                          <button onClick={() => handleRemoveBadgeFromUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-2xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">
+                          <button onClick={() => handleRemoveBadgeFromUser(viewingUserBadges.id, badge.id)} className="w-full py-3 rounded-xl bg-rose-50 text-rose-600 font-black text-[10px] uppercase tracking-widest hover:bg-rose-100 transition-all">
                             limpar da cartela
                           </button>
                         )}
@@ -1750,7 +1754,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   );
                 })}
               </div>
-              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Fechar</button>
+              <button onClick={() => setViewingUserBadges(null)} className="mt-10 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-xl text-slate-600">Fechar</button>
             </div>
           </div>
         );
