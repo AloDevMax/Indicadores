@@ -123,40 +123,24 @@ const Dashboard: React.FC<DashboardProps> = ({
         </button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
-        <div className="md:col-span-2 bg-white p-6 md:p-10 rounded-[32px] md:rounded-[40px] shadow-xl border border-slate-100 flex flex-col sm:flex-row items-center gap-6 md:gap-10">
-          <div className="relative shrink-0">
-            <div className="w-24 h-24 md:w-32 md:h-32 rounded-[32px] md:rounded-[40px] bg-gradient-to-br from-brand-red to-brand-orange flex items-center justify-center text-4xl md:text-5xl shadow-2xl shadow-brand-red-light">
-              {isAdmin ? '🛡️' : '🏷️'}
-            </div>
-            <div className="absolute -bottom-2 -right-2 bg-white text-slate-900 w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center font-black border-4 border-brand-red-light text-base md:text-lg">
-              {monthlyMetrics.monthlyScore}
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+        <div className="bg-white p-6 md:p-10 rounded-[32px] md:rounded-[40px] shadow-xl border border-slate-100 space-y-4">
+          <div>
+            <h3 className="text-xl md:text-2xl font-black text-slate-900">Saldo do Mês</h3>
+            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Bronze, Prata, Ouro e Perdas</p>
           </div>
 
-          <div className="flex-1 w-full space-y-4">
-            <div className="flex justify-between items-end gap-4">
-              <div>
-                <h3 className="text-xl md:text-2xl font-black text-slate-900">Saldo do Mês</h3>
-                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Bronze, Prata, Ouro e Perdas</p>
-              </div>
-              <div className="text-[10px] md:text-xs font-black text-brand-red bg-brand-red-light px-3 py-1.5 md:px-4 md:py-2 rounded-xl">
-                {monthlyMetrics.positiveCount} positivos
-              </div>
-            </div>
+          <div className="w-full h-3 md:h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white">
+            <div className="h-full bg-brand-red transition-all duration-1000 ease-out" style={{ width: `${Math.max(progress, 5)}%` }}></div>
+          </div>
 
-            <div className="w-full h-3 md:h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white">
-              <div className="h-full bg-brand-red transition-all duration-1000 ease-out" style={{ width: `${Math.max(progress, 5)}%` }}></div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
-              {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as const).map(tone => (
-                <div key={tone} className="bg-slate-50 rounded-2xl px-3 py-2">
-                  <div className="text-sm font-black text-slate-900">{monthlyMetrics.counts[tone]}</div>
-                  <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{BADGE_TONE_LABELS[tone]}</div>
-                </div>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
+            {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as const).map(tone => (
+              <div key={tone} className="bg-slate-50 rounded-2xl px-3 py-2">
+                <div className="text-sm font-black text-slate-900">{monthlyMetrics.counts[tone]}</div>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{BADGE_TONE_LABELS[tone]}</div>
+              </div>
+            ))}
           </div>
         </div>
 

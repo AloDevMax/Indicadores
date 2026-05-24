@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Badge, Profile, UserBadge } from '@/shared/types';
 import { toast } from '@/shared/lib/toast';
 
@@ -21,20 +21,12 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 }) => {
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [proofDescription, setProofDescription] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const unlockedIds = useMemo(
     () => userBadges.filter((ub) => ub.user_id === user.id).map((ub) => ub.badge_id),
     [userBadges, user.id],
   );
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +41,6 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
       onClose();
       setSelectedBadgeId('');
       setProofDescription('');
-      setSelectedFile(null);
       toast.success('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
@@ -93,17 +84,6 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
               placeholder="Detalhe sua ação de qualidade aqui..."
               required
             />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">3. Anexe uma evidência (opcional)</label>
-            <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" id="proof-upload-global" />
-            <label htmlFor="proof-upload-global" className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:border-brand-red transition-all group">
-              <span className="text-2xl group-hover:scale-110 transition-transform">??</span>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">
-                {selectedFile ? selectedFile.name : 'Carregar foto ou documento'}
-              </span>
-            </label>
           </div>
 
           <button type="submit" disabled={submitting} className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark shadow-2xl shadow-brand-red-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">

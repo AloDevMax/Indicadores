@@ -47,10 +47,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
       <header className="space-y-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">meu inventário</h1>
-          <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Cores Mensais dos Meus Selos</p>
-        </div>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">meu inventário</h1>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as const).map(tone => (
             <div key={tone} className="bg-white rounded-2xl border border-slate-100 px-4 py-4 shadow-sm">
