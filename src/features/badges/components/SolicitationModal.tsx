@@ -41,7 +41,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
       onClose();
       setSelectedBadgeId('');
       setProofDescription('');
-      toast.success('Solicitação enviada com sucesso! Sua conquista será revisada pelo Gestor.');
+      toast.success('Solicitação enviada com sucesso! Sua solicitação será revisada pelo Gestor.');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
     } finally {
@@ -53,7 +53,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-md">
-      <div className="bg-white w-full max-w-lg rounded-t-[32px] md:rounded-[40px] p-8 md:p-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white w-full max-w-lg rounded-t-2xl md:rounded-2xl p-8 md:p-10 shadow-2xl animate-in slide-in-from-bottom md:zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-8 sticky top-0 bg-white pb-2 z-10">
           <h2 className="text-2xl font-black text-slate-900 tracking-tight">Solicitar Selo</h2>
           <button onClick={onClose} className="text-slate-300 hover:text-slate-900 transition-colors text-4xl leading-none">&times;</button>
@@ -61,14 +61,14 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
         <form onSubmit={handleSubmit} className="space-y-6 pb-4">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo você conquistou?</label>
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">1. Qual selo deseja solicitar?</label>
             <select
               value={selectedBadgeId}
               onChange={(e) => setSelectedBadgeId(e.target.value)}
               className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
               required
             >
-              <option value="">Selecionar conquista...</option>
+              <option value="">Selecionar selo...</option>
               {allBadges.filter((badge) => !unlockedIds.includes(badge.id)).map((badge) => (
                 <option key={badge.id} value={badge.id}>{badge?.name || 'Badge sem nome'}</option>
               ))}

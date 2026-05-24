@@ -2,6 +2,7 @@
 import { Profile, Badge, BadgeLegendSettings, UserBadge, BadgeSubmission } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
+import { Tag, Inbox } from 'lucide-react';
 
 interface UserBadgesPageProps {
   user: Profile;
@@ -47,7 +48,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
       <header className="space-y-4">
-        <h1 className="text-3xl font-black text-slate-900 tracking-tight">meu inventário</h1>
+        <h1 className="text-3xl font-black text-slate-900 tracking-tight">Meus Selos</h1>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as const).map(tone => (
             <div key={tone} className="bg-white rounded-2xl border border-slate-100 px-4 py-4 shadow-sm">
@@ -58,7 +59,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
         </div>
       </header>
 
-      <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 space-y-3">
         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda Minimizada</div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-600">
           {Object.entries(badgeLegends).map(([tone, label]) => (
@@ -72,7 +73,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
       <section className="space-y-6">
         <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🏷️</span>
+            <Tag size={20} strokeWidth={2} />
             <h2 className="text-xl font-black text-slate-900">selos recebidos</h2>
             <span className="bg-brand-red-light text-brand-red px-3 py-1 rounded-lg text-[10px] font-black uppercase">
               {filteredUnlockedBadges.length} exibidos
@@ -101,7 +102,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
             return <BadgeCard key={award.id} badge={badge} unlocked={true} tone={award.tone} date={award.awarded_at} />;
           })}
           {filteredUnlockedBadges.length === 0 && (
-            <div className="col-span-full py-12 text-center bg-white rounded-[32px] border border-dashed border-slate-200">
+            <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-dashed border-slate-200">
               <p className="text-slate-400 font-bold text-sm uppercase tracking-widest">Nenhum Selo Registrado neste Período.</p>
             </div>
           )}
@@ -110,10 +111,10 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
 
       <section className="space-y-6">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">📨</span>
+          <Inbox size={20} strokeWidth={2} />
           <h2 className="text-xl font-black text-slate-900">histórico de solicitações</h2>
         </div>
-        <div className="bg-white rounded-[32px] border border-slate-100 shadow-xl overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">

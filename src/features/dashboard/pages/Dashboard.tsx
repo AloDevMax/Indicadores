@@ -2,6 +2,7 @@
 import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
+import { Shield, Tag, Plus, FileText } from 'lucide-react';
 
 interface DashboardProps {
   user: Profile;
@@ -87,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (!allBadges || allBadges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-bounce text-brand-red font-bold text-xl uppercase tracking-widest">Carregando conquistas...</div>
+        <div className="text-brand-red font-bold text-xl uppercase tracking-widest">Carregando dados...</div>
       </div>
     );
   }
@@ -119,12 +120,12 @@ const Dashboard: React.FC<DashboardProps> = ({
           onClick={onOpenSolicitation}
           className="hidden md:flex bg-brand-red text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-red-dark transition-all shadow-xl shadow-brand-red-light items-center justify-center gap-3 active:scale-95"
         >
-          <span>✨</span> Solicitar meu selo
+          <Plus size={20} strokeWidth={2} /> Solicitar meu selo
         </button>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-        <div className="bg-white p-6 md:p-10 rounded-[32px] md:rounded-[40px] shadow-xl border border-slate-100 space-y-4">
+        <div className="bg-white p-6 md:p-10 rounded-2xl md:rounded-2xl shadow-xl border border-slate-100 space-y-4">
           <div>
             <h3 className="text-xl md:text-2xl font-black text-slate-900">Saldo do Mês</h3>
             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Bronze, Prata, Ouro e Perdas</p>
@@ -144,13 +145,13 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="bg-brand-red p-8 md:p-10 rounded-[32px] md:rounded-[40px] shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
+        <div className="bg-brand-red p-8 md:p-10 rounded-2xl md:rounded-2xl shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
           <div className="text-4xl md:text-5xl font-black">{monthlyMetrics.lossCount}</div>
           <div className="font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Perdas do Mês</div>
         </div>
       </div>
 
-      <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo de Selos</div>
@@ -204,7 +205,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-3">
+      <section className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 space-y-3">
         <button className="text-left w-full">
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda Minimizada</div>
         </button>
@@ -218,7 +219,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       </section>
 
       {linkedImportSource && (
-        <section className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 space-y-4">
+        <section className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 space-y-4">
           <div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fonte Excel Vinculada ao Dashboard</div>
             <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name || 'Fonte sem nome'}</h3>
@@ -243,7 +244,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             {mySubmissions.slice(0, 3).map(sub => (
               <div key={sub.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center justify-between group">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl">📋</div>
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-xl"><FileText size={20} strokeWidth={2} /></div>
                   <div>
                     <div className="text-xs font-black text-slate-900 uppercase">{sub.badge_name}</div>
                     <div className="text-[9px] font-bold text-slate-400 uppercase">{new Date(sub.submitted_at).toLocaleDateString()}</div>
@@ -262,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       <section className="space-y-6">
-        <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">Galeria de conquistas</h3>
+        <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">Indicadores Obtidos</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
           {(allBadges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
@@ -289,7 +290,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="space-y-6">
           {groupedCollaborators.map((companyGroup) => (
-            <div key={companyGroup.companyId} className="bg-white rounded-[32px] border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
+            <div key={companyGroup.companyId} className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
                   <h4 className="text-xl font-black text-slate-900">{companyGroup.companyName}</h4>
