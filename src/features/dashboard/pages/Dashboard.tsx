@@ -2,7 +2,7 @@
 import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
-import { Shield, Tag, Plus, FileText } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 
 interface DashboardProps {
   user: Profile;

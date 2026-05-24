@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { BarChart3, User, Users, Shield, Inbox, Building2, Pencil, Trash2, CheckCircle, FileText, Award } from 'lucide-react';
+import { BarChart3, User, Users, Shield, Inbox, Building2, Pencil, Trash2, CheckCircle, Award } from 'lucide-react';
 import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
