@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, BadgeLegendSettings, Profile, UserBadge } from '@/shared/types';
 import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, getUserMonthlyBadgeMetrics, getUserMonthlyBadges } from '@/features/badges/badgeMetrics';
 import { fetchBootstrapData } from '@/shared/api';
+import { BarChart3, User, X } from 'lucide-react';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -75,7 +76,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="animate-bounce text-brand-red font-bold text-sm uppercase tracking-widest">Carregando ranking...</div>
+        <div className="text-brand-red font-bold text-sm uppercase tracking-widest">Carregando...</div>
       </div>
     );
   }
@@ -83,7 +84,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <header className="text-center space-y-6">
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Hall da fama</h1>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Ranking de Desempenho</h1>
         <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">Saldo mensal de selos por colaborador</p>
 
         <div className="flex items-center justify-center gap-3 mt-2">
@@ -122,25 +123,25 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto items-end pt-10">
         {topThree[1] && (
-          <button onClick={() => setSelectedUser(topThree[1])} className="w-full text-left order-2 md:order-1 bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl text-center space-y-4 transform md:scale-90 relative hover:scale-95 transition-transform duration-500">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl">🥈</div>
-            <div className="w-24 h-24 rounded-[32px] bg-slate-100 mx-auto flex items-center justify-center text-3xl shadow-inner">👤</div>
+          <button onClick={() => setSelectedUser(topThree[1])} className="w-full text-left order-2 md:order-1 bg-white p-8 rounded-xl border border-slate-100 shadow-xl text-center space-y-4 transform md:scale-90 relative hover:scale-95 transition-transform duration-500">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-slate-400 text-white flex items-center justify-center font-bold text-sm">2</div>
+            <div className="w-24 h-24 rounded-xl bg-slate-100 mx-auto flex items-center justify-center text-3xl shadow-inner"><User size={32} className="text-slate-600" /></div>
             <div><h3 className="font-black text-slate-900 truncate">{topThree[1].full_name}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{scoreLabel}</p></div>
             <div className="bg-slate-50 py-2 rounded-2xl"><span className="text-sm font-black text-slate-600">{topThree[1].categoryScore}</span></div>
           </button>
         )}
         {topThree[0] && (
-          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-brand-red p-10 rounded-[50px] shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
-            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-6xl drop-shadow-lg">🥇</div>
-            <div className="w-32 h-32 rounded-[40px] bg-white/20 mx-auto flex items-center justify-center text-5xl shadow-inner animate-pulse">👑</div>
+          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-brand-red p-10 rounded-2xl shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg">1</div>
+            <div className="w-32 h-32 rounded-2xl bg-white/20 mx-auto flex items-center justify-center shadow-inner"><User size={48} className="text-white" /></div>
             <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-brand-red-light uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
             <div className="bg-white/10 py-3 rounded-[24px] border border-white/10"><span className="text-lg font-black">{topThree[0].categoryScore}</span></div>
           </button>
         )}
         {topThree[2] && (
-          <button onClick={() => setSelectedUser(topThree[2])} className="w-full text-left order-3 md:order-3 bg-white p-8 rounded-[40px] border border-slate-100 shadow-xl text-center space-y-4 transform md:scale-90 relative hover:scale-95 transition-transform duration-500">
-            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl">🥉</div>
-            <div className="w-24 h-24 rounded-[32px] bg-amber-50 mx-auto flex items-center justify-center text-3xl shadow-inner">👤</div>
+          <button onClick={() => setSelectedUser(topThree[2])} className="w-full text-left order-3 md:order-3 bg-white p-8 rounded-xl border border-slate-100 shadow-xl text-center space-y-4 transform md:scale-90 relative hover:scale-95 transition-transform duration-500">
+            <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-amber-700 text-white flex items-center justify-center font-bold text-sm">3</div>
+            <div className="w-24 h-24 rounded-xl bg-amber-50 mx-auto flex items-center justify-center text-3xl shadow-inner"><User size={32} className="text-amber-700" /></div>
             <div><h3 className="font-black text-slate-900 truncate">{topThree[2].full_name}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{scoreLabel}</p></div>
             <div className="bg-amber-50/50 py-2 rounded-2xl"><span className="text-sm font-black text-amber-600">{topThree[2].categoryScore}</span></div>
           </button>
@@ -148,15 +149,15 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
       </div>
 
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-[40px] border border-slate-100 shadow-2xl overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden">
           <div className="p-10">
-            <h2 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><span>📈</span> ranking mensal</h2>
+            <h2 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><BarChart3 size={24} className="text-brand-red" /> ranking mensal</h2>
             <div className="space-y-3">
               {remainingUsers.map((user, index) => (
-                <button key={user.id} onClick={() => setSelectedUser(user)} className="w-full text-left flex items-center justify-between p-6 rounded-[24px] bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent transition-all group">
+                <button key={user.id} onClick={() => setSelectedUser(user)} className="w-full text-left flex items-center justify-between p-6 rounded-xl bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent transition-all group">
                   <div className="flex items-center gap-6">
                     <span className="w-10 text-center font-black text-slate-300 group-hover:text-brand-red transition-colors">#{index + 4}</span>
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-xl shadow-sm">👤</div>
+                    <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center text-xl shadow-sm"><User size={20} className="text-slate-600" /></div>
                     <div>
                       <div className="font-black text-slate-900 group-hover:text-brand-red transition-colors">{user.full_name}</div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.monthlyMetrics.positiveCount} Selos Positivos</div>
@@ -168,7 +169,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                   </div>
                 </button>
               ))}
-              {sortedUsers.length === 0 && <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Nenhum Explorador no Ranking</div>}
+              {sortedUsers.length === 0 && <div className="py-20 text-center text-slate-400 font-bold uppercase text-xs">Nenhum colaborador no ranking</div>}
             </div>
           </div>
         </div>
@@ -189,10 +190,10 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
 
       {selectedUser && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[40px] p-10 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full max-w-2xl rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-start mb-8 shrink-0">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-3xl bg-brand-red-light flex items-center justify-center text-4xl shadow-inner">👤</div>
+                <div className="w-20 h-20 rounded-xl bg-brand-red-light flex items-center justify-center shadow-inner"><User size={40} className="text-brand-red" /></div>
                 <div>
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
                   <div className="flex items-center gap-4 mt-2">
@@ -202,7 +203,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                   </div>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="text-slate-300 hover:text-slate-900 transition-colors text-4xl leading-none">&times;</button>
+              <button onClick={() => setSelectedUser(null)} className="text-slate-300 hover:text-slate-900 transition-colors"><X size={24} /></button>
             </div>
             <div className="flex-1 overflow-y-auto pr-2 space-y-8">
               {(() => {
@@ -226,8 +227,8 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                           const toneLabel = BADGE_TONE_LABELS[ub.tone];
                           const isLoss = weight < 0;
                           return (
-                            <div key={`${ub.badge_id}-${idx}`} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner overflow-hidden shrink-0">
+                            <div key={`${ub.badge_id}-${idx}`} className="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
+                              <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center text-2xl shadow-inner overflow-hidden shrink-0">
                                 {badge?.image_url ? (
                                   <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -253,7 +254,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                 );
               })()}
             </div>
-            <button onClick={() => setSelectedUser(null)} className="mt-8 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl hover:bg-slate-200 transition-all text-slate-600">Fechar Perfil</button>
+            <button onClick={() => setSelectedUser(null)} className="mt-8 w-full py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-lg hover:bg-slate-200 transition-all text-slate-600">Fechar Perfil</button>
           </div>
         </div>
       )}
