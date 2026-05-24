@@ -84,7 +84,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       <header className="text-center space-y-6">
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Ranking de Desempenho</h1>
+        <h1 className="text-4xl font-bold font-heading text-slate-900 tracking-tight">Ranking de Desempenho</h1>
         <p className="text-slate-400 font-bold text-xs uppercase tracking-[0.3em]">Saldo mensal de selos por colaborador</p>
 
         <div className="flex items-center justify-center gap-3 mt-2">
@@ -151,7 +151,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden">
           <div className="p-10">
-            <h2 className="text-xl font-black text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><BarChart3 size={24} className="text-brand-red" /> ranking mensal</h2>
+            <h2 className="text-xl font-bold font-heading text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><BarChart3 size={24} className="text-brand-red" /> ranking mensal</h2>
             <div className="space-y-3">
               {remainingUsers.map((user, index) => (
                 <button key={user.id} onClick={() => setSelectedUser(user)} className="w-full text-left flex items-center justify-between p-6 rounded-xl bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent transition-all group">
@@ -195,7 +195,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
               <div className="flex items-center gap-6">
                 <div className="w-20 h-20 rounded-xl bg-brand-red-light flex items-center justify-center shadow-inner"><User size={40} className="text-brand-red" /></div>
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
+                  <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
                   <div className="flex items-center gap-4 mt-2">
                     <span className="bg-brand-red text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
                       saldo {getUserMonthlyBadgeMetrics(selectedUser.id, userBadges, referenceDate).monthlyScore}

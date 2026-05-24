@@ -100,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="relative min-h-[calc(100vh-8rem)] space-y-8 md:space-y-12 animate-in fade-in duration-500 pb-24 md:pb-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 md:bg-transparent md:p-0 rounded-3xl border border-slate-100 md:border-none shadow-sm md:shadow-none">
         <div className="space-y-1">
-          <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">olá, {user.full_name.split(' ')[0]}!</h1>
+          <h1 className="text-3xl md:text-4xl font-bold font-heading text-slate-900 tracking-tight">olá, {user.full_name.split(' ')[0]}!</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest">
               {isAdmin ? 'centro de comando pessoal' : 'saldo mensal de selos'}
@@ -127,7 +127,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
         <div className="bg-white p-6 md:p-10 rounded-2xl md:rounded-2xl shadow-xl border border-slate-100 space-y-4">
           <div>
-            <h3 className="text-xl md:text-2xl font-black text-slate-900">Saldo do Mês</h3>
+            <h3 className="text-xl md:text-2xl font-bold font-heading text-slate-900">Saldo do Mês</h3>
             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">Bronze, Prata, Ouro e Perdas</p>
           </div>
 
@@ -155,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo de Selos</div>
-            <h3 className="text-xl font-black text-slate-900 mt-2">Distribuição pessoal de selos</h3>
+            <h3 className="text-xl font-bold font-heading text-slate-900 mt-2">Distribuição pessoal de selos</h3>
           </div>
           <div className="bg-brand-red-light text-brand-red-dark px-4 py-3 rounded-2xl text-center min-w-[110px]">
             <div className="text-2xl font-black">{myBadgeSummary.total}</div>
@@ -263,7 +263,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       )}
 
       <section className="space-y-6">
-        <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight px-1">Indicadores Obtidos</h3>
+        <h3 className="text-lg md:text-2xl font-bold font-heading text-slate-900 tracking-tight px-1">Indicadores Obtidos</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
           {(allBadges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
@@ -282,7 +282,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
       <section className="space-y-6">
         <div className="px-1">
-          <h3 className="text-lg md:text-2xl font-black text-slate-900 tracking-tight">Selos por colaborador</h3>
+          <h3 className="text-lg md:text-2xl font-bold font-heading text-slate-900 tracking-tight">Selos por colaborador</h3>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">
             {isAdmin ? 'Visão geral da operação' : 'Visão da sua empresa ou unidade'}
           </p>
@@ -293,7 +293,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div key={companyGroup.companyId} className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <h4 className="text-xl font-black text-slate-900">{companyGroup.companyName}</h4>
+                  <h4 className="text-xl font-bold font-heading text-slate-900">{companyGroup.companyName}</h4>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
                     {companyGroup.units.reduce((total, unit) => total + unit.collaborators.length, 0)} colaboradores
                   </p>
@@ -308,7 +308,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                   <div key={unitGroup.unitId} className="rounded-[28px] border border-slate-100 bg-slate-50/70 p-5 space-y-4">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div>
-                        <h5 className="text-lg font-black text-slate-900">{unitGroup.unitName}</h5>
+                        <h5 className="text-lg font-bold font-heading text-slate-900">{unitGroup.unitName}</h5>
                         <p className="text-[10px] font-black uppercase tracking-widest text-brand-teal mt-2">
                           {unitGroup.collaborators.length} colaboradores na unidade
                         </p>
@@ -324,7 +324,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <div key={collaborator.id} className="bg-white rounded-[28px] border border-slate-100 shadow-sm p-5 space-y-5">
                             <div className="flex items-start justify-between gap-4">
                               <div>
-                                <h6 className="text-lg font-black text-slate-900">{collaborator.full_name}</h6>
+                                <h6 className="text-lg font-bold font-heading text-slate-900">{collaborator.full_name}</h6>
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>
                               </div>
                               <div className="text-right">

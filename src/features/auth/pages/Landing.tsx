@@ -54,7 +54,7 @@ const Landing: React.FC = () => {
             </div>
 
             <div className="space-y-5">
-              <h1 className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight md:text-7xl">
+              <h1 className="max-w-4xl text-5xl font-bold font-heading leading-[0.95] tracking-tight md:text-7xl">
                 O jeito mais simples de transformar indicadores em comportamento.
               </h1>
               <p className="max-w-2xl text-base font-medium leading-7 text-slate-600 md:text-lg">
@@ -139,7 +139,7 @@ const Landing: React.FC = () => {
             {highlights.map((item) => (
               <article key={item.title} className="rounded-2xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-100/60">
                 <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-teal">Pilar</div>
-                <h2 className="mt-4 text-2xl font-black tracking-tight text-slate-900">{item.title}</h2>
+                <h2 className="mt-4 text-2xl font-bold font-heading tracking-tight text-slate-900">{item.title}</h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">{item.description}</p>
               </article>
             ))}
@@ -151,7 +151,7 @@ const Landing: React.FC = () => {
             <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr] md:items-center">
               <div>
                 <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-red">Tese de produto</div>
-                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+                <h2 className="mt-4 text-3xl font-bold font-heading tracking-tight text-slate-900 md:text-4xl">
                   O site precisa vender confianca antes de vender funcionalidade.
                 </h2>
               </div>

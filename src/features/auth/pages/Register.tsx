@@ -53,7 +53,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
     <div className="max-w-md mx-auto mt-10 md:mt-20 px-4">
       <div className="bg-white p-8 md:p-10 rounded-2xl shadow-2xl border border-slate-100 relative overflow-hidden">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Cadastro LabQuest</h1>
+          <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2 tracking-tight">Cadastro LabQuest</h1>
           <p className="text-slate-500 text-sm">Acesse a plataforma</p>
         </div>
 

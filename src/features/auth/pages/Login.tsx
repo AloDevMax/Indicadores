@@ -42,6 +42,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         
         <div className="text-center mb-10 relative z-10">
           <img src="/logo-vertical.jpeg" alt="LabVW" className="h-28 w-auto object-contain mx-auto mb-3" />
+          <h1 className="text-2xl font-bold font-heading text-slate-900 mb-2 tracking-tight">Entrar</h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Plataforma de Qualidade</p>
         </div>
 

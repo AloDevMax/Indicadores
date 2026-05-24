@@ -826,7 +826,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-10">
               <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Centro de Comando</h2>
+                  <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Centro de Comando</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Hierarquia e Performance Operacional</p>
                 </div>
               </header>
@@ -916,7 +916,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
           {view === 'submissions' && (
             <div className="space-y-8 animate-in fade-in">
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight">Pedidos de Validação</h2>
+              <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Pedidos de Validação</h2>
               <div className="space-y-4">
                 {submissions.filter(s => {
                   if (s.status !== 'pending') return false;
@@ -966,7 +966,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           {view === 'users' && (
             <div className="space-y-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Colaboradores da Rede</h2>
+                <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Colaboradores da Rede</h2>
                 <div className="flex flex-wrap gap-2">
                   <select 
                     value={selectedCompanyFilter}
@@ -1050,14 +1050,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <header className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight">Premiar Colaboradores</h2>
+                  <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Premiar Colaboradores</h2>
                   <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Recompense ações excepcionais em lote</p>
                 </div>
                 <button
                   onClick={() => setIsImportModalOpen(true)}
                   className="flex items-center gap-2 bg-brand-red text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-brand-red-dark transition-all active:scale-95 whitespace-nowrap"
                 >
-                  📊 Importar Planilha Mensal
+                  Importar Planilha Mensal
                 </button>
               </header>
 
@@ -1483,7 +1483,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setIsBulkInviteModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-teal text-white rounded-2xl shadow-xl hover:bg-emerald-700 transition-all">Enviar Convites 📨</button>
+                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-teal text-white rounded-2xl shadow-xl hover:bg-emerald-700 transition-all">Enviar Convites</button>
               </div>
             </form>
           </div>

@@ -83,7 +83,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-red-light">
-        <div className="animate-bounce text-brand-red font-bold text-xl uppercase tracking-widest">Carregando...</div>
+        <div className="text-brand-red font-bold text-xl uppercase tracking-widest">Carregando...</div>
       </div>
     );
   }
@@ -97,7 +97,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
           <div className="w-20 h-20 bg-brand-red rounded-[24px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-brand-red-light rotate-3">
             ⚙️
           </div>
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Configurações</h1>
+          <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2 tracking-tight">Configurações</h1>
           <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Gerencie seu Perfil</p>
         </div>
 
@@ -105,7 +105,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
           {!isEditing ? (
             <div className="space-y-6">
               <div className="bg-slate-50 rounded-2xl p-6">
-                <h3 className="text-lg font-black text-slate-900 mb-4">Informações do Perfil</h3>
+                <h3 className="text-lg font-bold font-heading text-slate-900 mb-4">Informações do Perfil</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</label>
@@ -159,7 +159,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                 </div>
 
                 <div className="border-t border-slate-100 pt-6 mt-6">
-                  <h4 className="text-sm font-black text-slate-900 mb-4">Alterar Senha (Opcional)</h4>
+                  <h4 className="text-sm font-bold font-heading text-slate-900 mb-4">Alterar Senha (Opcional)</h4>
 
                   <div className="space-y-4">
                     <div className="space-y-2">
