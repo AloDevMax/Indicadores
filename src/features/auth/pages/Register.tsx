@@ -65,7 +65,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -77,7 +77,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -89,7 +89,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -101,7 +101,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               style={{ textTransform: 'none' }}
-              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-red"
+              className="w-full px-4 py-3 rounded-lg bg-slate-50 border-none outline-none focus:ring-2 focus:ring-brand-primary"
               required
             />
           </div>
@@ -110,7 +110,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
 
           <button
             type="submit"
-            className="w-full bg-brand-red text-white font-black py-3 rounded-lg hover:bg-brand-red-dark transition-all"
+            className="w-full bg-brand-primary text-white font-black py-3 rounded-lg hover:bg-brand-primary-dark transition-all"
             disabled={loading}
           >
             {loading ? 'Cadastrando...' : 'Criar minha conta'}
@@ -118,7 +118,7 @@ const Register: React.FC<RegisterProps> = ({ onRegister }) => {
         </form>
 
         <p className="text-center text-sm text-slate-500 mt-4">
-          Já tem conta? <Link to="/login" className="text-brand-red font-bold hover:text-brand-red-dark">Fazer login</Link>
+          Já tem conta? <Link to="/login" className="text-brand-primary font-bold hover:text-brand-primary-dark">Fazer login</Link>
         </p>
       </div>
     </div>

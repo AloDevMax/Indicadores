@@ -64,7 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;
-  const activeClass = 'bg-brand-red text-white shadow-lg shadow-brand-red-light';
+  const activeClass = 'bg-brand-primary text-white shadow-lg shadow-brand-primary-light';
   const inactiveClass = 'text-slate-500 hover:bg-slate-100 hover:text-slate-900';
 
   return (
@@ -91,14 +91,14 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => setAdminViewMode('management')}
                 title="Gestão Operacional"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'management' ? 'bg-white text-brand-primary shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <BarChart3 size={20} strokeWidth={2} />
               </button>
               <button
                 onClick={() => setAdminViewMode('personal')}
                 title="Painel Pessoal"
-                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-brand-red shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`flex-1 flex items-center justify-center py-2.5 rounded-xl transition-all ${adminViewMode === 'personal' ? 'bg-white text-brand-primary shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
               >
                 <User size={20} strokeWidth={2} />
               </button>
@@ -145,7 +145,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                       navigate(`/empresas/${company.id}#${unit.id}`);
                                       if (window.innerWidth < 768) onClose();
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-red-light hover:text-brand-red transition-all truncate"
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-primary-light hover:text-brand-primary transition-all truncate"
                                   >
                                     <MapPin size={16} strokeWidth={2} />
                                     <span className="flex-1 text-left truncate">{unit.name}</span>

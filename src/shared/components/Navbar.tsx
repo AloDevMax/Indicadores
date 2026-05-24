@@ -22,11 +22,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSid
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
 
   const rolePill = isDeveloper
-    ? { label: 'Dev', bg: 'bg-brand-orange' }
+    ? { label: 'Dev', bg: 'bg-brand-secondary' }
     : isSupervisor
-      ? { label: 'Supervisor', bg: 'bg-brand-teal' }
+      ? { label: 'Supervisor', bg: 'bg-brand-accent' }
       : isAdmin
-        ? { label: 'Admin', bg: 'bg-brand-red' }
+        ? { label: 'Admin', bg: 'bg-brand-primary' }
         : null;
 
   const roleSubtitle = isDeveloper

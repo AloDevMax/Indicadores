@@ -88,7 +88,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   if (!allBadges || allBadges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-brand-red font-bold text-xl uppercase tracking-widest">Carregando dados...</div>
+        <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando dados...</div>
       </div>
     );
   }
@@ -118,7 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         <button
           onClick={onOpenSolicitation}
-          className="hidden md:flex bg-brand-red text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-red-dark transition-all shadow-xl shadow-brand-red-light items-center justify-center gap-3 active:scale-95"
+          className="hidden md:flex bg-brand-primary text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-primary-dark transition-all shadow-xl shadow-brand-primary-light items-center justify-center gap-3 active:scale-95"
         >
           <Plus size={20} strokeWidth={2} /> Solicitar meu selo
         </button>
@@ -132,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           <div className="w-full h-3 md:h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-white">
-            <div className="h-full bg-brand-red transition-all duration-1000 ease-out" style={{ width: `${Math.max(progress, 5)}%` }}></div>
+            <div className="h-full bg-brand-primary transition-all duration-1000 ease-out" style={{ width: `${Math.max(progress, 5)}%` }}></div>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-center">
@@ -145,7 +145,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        <div className="bg-brand-red p-8 md:p-10 rounded-2xl md:rounded-2xl shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
+        <div className="bg-brand-primary p-8 md:p-10 rounded-2xl md:rounded-2xl shadow-xl shadow-brand-primary-light text-white flex flex-col justify-center items-center text-center space-y-2">
           <div className="text-4xl md:text-5xl font-black">{monthlyMetrics.lossCount}</div>
           <div className="font-black uppercase text-[10px] tracking-[0.2em] opacity-80">Perdas do Mês</div>
         </div>
@@ -157,7 +157,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Resumo de Selos</div>
             <h3 className="text-xl font-bold font-heading text-slate-900 mt-2">Distribuição pessoal de selos</h3>
           </div>
-          <div className="bg-brand-red-light text-brand-red-dark px-4 py-3 rounded-2xl text-center min-w-[110px]">
+          <div className="bg-brand-primary-light text-brand-primary-dark px-4 py-3 rounded-2xl text-center min-w-[110px]">
             <div className="text-2xl font-black">{myBadgeSummary.total}</div>
             <div className="text-[10px] font-black uppercase tracking-widest">Total</div>
           </div>
@@ -298,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     {companyGroup.units.reduce((total, unit) => total + unit.collaborators.length, 0)} colaboradores
                   </p>
                 </div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-brand-red bg-brand-red-light px-4 py-2 rounded-xl">
+                <div className="text-[10px] font-black uppercase tracking-widest text-brand-primary bg-brand-primary-light px-4 py-2 rounded-xl">
                   {companyGroup.units.length} unidades
                 </div>
               </div>
@@ -309,7 +309,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div>
                         <h5 className="text-lg font-bold font-heading text-slate-900">{unitGroup.unitName}</h5>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-teal mt-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-accent mt-2">
                           {unitGroup.collaborators.length} colaboradores na unidade
                         </p>
                       </div>

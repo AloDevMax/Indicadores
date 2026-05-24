@@ -65,7 +65,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             <select
               value={selectedBadgeId}
               onChange={(e) => setSelectedBadgeId(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
               required
             >
               <option value="">Selecionar selo...</option>
@@ -80,13 +80,13 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
             <textarea
               value={proofDescription}
               onChange={(e) => setProofDescription(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-brand-red transition-all"
+              className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[120px] outline-none focus:ring-2 focus:ring-brand-primary transition-all"
               placeholder="Detalhe sua ação de qualidade aqui..."
               required
             />
           </div>
 
-          <button type="submit" disabled={submitting} className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark shadow-2xl shadow-brand-red-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
+          <button type="submit" disabled={submitting} className="w-full bg-brand-primary text-white font-black py-5 rounded-2xl hover:bg-brand-primary-dark shadow-2xl shadow-brand-primary-light transition-all active:scale-[0.98] uppercase tracking-[0.2em] text-xs disabled:opacity-60">
             {submitting ? 'Enviando...' : 'Enviar Solicitação'}
           </button>
         </form>

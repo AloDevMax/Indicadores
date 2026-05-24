@@ -32,13 +32,13 @@ const Landing: React.FC = () => {
           <div className="flex items-center gap-3">
             <Link
               to="/login"
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-brand-red-light hover:bg-brand-red-light hover:text-brand-red-dark"
+              className="rounded-2xl border border-slate-200 px-4 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-brand-primary-light hover:bg-brand-primary-light hover:text-brand-primary-dark"
             >
               Entrar
             </Link>
             <Link
               to="/register"
-              className="rounded-2xl bg-brand-red px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-brand-red-light transition hover:bg-brand-red-dark"
+              className="rounded-2xl bg-brand-primary px-5 py-3 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-brand-primary-light transition hover:bg-brand-primary-dark"
             >
               Solicitar acesso
             </Link>
@@ -49,7 +49,7 @@ const Landing: React.FC = () => {
       <main>
         <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 md:grid-cols-[1.15fr_0.85fr] md:px-8 md:py-24">
           <div className="space-y-8">
-            <div className="inline-flex rounded-full border border-brand-red-light bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-brand-red-dark shadow-sm">
+            <div className="inline-flex rounded-full border border-brand-primary-light bg-white/90 px-4 py-2 text-[10px] font-black uppercase tracking-[0.24em] text-brand-primary-dark shadow-sm">
               Plataforma para empresas com operacao em campo, industria e servicos
             </div>
 
@@ -72,7 +72,7 @@ const Landing: React.FC = () => {
               </Link>
               <Link
                 to="/login"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-7 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-700 transition hover:border-brand-orange hover:text-brand-red-dark"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-7 py-4 text-xs font-black uppercase tracking-[0.2em] text-slate-700 transition hover:border-brand-secondary hover:text-brand-primary-dark"
               >
                 Acessar plataforma
               </Link>
@@ -80,7 +80,7 @@ const Landing: React.FC = () => {
 
             <div className="grid gap-4 sm:grid-cols-3">
               {metrics.map((metric) => (
-                <div key={metric.label} className="rounded-xl border border-white/80 bg-white/85 p-5 shadow-lg shadow-brand-red-light/40">
+                <div key={metric.label} className="rounded-xl border border-white/80 bg-white/85 p-5 shadow-lg shadow-brand-primary-light/40">
                   <div className="text-3xl font-black tracking-tight text-slate-900">{metric.value}</div>
                   <div className="mt-2 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
                 </div>
@@ -89,11 +89,11 @@ const Landing: React.FC = () => {
           </div>
 
           <div className="relative">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-orange/30 via-brand-red/30 to-brand-teal/30 blur-3xl" />
-            <div className="relative overflow-hidden rounded-2xl border border-white/80 bg-slate-900 p-6 text-white shadow-2xl shadow-brand-red-light">
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-secondary/30 via-brand-primary/30 to-brand-accent/30 blur-3xl" />
+            <div className="relative overflow-hidden rounded-2xl border border-white/80 bg-slate-900 p-6 text-white shadow-2xl shadow-brand-primary-light">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-red-light">Visao executiva</div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-primary-light">Visao executiva</div>
                   <div className="mt-2 text-2xl font-black">Operacao em movimento</div>
                 </div>
                 <div className="rounded-2xl bg-white/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">
@@ -123,8 +123,8 @@ const Landing: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-gradient-to-r from-brand-red/40 to-brand-orange/30 p-5">
-                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-red-light">O que o diretor enxerga</div>
+                <div className="rounded-xl bg-gradient-to-r from-brand-primary/40 to-brand-secondary/30 p-5">
+                  <div className="text-[10px] font-black uppercase tracking-[0.22em] text-brand-primary-light">O que o diretor enxerga</div>
                   <p className="mt-3 text-sm font-medium leading-6 text-slate-100">
                     Quem esta performando, onde a operacao perdeu ritmo e quais lideres estao reforcando a cultura certa.
                   </p>
@@ -138,7 +138,7 @@ const Landing: React.FC = () => {
           <div className="grid gap-5 md:grid-cols-3">
             {highlights.map((item) => (
               <article key={item.title} className="rounded-2xl border border-slate-100 bg-white p-8 shadow-xl shadow-slate-100/60">
-                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-teal">Pilar</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-accent">Pilar</div>
                 <h2 className="mt-4 text-2xl font-bold font-heading tracking-tight text-slate-900">{item.title}</h2>
                 <p className="mt-4 text-sm leading-7 text-slate-600">{item.description}</p>
               </article>
@@ -150,7 +150,7 @@ const Landing: React.FC = () => {
           <div className="rounded-2xl border border-slate-100 bg-white px-6 py-10 shadow-2xl shadow-slate-100 md:px-10">
             <div className="grid gap-10 md:grid-cols-[0.9fr_1.1fr] md:items-center">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-red">Tese de produto</div>
+                <div className="text-[10px] font-black uppercase tracking-[0.24em] text-brand-primary">Tese de produto</div>
                 <h2 className="mt-4 text-3xl font-bold font-heading tracking-tight text-slate-900 md:text-4xl">
                   O site precisa vender confianca antes de vender funcionalidade.
                 </h2>

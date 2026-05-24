@@ -76,7 +76,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <div className="text-brand-red font-bold text-sm uppercase tracking-widest">Carregando...</div>
+        <div className="text-brand-primary font-bold text-sm uppercase tracking-widest">Carregando...</div>
       </div>
     );
   }
@@ -91,14 +91,14 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           <select
             value={filterMonth}
             onChange={e => setFilterMonth(Number(e.target.value))}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-red"
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-primary"
           >
             {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m}</option>)}
           </select>
           <select
             value={filterYear}
             onChange={e => setFilterYear(Number(e.target.value))}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-red"
+            className="px-4 py-2 bg-white border border-slate-200 rounded-2xl font-bold text-sm text-slate-700 outline-none focus:ring-2 focus:ring-brand-primary"
           >
             {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </select>
@@ -111,8 +111,8 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
               onClick={() => setSelectedCategory(cat)}
               className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 selectedCategory === cat
-                  ? 'bg-brand-red text-white shadow-lg'
-                  : 'bg-white text-slate-400 border border-slate-100 hover:border-brand-red-light hover:text-brand-red'
+                  ? 'bg-brand-primary text-white shadow-lg'
+                  : 'bg-white text-slate-400 border border-slate-100 hover:border-brand-primary-light hover:text-brand-primary'
               }`}
             >
               {cat}
@@ -131,10 +131,10 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           </button>
         )}
         {topThree[0] && (
-          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-brand-red p-10 rounded-2xl shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
+          <button onClick={() => setSelectedUser(topThree[0])} className="w-full text-left order-1 md:order-2 bg-brand-primary p-10 rounded-2xl shadow-2xl text-center space-y-6 relative z-10 hover:scale-105 transition-transform duration-500 text-white">
             <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-lg">1</div>
             <div className="w-32 h-32 rounded-2xl bg-white/20 mx-auto flex items-center justify-center shadow-inner"><User size={48} className="text-white" /></div>
-            <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-brand-red-light uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
+            <div><h3 className="font-black text-xl truncate">{topThree[0].full_name}</h3><p className="text-[10px] font-black text-brand-primary-light uppercase tracking-[0.2em] mt-1">{scoreLabel}</p></div>
             <div className="bg-white/10 py-3 rounded-xl border border-white/10"><span className="text-lg font-black">{topThree[0].categoryScore}</span></div>
           </button>
         )}
@@ -151,15 +151,15 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl overflow-hidden">
           <div className="p-10">
-            <h2 className="text-xl font-bold font-heading text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><BarChart3 size={24} className="text-brand-red" /> ranking mensal</h2>
+            <h2 className="text-xl font-bold font-heading text-slate-900 mb-8 uppercase tracking-tight flex items-center gap-3"><BarChart3 size={24} className="text-brand-primary" /> ranking mensal</h2>
             <div className="space-y-3">
               {remainingUsers.map((user, index) => (
                 <button key={user.id} onClick={() => setSelectedUser(user)} className="w-full text-left flex items-center justify-between p-6 rounded-xl bg-slate-50/50 hover:bg-white hover:shadow-lg border border-transparent transition-all group">
                   <div className="flex items-center gap-6">
-                    <span className="w-10 text-center font-black text-slate-300 group-hover:text-brand-red transition-colors">#{index + 4}</span>
+                    <span className="w-10 text-center font-black text-slate-300 group-hover:text-brand-primary transition-colors">#{index + 4}</span>
                     <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center text-xl shadow-sm"><User size={20} className="text-slate-600" /></div>
                     <div>
-                      <div className="font-black text-slate-900 group-hover:text-brand-red transition-colors">{user.full_name}</div>
+                      <div className="font-black text-slate-900 group-hover:text-brand-primary transition-colors">{user.full_name}</div>
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.monthlyMetrics.positiveCount} Selos Positivos</div>
                     </div>
                   </div>
@@ -193,11 +193,11 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
           <div className="bg-white w-full max-w-2xl rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-start mb-8 shrink-0">
               <div className="flex items-center gap-6">
-                <div className="w-20 h-20 rounded-xl bg-brand-red-light flex items-center justify-center shadow-inner"><User size={40} className="text-brand-red" /></div>
+                <div className="w-20 h-20 rounded-xl bg-brand-primary-light flex items-center justify-center shadow-inner"><User size={40} className="text-brand-primary" /></div>
                 <div>
                   <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
                   <div className="flex items-center gap-4 mt-2">
-                    <span className="bg-brand-red text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                    <span className="bg-brand-primary text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
                       saldo {getUserMonthlyBadgeMetrics(selectedUser.id, userBadges, referenceDate).monthlyScore}
                     </span>
                   </div>
@@ -212,7 +212,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                 return (
                   <>
                     <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-around text-center">
-                      <div><div className="text-2xl font-black text-brand-red">{metrics.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
+                      <div><div className="text-2xl font-black text-brand-primary">{metrics.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
                       <div><div className="text-2xl font-black text-slate-900">{metrics.positiveCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selos Positivos</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
@@ -237,7 +237,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-bold text-slate-900 text-sm truncate">{badge?.name || 'Selo'}</div>
-                                <div className="text-[9px] font-black text-brand-red uppercase tracking-widest">{toneLabel}</div>
+                                <div className="text-[9px] font-black text-brand-primary uppercase tracking-widest">{toneLabel}</div>
                               </div>
                               <div className={`text-sm font-black shrink-0 ${isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                                 {weight > 0 ? `+${weight}` : weight}

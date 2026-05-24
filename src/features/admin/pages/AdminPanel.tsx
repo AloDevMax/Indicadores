@@ -814,8 +814,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       {view === 'overview' && (
         <div className="flex justify-center mb-10">
           <div className="bg-slate-200/50 p-1.5 rounded-xl flex gap-1 shadow-inner">
-            <button onClick={() => setActiveMode('management')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'management' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><BarChart3 size={16} /> Gestão Operacional</button>
-            <button onClick={() => setActiveMode('personal')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'personal' ? 'bg-white text-brand-red shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><User size={16} /> Painel Pessoal</button>
+            <button onClick={() => setActiveMode('management')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'management' ? 'bg-white text-brand-primary shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><BarChart3 size={16} /> Gestão Operacional</button>
+            <button onClick={() => setActiveMode('personal')} className={`px-8 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeMode === 'personal' ? 'bg-white text-brand-primary shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}><User size={16} /> Painel Pessoal</button>
           </div>
         </div>
       )}
@@ -856,7 +856,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Building2 size={16} /> Empresas no Ecossistema</h3>
                   <div className="space-y-4">
                     {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg space-y-5 group hover:border-brand-red-light transition-all">
+                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg space-y-5 group hover:border-brand-primary-light transition-all">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
@@ -875,7 +875,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <div className="flex gap-2">
                         {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
                         )}
                         {isDeveloper && (
                           <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
@@ -887,10 +887,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                           <div>
                             <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
-                            <div className="text-[10px] font-black text-brand-teal uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
+                            <div className="text-[10px] font-black text-brand-accent uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
                           </div>
                           {!isSupervisor && (
-                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-teal hover:bg-white rounded-xl transition-all"><Pencil size={16} /></button>
+                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-accent hover:bg-white rounded-xl transition-all"><Pencil size={16} /></button>
                           )}
                         </div>
                       )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
@@ -900,14 +900,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 </div>
                 <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white">
-                  <h3 className="text-sm font-black text-brand-red-light uppercase tracking-widest mb-6 flex items-center gap-2"><Inbox size={16} /> Atividade de Rede</h3>
+                  <h3 className="text-sm font-black text-brand-primary-light uppercase tracking-widest mb-6 flex items-center gap-2"><Inbox size={16} /> Atividade de Rede</h3>
                   <div className="space-y-4">
                     {submissions.slice(0, 3).map(sub => (
                       <div key={sub.id} className="bg-white/10 p-4 rounded-lg border border-white/5 text-xs">
-                        <span className="font-black text-brand-orange">{sub.user_name}</span> solicitou <span className="font-black text-white">{sub.badge_name}</span>
+                        <span className="font-black text-brand-secondary">{sub.user_name}</span> solicitou <span className="font-black text-white">{sub.badge_name}</span>
                       </div>
                     ))}
-                    {submissions.length === 0 && <p className="text-xs text-brand-orange">Nenhuma atividade recente.</p>}
+                    {submissions.length === 0 && <p className="text-xs text-brand-secondary">Nenhuma atividade recente.</p>}
                   </div>
                 </div>
               </div>
@@ -932,7 +932,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div key={sub.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex flex-col md:flex-row gap-6">
                       <div className="flex-1 space-y-3">
                         <div className="flex flex-wrap items-center gap-3">
-                          <span className="bg-brand-red text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{sub.badge_name}</span>
+                          <span className="bg-brand-primary text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{sub.badge_name}</span>
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                             {sub.user_name} • {company?.name || 'Independente'}
                           </span>
@@ -940,7 +940,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl italic">"{sub.description}"</p>
                       </div>
                       <div className="flex md:flex-col gap-2 min-w-[140px]">
-                        <button onClick={() => handleReviewSubmission(sub.id, 'approved')} className="bg-emerald-500 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-100 hover:bg-brand-teal transition-all">Validar & Premiar</button>
+                        <button onClick={() => handleReviewSubmission(sub.id, 'approved')} className="bg-emerald-500 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-100 hover:bg-brand-accent transition-all">Validar & Premiar</button>
                         <button onClick={() => handleReviewSubmission(sub.id, 'rejected')} className="bg-white text-rose-500 border border-rose-100 px-6 py-4 rounded-xl font-black text-[10px] uppercase hover:bg-rose-50 transition-all">Recusar</button>
                       </div>
                     </div>
@@ -987,7 +987,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="">Todas as Unidades</option>
                     {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
-                  <button onClick={() => openUserModal()} className="bg-brand-red text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
+                  <button onClick={() => openUserModal()} className="bg-brand-primary text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
               </div>
               <div className="bg-white rounded-2xl border border-slate-100 shadow-xl overflow-hidden">
@@ -1017,23 +1017,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                               </div>
                               <div className="flex-1">
                                 <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
-                                <div className="text-[10px] text-brand-red font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
-                                <div className="text-[10px] text-brand-teal font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
+                                <div className="text-[10px] text-brand-primary font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
+                                <div className="text-[10px] text-brand-accent font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
                                 <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
                               </div>
                             </div>
                           </td>
                           <td className="px-10 py-6">
                             <div className="flex items-center gap-3 flex-wrap">
-                              <span className="bg-brand-red-light text-brand-red px-3 py-1 rounded-lg text-[10px] font-black uppercase">Saldo {metrics.monthlyScore}</span>
+                              <span className="bg-brand-primary-light text-brand-primary px-3 py-1 rounded-lg text-[10px] font-black uppercase">Saldo {metrics.monthlyScore}</span>
                               <span className="text-[10px] font-black text-slate-400 uppercase">{metrics.positiveCount} selos</span>
                               <span className="text-[10px] font-black text-rose-500 uppercase">{metrics.lossCount} perdas</span>
                             </div>
                           </td>
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-brand-red uppercase tracking-widest bg-brand-red-light hover:bg-brand-red-light px-4 py-2 rounded-xl">Ver Selos</button>
-                              <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                              <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-brand-primary uppercase tracking-widest bg-brand-primary-light hover:bg-brand-primary-light px-4 py-2 rounded-xl">Ver Selos</button>
+                              <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
                               <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                             </div>
                           </td>
@@ -1055,7 +1055,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <button
                   onClick={() => setIsImportModalOpen(true)}
-                  className="flex items-center gap-2 bg-brand-red text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-brand-red-dark transition-all active:scale-95 whitespace-nowrap"
+                  className="flex items-center gap-2 bg-brand-primary text-white px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-brand-primary-dark transition-all active:scale-95 whitespace-nowrap"
                 >
                   Importar Planilha Mensal
                 </button>
@@ -1065,14 +1065,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
                   <div className="mb-6 flex items-center justify-between">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. Selecione colaboradores</h3>
-                    <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-brand-red">{selectedUsers.length} selecionados</div>
+                    <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-brand-primary">{selectedUsers.length} selecionados</div>
                   </div>
-                  <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-brand-red" />
+                  <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-brand-primary" />
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                     {filteredUsers.map(u => (
-                      <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
+                      <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-brand-primary-light border-brand-primary shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-red text-white' : 'bg-slate-100 text-slate-400'}`}><User size={18} /></div>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-primary text-white' : 'bg-slate-100 text-slate-400'}`}><User size={18} /></div>
                           <div className="text-left">
                             <div className="font-bold text-sm text-slate-900">{u.full_name}</div>
                             <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{companies.find(c => c.id === u.company_id)?.name}</div>
@@ -1089,7 +1089,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {badges.map(badge => (
-                        <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-red-light border-brand-red shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
+                        <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-primary-light border-brand-primary shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
                           <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
                             {badge.image_url ? (
                               renderSquareImage(badge.image_url, badge.name)
@@ -1099,7 +1099,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                           <div>
                             <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge?.name || 'Badge sem nome'}</div>
-                            <div className="text-[10px] font-black text-brand-red uppercase tracking-widest">{badge.category}</div>
+                            <div className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{badge.category}</div>
                           </div>
                         </button>
                       ))}
@@ -1112,7 +1112,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <button
                           key={tone}
                           onClick={() => setSelectedAwardTone(tone)}
-                          className={cn("px-4 py-4 rounded-xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-red bg-brand-red-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
+                          className={cn("px-4 py-4 rounded-xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-primary bg-brand-primary-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
                         >
                           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
                           <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
@@ -1121,8 +1121,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                   <div className="bg-brand-dark p-10 rounded-2xl shadow-2xl text-white text-center space-y-6">
-                    <h3 className="text-sm font-black text-brand-red-light uppercase tracking-widest">4. Confirmar Premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-brand-dark rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-red-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
+                    <h3 className="text-sm font-black text-brand-primary-light uppercase tracking-widest">4. Confirmar Premiação</h3>
+                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-brand-dark rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-primary-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
               </div>
@@ -1158,13 +1158,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Mês</label>
-                        <select value={importMonth} onChange={e => setImportMonth(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-brand-red">
+                        <select value={importMonth} onChange={e => setImportMonth(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-brand-primary">
                           {MONTH_NAMES_PT.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Ano</label>
-                        <select value={importYear} onChange={e => setImportYear(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-brand-red">
+                        <select value={importYear} onChange={e => setImportYear(Number(e.target.value))} className="w-full px-4 py-3 bg-slate-50 rounded-2xl border-none font-bold text-sm outline-none focus:ring-2 focus:ring-brand-primary">
                           {[2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                       </div>
@@ -1176,7 +1176,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         type="file"
                         accept=".xlsx,.xls"
                         onChange={e => { if (e.target.files?.[0]) handleExcelUpload(e.target.files[0]); }}
-                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-brand-red file:text-white"
+                        className="w-full px-4 py-3 bg-slate-50 rounded-2xl text-sm font-bold text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-brand-primary file:text-white"
                       />
                     </div>
                     <button
@@ -1192,7 +1192,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         }
                         catch (err) { toast.error('Erro ao criar selos: ' + (err instanceof Error ? err.message : 'Erro')); }
                       }}
-                      className="text-xs font-black text-brand-red underline"
+                      className="text-xs font-black text-brand-primary underline"
                     >
                       Criar selos de indicadores (executar uma vez)
                     </button>
@@ -1237,7 +1237,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         );
                       })}
                     </div>
-                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-brand-red text-white rounded-xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
+                    <button onClick={() => setImportStep('preview')} className="w-full py-4 bg-brand-primary text-white rounded-xl font-black text-sm uppercase tracking-widest">Ver preview →</button>
                   </div>
                 )}
 
@@ -1295,7 +1295,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <Award size={48} className="mx-auto text-amber-500" />
                     <div className="text-2xl font-black text-slate-900">{importResult.awardedCount} selos importados</div>
                     <div className="text-sm text-slate-400 font-bold">{MONTH_NAMES_PT[importMonth - 1]} {importYear}</div>
-                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-brand-red text-white rounded-xl font-black text-xs uppercase tracking-widest">Fechar</button>
+                    <button onClick={() => { resetImport(); setIsImportModalOpen(false); }} className="px-8 py-3 bg-brand-primary text-white rounded-xl font-black text-xs uppercase tracking-widest">Fechar</button>
                   </div>
                 )}
               </div>
@@ -1306,7 +1306,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="space-y-8 animate-in fade-in">
               <div className="flex justify-between items-center gap-4 flex-wrap">
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Biblioteca de Selos</h2>
-                <button onClick={() => openBadgeModal()} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
+                <button onClick={() => openBadgeModal()} className="bg-brand-primary text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Selo</button>
               </div>
 
               <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
@@ -1318,7 +1318,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Legenda das Cores</div>
                     <div className="text-sm font-bold text-slate-900 mt-1">Bronze, prata, ouro e perdas em vermelho</div>
                   </div>
-                  <span className="text-xs font-black uppercase tracking-widest text-brand-red">{isLegendCollapsed ? 'Expandir' : 'Minimizar'}</span>
+                  <span className="text-xs font-black uppercase tracking-widest text-brand-primary">{isLegendCollapsed ? 'Expandir' : 'Minimizar'}</span>
                 </button>
                 {!isLegendCollapsed && (
                   <div className="border-t border-slate-100 px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1328,7 +1328,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <input
                           value={badgeLegends[tone]}
                           onChange={(e) => handleLegendChange(tone, e.target.value)}
-                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900"
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
                         />
                       </label>
                     ))}
@@ -1338,7 +1338,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {badges.map(badge => (
-                  <div key={badge.id} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-brand-red-light transition-all">
+                  <div key={badge.id} className="bg-white p-6 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-brand-primary-light transition-all">
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
                         {badge.image_url ? (
@@ -1349,11 +1349,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                       <div>
                         <div className="font-bold text-slate-900 text-sm">{badge?.name || 'Badge sem nome'}</div>
-                        <div className="text-[10px] font-black text-brand-red uppercase tracking-widest">{badge.category}</div>
+                        <div className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{badge.category}</div>
                       </div>
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                      <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
                       <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -1368,12 +1368,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
                 <div className="flex gap-2">
                   <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
-                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
+                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-brand-primary text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex items-center justify-between group hover:border-brand-red-light transition-all flex-col md:flex-row gap-4">
+                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex items-center justify-between group hover:border-brand-primary-light transition-all flex-col md:flex-row gap-4">
                     <div className="flex items-center gap-4 flex-1">
                       <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
                         {c.logo_url ? (
@@ -1387,7 +1387,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="flex gap-2">
                       {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-red hover:bg-brand-red-light rounded-xl transition-all"><Pencil size={16} /></button>
+                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
                       )}
                       {isDeveloper && (
                         <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
@@ -1406,21 +1406,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <h2 className="text-3xl font-black text-slate-900 tracking-tight">Olá, {adminProfile.full_name.split(' ')[0]}</h2>
               <p className="text-slate-500 font-bold uppercase text-xs tracking-widest mt-1">Seu Painel de Progresso</p>
             </div>
-            <button onClick={onOpenSolicitation} className="bg-brand-red text-white px-8 py-4 rounded-xl font-black text-sm hover:bg-brand-red-dark shadow-xl flex items-center gap-3 transition-all active:scale-95"><Award size={18} /> Solicitar Meu Selo</button>
+            <button onClick={onOpenSolicitation} className="bg-brand-primary text-white px-8 py-4 rounded-xl font-black text-sm hover:bg-brand-primary-dark shadow-xl flex items-center gap-3 transition-all active:scale-95"><Award size={18} /> Solicitar Meu Selo</button>
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 bg-white p-10 rounded-2xl shadow-xl border border-slate-100 flex flex-col md:flex-row items-center gap-10">
-              <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-brand-red to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-red-light"><Shield size={64} className="text-white" /></div>
+              <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-brand-primary to-purple-600 flex items-center justify-center text-5xl shadow-2xl shadow-brand-primary-light"><Shield size={64} className="text-white" /></div>
               <div className="flex-1 w-full space-y-4">
                 <div className="flex justify-between items-end">
                   <h3 className="text-2xl font-black text-slate-900">Saldo do Mês</h3>
-                  <div className="text-sm font-black text-brand-red bg-brand-red-light px-4 py-2 rounded-xl">{adminMonthlyMetrics.positiveCount} selos / {adminMonthlyMetrics.lossCount} perdas</div>
+                  <div className="text-sm font-black text-brand-primary bg-brand-primary-light px-4 py-2 rounded-xl">{adminMonthlyMetrics.positiveCount} selos / {adminMonthlyMetrics.lossCount} perdas</div>
                 </div>
                 <div className="text-4xl font-black text-slate-900">{adminMonthlyMetrics.monthlyScore || 0}</div>
               </div>
             </div>
-            <div className="bg-brand-red p-10 rounded-2xl shadow-xl shadow-brand-red-light text-white flex flex-col justify-center items-center text-center space-y-2">
+            <div className="bg-brand-primary p-10 rounded-2xl shadow-xl shadow-brand-primary-light text-white flex flex-col justify-center items-center text-center space-y-2">
               <div className="text-5xl font-black">{userBadges.filter(ub => ub.user_id === adminProfile.id).length}</div>
               <div className="font-black uppercase text-[10px] tracking-[0.3em] opacity-80">Selos Obtidos</div>
             </div>
@@ -1452,7 +1452,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     setBulkInviteCompanyId(e.target.value);
                     setBulkInviteProductiveUnitId('');
                   }}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
                   required
                 >
                   <option value="">Selecionar empresa...</option>
@@ -1464,7 +1464,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <select
                   value={bulkInviteProductiveUnitId}
                   onChange={(e) => setBulkInviteProductiveUnitId(e.target.value)}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-red transition-all appearance-none"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
                 >
                   <option value="">Selecionar unidade...</option>
                   {getUnitsByCompany(bulkInviteCompanyId).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
@@ -1475,7 +1475,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <textarea 
                   value={bulkInviteEmails}
                   onChange={(e) => setBulkInviteEmails(e.target.value)}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[160px] outline-none focus:ring-2 focus:ring-brand-red transition-all"
+                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 min-h-[160px] outline-none focus:ring-2 focus:ring-brand-primary transition-all"
                   placeholder="Insira um e-mail por linha ou separados por vírgula..."
                   required
                 ></textarea>
@@ -1483,7 +1483,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setIsBulkInviteModalOpen(false)} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-teal text-white rounded-2xl shadow-xl hover:bg-emerald-700 transition-all">Enviar Convites</button>
+                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-accent text-white rounded-2xl shadow-xl hover:bg-emerald-700 transition-all">Enviar Convites</button>
               </div>
             </form>
           </div>
@@ -1498,20 +1498,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <form onSubmit={handleSaveUser} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome Completo</label>
-                <input name="full_name" defaultValue={editingUser?.full_name} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" placeholder="Ex: João Silva" required />
+                <input name="full_name" defaultValue={editingUser?.full_name} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder="Ex: João Silva" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">E-mail Corporativo</label>
-                <input name="email" type="email" defaultValue={editingUser?.email} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" placeholder="Ex: joao@empresa.com" required />
+                <input name="email" type="email" defaultValue={editingUser?.email} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder="Ex: joao@empresa.com" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso {!editingUser && '(Opcional - padrão: changeme123)'}</label>
-                <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" placeholder={editingUser ? "Deixe vazio para manter atual" : "Digite uma senha"} />
+                <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder={editingUser ? "Deixe vazio para manter atual" : "Digite uma senha"} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
-                  <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900">
+                  <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
                     <option value="user">Colaborador</option>
                     {!isSupervisor && <option value="supervisor">Supervisor</option>}
                     {!isSupervisor && <option value="admin">Gestor</option>}
@@ -1520,14 +1520,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
-                  <select name="company_id" defaultValue={editingUser?.company_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900">
+                  <select name="company_id" defaultValue={editingUser?.company_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
                     <option value="">Nenhuma (Independente)</option>
                     {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva</label>
-                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900">
+                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
                     <option value="">Nenhuma</option>
                     {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
@@ -1542,7 +1542,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               />
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeUserModal} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-red text-white rounded-2xl shadow-xl hover:bg-brand-red-dark transition-all">{editingUser ? 'Atualizar' : 'Salvar'}</button>
+                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all">{editingUser ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
           </div>
@@ -1572,19 +1572,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <form onSubmit={handleSaveBadge} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome do Selo</label>
-                <input name="name" defaultValue={editingBadge?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required />
+                <input name="name" defaultValue={editingBadge?.name} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descrição do Selo</label>
-                <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red min-h-[100px] text-slate-900" required />
+                <textarea name="description" defaultValue={editingBadge?.description} className="w-full px-6 py-4 rounded-xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary min-h-[100px] text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Legenda de Apoio</label>
-                <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-center text-slate-900" required />
+                <input name="points" type="number" defaultValue={editingBadge?.points} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-center text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria Operacional</label>
-                <select name="category" defaultValue={editingBadge?.category} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900">
+                <select name="category" defaultValue={editingBadge?.category} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
@@ -1597,7 +1597,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               />
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeBadgeModal} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-red text-white rounded-2xl shadow-xl hover:bg-brand-red-dark transition-all">{editingBadge ? 'Atualizar' : 'Salvar'}</button>
+                <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all">{editingBadge ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
           </div>
@@ -1627,11 +1627,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <form onSubmit={handleSaveCompany} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Organização</label>
-                <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required />
+                <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria do Setor</label>
-                <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required>
+                <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required>
                   <option value="">Selecionar categoria...</option>
                   {COMPANY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
@@ -1645,7 +1645,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               />
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-brand-red text-white rounded-2xl shadow-xl hover:bg-brand-red-dark">{editingCompany ? 'Atualizar' : 'Cadastrar'}</button>
+                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark">{editingCompany ? 'Atualizar' : 'Cadastrar'}</button>
               </div>
             </form>
           </div>
@@ -1672,14 +1672,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
-                <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required>
+                <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required>
                   <option value="">Selecionar empresa...</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Unidade</label>
-                <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900" required />
+                <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required />
               </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => { setIsProductiveUnitModalOpen(false); setEditingProductiveUnit(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
@@ -1707,7 +1707,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
-                  <div className="bg-brand-red-light text-brand-red px-4 py-3 rounded-xl text-center min-w-[120px]">
+                  <div className="bg-brand-primary-light text-brand-primary px-4 py-3 rounded-xl text-center min-w-[120px]">
                     <div className="text-xl font-black">{metrics.monthlyScore}</div>
                     <div className="text-[10px] font-black uppercase tracking-widest">Saldo do Mês</div>
                   </div>
@@ -1735,7 +1735,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button
                               key={tone}
                               onClick={() => handleAssignBadgeToUser(viewingUserBadges.id, badge.id, tone)}
-                              className={`px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${badgeAward?.tone === tone ? 'bg-brand-red text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                              className={`px-3 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${badgeAward?.tone === tone ? 'bg-brand-primary text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
                             >
                               {BADGE_TONE_LABELS[tone]}
                             </button>

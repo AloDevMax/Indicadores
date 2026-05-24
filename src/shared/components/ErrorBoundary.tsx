@@ -44,7 +44,7 @@ class ErrorBoundary extends Component<Props, State> {
             <div className="mt-4">
               <button
                 onClick={() => window.location.reload()}
-                className="w-full bg-brand-red text-white py-2 px-4 rounded-md hover:bg-brand-red-dark focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2"
+                className="w-full bg-brand-primary text-white py-2 px-4 rounded-md hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
               >
                 Recarregar página
               </button>

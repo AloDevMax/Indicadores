@@ -82,8 +82,8 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-red-light">
-        <div className="text-brand-red font-bold text-xl uppercase tracking-widest">Carregando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-brand-primary-light">
+        <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando...</div>
       </div>
     );
   }
@@ -91,10 +91,10 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
   return (
     <div className="max-w-2xl mx-auto mt-10 md:mt-20 px-4">
       <div className="bg-white p-8 md:p-10 rounded-[40px] shadow-2xl border border-slate-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-red/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
 
         <div className="text-center mb-10 relative z-10">
-          <div className="w-20 h-20 bg-brand-red rounded-[24px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-brand-red-light rotate-3">
+          <div className="w-20 h-20 bg-brand-primary rounded-[24px] mx-auto mb-6 flex items-center justify-center text-4xl shadow-xl shadow-brand-primary-light rotate-3">
             ⚙️
           </div>
           <h1 className="text-3xl font-bold font-heading text-slate-900 mb-2 tracking-tight">Configurações</h1>
@@ -124,7 +124,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
 
               <button
                 onClick={() => setIsEditing(true)}
-                className="w-full bg-brand-red text-white font-black py-5 rounded-2xl hover:bg-brand-red-dark transition-all shadow-xl shadow-brand-red-light active:scale-95 uppercase tracking-[0.2em] text-xs"
+                className="w-full bg-brand-primary text-white font-black py-5 rounded-2xl hover:bg-brand-primary-dark transition-all shadow-xl shadow-brand-primary-light active:scale-95 uppercase tracking-[0.2em] text-xs"
               >
                 Editar Perfil
               </button>
@@ -140,7 +140,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                     value={formData.full_name}
                     onChange={handleInputChange}
                     style={{ textTransform: 'none' }}
-                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900"
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
                     required
                   />
                 </div>
@@ -153,7 +153,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                     value={formData.email}
                     onChange={handleInputChange}
                     style={{ textTransform: 'none' }}
-                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900"
+                    className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
                     required
                   />
                 </div>
@@ -170,7 +170,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                         value={formData.newPassword}
                         onChange={handleInputChange}
                         style={{ textTransform: 'none' }}
-                        className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900"
+                        className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
                         placeholder="Digite a nova senha"
                       />
                     </div>
@@ -183,7 +183,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                         value={formData.confirmPassword}
                         onChange={handleInputChange}
                         style={{ textTransform: 'none' }}
-                        className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-red text-slate-900"
+                        className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
                         placeholder="Confirme a nova senha"
                       />
                     </div>
@@ -223,7 +223,7 @@ const Settings: React.FC<SettingsProps> = ({ user, setUser }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-red text-white rounded-2xl shadow-xl hover:bg-brand-red-dark transition-all disabled:opacity-50"
+                  className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all disabled:opacity-50"
                 >
                   {loading ? 'Salvando...' : 'Salvar Alterações'}
                 </button>

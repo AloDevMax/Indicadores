@@ -32,7 +32,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
             end={link.to === '/admin'}
             className={({ isActive }) => `
               flex flex-col items-center gap-1 transition-all duration-300 flex-1
-              ${isActive ? 'text-brand-red' : 'text-slate-400'}
+              ${isActive ? 'text-brand-primary' : 'text-slate-400'}
             `}
           >
             <link.icon size={20} strokeWidth={2} />
@@ -50,7 +50,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
         to="/dashboard"
         className={({ isActive }) => `
           flex flex-col items-center gap-1 transition-all duration-300 flex-1
-          ${isActive ? 'text-brand-red' : 'text-slate-400'}
+          ${isActive ? 'text-brand-primary' : 'text-slate-400'}
         `}
       >
         <TrendingUp size={20} strokeWidth={2} />
@@ -61,11 +61,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
       <div className="relative -top-5 flex-1 flex justify-center">
         <button
           onClick={onOpenSolicitation}
-          className="w-14 h-14 bg-brand-red text-white rounded-xl shadow-2xl flex items-center justify-center active:scale-90 transition-all border-4 border-white"
+          className="w-14 h-14 bg-brand-primary text-white rounded-xl shadow-2xl flex items-center justify-center active:scale-90 transition-all border-4 border-white"
         >
           <Plus size={24} />
         </button>
-        <span className="absolute bottom-[-1.5rem] text-[9px] font-black uppercase tracking-widest text-brand-red">Solicitar</span>
+        <span className="absolute bottom-[-1.5rem] text-[9px] font-black uppercase tracking-widest text-brand-primary">Solicitar</span>
       </div>
 
       {/* Ranking Link */}
@@ -73,7 +73,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolici
         to="/ranking"
         className={({ isActive }) => `
           flex flex-col items-center gap-1 transition-all duration-300 flex-1
-          ${isActive ? 'text-brand-red' : 'text-slate-400'}
+          ${isActive ? 'text-brand-primary' : 'text-slate-400'}
         `}
       >
         <Trophy size={20} strokeWidth={2} />

@@ -75,7 +75,7 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
           <div className="flex items-center gap-3">
             <Tag size={20} strokeWidth={2} />
             <h2 className="text-xl font-black text-slate-900">selos recebidos</h2>
-            <span className="bg-brand-red-light text-brand-red px-3 py-1 rounded-lg text-[10px] font-black uppercase">
+            <span className="bg-brand-primary-light text-brand-primary px-3 py-1 rounded-lg text-[10px] font-black uppercase">
               {filteredUnlockedBadges.length} exibidos
             </span>
           </div>
