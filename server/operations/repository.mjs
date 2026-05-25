@@ -31,7 +31,6 @@ const buildAwardPayload = async ({ userId, badgeId, awardedBy, tone, id, awarded
     created_at: resolvedAwardedAt,
     awarded_by: awardedBy,
     tone,
-    company_id: targetUser?.company_id,
     productive_unit_id: targetUser?.productive_unit_id,
   };
 };
