@@ -10,7 +10,7 @@ import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, deleteCompany, memoryAdminStore, saveBadge, saveCompany, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
 
@@ -96,10 +96,9 @@ const isManager = (user) => user.role === 'admin';
 const isSupervisor = (user) => user.role === 'supervisor';
 const canManageUnit = (user) => isAdminOrDeveloper(user) || isSupervisor(user);
 
-const ensureManagerCompanyScope = (user, companyId) => {
-  if (isDeveloper(user)) return true;
-  if (isSupervisor(user)) return Boolean(companyId) && user.company_id === companyId;
-  if (isManager(user)) return Boolean(companyId) && user.company_id === companyId;
+const ensureManagerUnitScope = (user, unitId) => {
+  if (isSupervisor(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
+  if (isManager(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
   return true;
 };
 
@@ -108,9 +107,7 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
 
   const users = await listUsers();
   const allowedUserIds = new Set(
-    isSupervisor(user)
-      ? users.filter((u) => u.productive_unit_id === user.productive_unit_id).map((u) => u.id)
-      : users.filter((u) => u.company_id === user.company_id).map((u) => u.id),
+    users.filter((u) => u.productive_unit_id === user.productive_unit_id).map((u) => u.id),
   );
 
   return targetUserIds.every((targetUserId) => allowedUserIds.has(targetUserId));
@@ -129,15 +126,12 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
     const submissionUser = users.find((entry) => entry.id === submission.user_id);
     if (!submissionUser) return false;
 
-    if (isSupervisor(user)) {
-      return submissionUser.productive_unit_id === user.productive_unit_id;
-    }
-    return Boolean(submissionUser.company_id) && submissionUser.company_id === user.company_id;
+    return submissionUser.productive_unit_id === user.productive_unit_id;
   }
 
   try {
     const result = await client.query(
-      `select u.company_id, u.productive_unit_id
+      `select u.productive_unit_id
        from badge_submissions s
        inner join users u on u.id = s.user_id
        where s.id = $1
@@ -147,10 +141,7 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
 
     if (!result.rows[0]) return false;
 
-    if (isSupervisor(user)) {
-      return result.rows[0].productive_unit_id === user.productive_unit_id;
-    }
-    return Boolean(result.rows[0].company_id) && result.rows[0].company_id === user.company_id;
+    return result.rows[0].productive_unit_id === user.productive_unit_id;
   } finally {
     await client.end();
   }
@@ -317,17 +308,6 @@ app.post('/api/submissions/:id/review', async (req, res) => {
   res.status(200).json(result);
 });
 
-app.post('/api/admin/companies', async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) {
-    return res.status(403).json({ error: 'Acesso restrito.' });
-  }
-  if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.id || req.body.company_id)) {
-    return res.status(403).json({ error: 'Gestores só podem acessar a própria empresa.' });
-  }
-  const company = await saveCompany(req.body);
-  res.status(201).json({ company });
-});
 
 app.post('/api/admin/users', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
@@ -343,8 +323,8 @@ app.post('/api/admin/users', async (req, res) => {
   if (req.body.role === 'supervisor' && !req.body.productive_unit_id) {
     return res.status(400).json({ error: 'Supervisor precisa de uma unidade produtiva.' });
   }
-  if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.company_id)) {
-    return res.status(403).json({ error: 'Gestores só podem cadastrar usuários da própria empresa.' });
+  if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+    return res.status(403).json({ error: 'Gestores só podem cadastrar usuários da própria unidade produtiva.' });
   }
 
   const user = await saveUser(req.body, req.body.password);
@@ -416,28 +396,13 @@ app.post('/api/admin/users/delete', async (req, res) => {
   res.status(200).json(result);
 });
 
-app.post('/api/admin/companies/delete', async (req, res) => {
-  try {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
-    if (!isDeveloper(auth.body.user)) {
-      return res.status(403).json({ error: 'Somente o desenvolvedor pode excluir empresas.' });
-    }
-    
-    const result = await deleteCompany(req.body.id);
-    res.status(200).json(result);
-  } catch (error) {
-    console.error('Error deleting company:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao deletar empresa' });
-  }
-});
 
 app.post('/api/admin/productive-units', async (req, res) => {
   try {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
-    if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.company_id)) {
-      return res.status(403).json({ error: 'Gestores só podem acessar unidades da própria empresa.' });
+    if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+      return res.status(403).json({ error: 'Gestores só podem acessar a própria unidade produtiva.' });
     }
     
     const productiveUnit = await saveProductiveUnit(req.body);
@@ -451,8 +416,8 @@ app.post('/api/admin/productive-units', async (req, res) => {
 app.post('/api/admin/users/bulk-invite', async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
-  if (!isDeveloper(auth.body.user) && !ensureManagerCompanyScope(auth.body.user, req.body.company_id)) {
-    return res.status(403).json({ error: 'Gestores só podem convidar usuários da própria empresa.' });
+  if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+    return res.status(403).json({ error: 'Gestores só podem convidar usuários da própria unidade produtiva.' });
   }
   const result = await bulkInviteUsers(req.body);
   res.status(200).json(result);
@@ -480,25 +445,15 @@ app.put('/api/user/profile', async (req, res) => {
   }
 });
 
-app.get('/api/companies/:companyId/productive-units', async (req, res) => {
+app.get('/api/productive-units', async (_req, res) => {
   try {
-    const auth = await getAuthenticatedUser(req.headers.authorization);
-    const currentUser = auth.status === 200 ? auth.body.user : null;
-    if (currentUser && isManager(currentUser) && currentUser.company_id !== req.params.companyId) {
-      return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
-    }
-
     const client = await createPgClient();
-    
+
     if (!client) {
-      const units = memoryAdminStore.productiveUnits.filter(u => u.company_id === req.params.companyId);
-      return res.json({ productiveUnits: units });
+      return res.json({ productiveUnits: memoryAdminStore.productiveUnits });
     }
 
-    const result = await client.query(
-      'select id, name, company_id from productive_units where company_id = $1 order by name asc',
-      [req.params.companyId]
-    );
+    const result = await client.query('select id, name from productive_units order by name asc');
     await client.end();
     res.json({ productiveUnits: result.rows });
   } catch (error) {
@@ -622,15 +577,6 @@ server.listen(port, '0.0.0.0', () => {
 //   res.status(200).json(result);
 // });
 
-// app.post('/api/admin/companies', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-  
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-
-//   const result = await saveCompany(req.body);
-//   res.status(201).json({ result, message: 'Empresa criada!' });
-// });
 
    
 //     app.post('/api/admin/badges', async (req, res) => { 
@@ -655,19 +601,6 @@ server.listen(port, '0.0.0.0', () => {
 // });
 
 
-// app.post('/api/admin/companies', async (req, res) => {
-//   // 1. Primeiro validamos o usuário pelo token
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   // 2. AGORA sim salvamos a empresa com os dados do corpo (req.body)
-//   const result = await saveCompany(req.body); 
-  
-//   res.status(201).json(result);
-// });
 
 //   res.status(201).json({ message: 'Empresa criada!' });
 
@@ -707,7 +640,6 @@ server.listen(port, '0.0.0.0', () => {
   
 //   const result = await bulkInviteUsers({
 //     emails: req.body.emails || [],
-//     companyId: req.body.company_id,
 //     productiveUnitId: req.body.productive_unit_id,
 //   });
 //   res.status(200).json(result);
