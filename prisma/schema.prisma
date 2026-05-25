@@ -46,28 +46,14 @@ enum ImportRunStatus {
   failed
 }
 
-model Company {
-  id               String           @id @db.Text
-  name             String           @unique
-  category         String?
-  logo_url         String?
-  created_at       DateTime         @default(now()) @db.Timestamp(6)
-  productive_units ProductiveUnit[]
-  users            User[]
-
-  @@map("companies")
-}
-
 model ProductiveUnit {
   id         String   @id @db.Text
-  company_id String   @db.Text
   name       String
   created_at DateTime @default(now()) @db.Timestamp(6)
 
-  company Company @relation(fields: [company_id], references: [id])
-  users   User[]
+  users User[]
 
-  @@unique([company_id, name])
+  @@unique([name])
   @@map("productive_units")
 }
 
@@ -78,13 +64,11 @@ model User {
   full_name          String
   avatar_url         String?
   role               Role
-  company_id         String?  @db.Text
   productive_unit_id String?  @db.Text
   email_verified     Boolean  @default(false)
   created_at         DateTime @default(now()) @db.Timestamp(6)
   updated_at         DateTime @default(now()) @db.Timestamp(6)
 
-  company               Company?             @relation(fields: [company_id], references: [id])
   productive_unit       ProductiveUnit?      @relation(fields: [productive_unit_id], references: [id])
   sessions              AuthSession[]
   user_badges           UserBadge[]
@@ -191,7 +175,6 @@ model ImportSource {
   id                     String      @id @db.Text
   name                   String      @unique
   description            String?
-  company_column         String
   productive_unit_column String
   user_column            String
   badge_column           String
