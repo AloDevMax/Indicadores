@@ -29,7 +29,7 @@ services:
       NODE_ENV: production
     volumes:
       - uploads_data:/app/dist/public/uploads
-    command: sh -c "npm run db:push && node dist/server/index.mjs"
+    command: sh -c "node scripts/dbPush.mjs && node dist/server/index.mjs"
     restart: unless-stopped
 
   nginx:
