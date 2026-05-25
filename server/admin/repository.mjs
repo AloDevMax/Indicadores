@@ -7,7 +7,6 @@ import { deleteUploadedFile } from '../uploads/uploadService.mjs';
 
 export const memoryAdminStore = {
   badges: [...seedData.badges],
-  companies: [...seedData.companies],
   productiveUnits: [...seedData.productiveUnits],
   importSources: [...seedData.importSources],
 };
@@ -123,60 +122,6 @@ export const deleteBadge = async (badgeId) => {
   }
 };
 
-export const saveCompany = async (company) => {
-  const client = await createPgClient();
-
-  if (!client) {
-    const normalized = { ...company, id: company.id || randomId() };
-    memoryAdminStore.companies = memoryAdminStore.companies.some((entry) => entry.id === normalized.id)
-      ? memoryAdminStore.companies.map((entry) => (entry.id === normalized.id ? normalized : entry))
-      : [...memoryAdminStore.companies, normalized];
-    return normalized;
-  }
-
-  try {
-    const id = company.id || randomId();
-    const result = await client.query(
-      `insert into companies (id, name, logo_url)
-       values ($1, $2, $3)
-       on conflict (id) do update
-       set name = excluded.name,
-           logo_url = excluded.logo_url
-       returning id, name, logo_url`,
-      [id, company.name, company.logo_url || null],
-    );
-    return result.rows[0];
-  } finally {
-    await client.end();
-  }
-};
-
-export const deleteCompany = async (companyId) => {
-  const client = await createPgClient();
-
-  if (!client) {
-    const company = memoryAdminStore.companies.find(c => c.id === companyId);
-    if (company?.logo_url) {
-      await deleteUploadedFile(company.logo_url);
-    }
-    memoryAdminStore.companies = memoryAdminStore.companies.filter((company) => company.id !== companyId);
-    return { success: true };
-  }
-
-  try {
-    // Buscar logo da empresa antes de deletar
-    const result = await client.query('select logo_url from companies where id = $1', [companyId]);
-    if (result.rows[0]?.logo_url) {
-      await deleteUploadedFile(result.rows[0].logo_url);
-    }
-    
-    await client.query('delete from companies where id = $1', [companyId]);
-    return { success: true };
-  } finally {
-    await client.end();
-  }
-};
-
 export const saveProductiveUnit = async (productiveUnit) => {
   const client = await createPgClient();
 
@@ -191,13 +136,12 @@ export const saveProductiveUnit = async (productiveUnit) => {
   try {
     const id = productiveUnit.id || randomId();
     const result = await client.query(
-      `insert into productive_units (id, name, company_id)
-       values ($1, $2, $3)
+      `insert into productive_units (id, name)
+       values ($1, $2)
        on conflict (id) do update
-       set name = excluded.name,
-           company_id = excluded.company_id
-       returning id, name, company_id`,
-      [id, productiveUnit.name, productiveUnit.company_id],
+       set name = excluded.name
+       returning id, name`,
+      [id, productiveUnit.name],
     );
     return result.rows[0];
   } finally {
@@ -248,7 +192,7 @@ export const updateUserProfile = async (userId, updates) => {
       `update users
        set ${updateFields.join(', ')}
        where id = $1
-       returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
+       returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, created_at`,
       updateValues,
     );
 
@@ -283,8 +227,7 @@ export const saveUser = async (user, password) => {
         'email = $2',
         'full_name = $3',
         'role = $4',
-        'company_id = $5',
-        'productive_unit_id = $6',
+        'productive_unit_id = $5',
         'updated_at = now()'
       ];
       const updateValues = [
@@ -292,7 +235,6 @@ export const saveUser = async (user, password) => {
         user.email,
         user.full_name,
         user.role,
-        user.company_id || null,
         user.productive_unit_id || null,
       ];
 
@@ -311,7 +253,7 @@ export const saveUser = async (user, password) => {
         `update users
          set ${updateFields.join(', ')}
          where id = $1
-         returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
+         returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, created_at`,
         updateValues,
       );
 
@@ -331,11 +273,10 @@ export const saveUser = async (user, password) => {
         full_name,
         avatar_url,
         role,
-        company_id,
         productive_unit_id,
         email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, false)
-      returning id, email, full_name, avatar_url, role, company_id, productive_unit_id, email_verified, created_at`,
+      ) values ($1, $2, $3, $4, $5, $6, $7, false)
+      returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, created_at`,
       [
         userId,
         user.email,
@@ -343,7 +284,6 @@ export const saveUser = async (user, password) => {
         user.full_name,
         user.avatar_url || null,
         user.role,
-        user.company_id || null,
         user.productive_unit_id || null,
       ],
     );
@@ -393,17 +333,15 @@ export const saveImportSource = async (importSource) => {
         id,
         name,
         description,
-        company_column,
         productive_unit_column,
         user_column,
         badge_column,
         tone_column,
         award_column
-      ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) values ($1, $2, $3, $4, $5, $6, $7, $8)
       on conflict (id) do update
       set name = excluded.name,
           description = excluded.description,
-          company_column = excluded.company_column,
           productive_unit_column = excluded.productive_unit_column,
           user_column = excluded.user_column,
           badge_column = excluded.badge_column,
@@ -413,7 +351,6 @@ export const saveImportSource = async (importSource) => {
         id,
         name,
         description,
-        company_column,
         productive_unit_column,
         user_column,
         badge_column,
@@ -423,7 +360,6 @@ export const saveImportSource = async (importSource) => {
         id,
         importSource.name,
         importSource.description || null,
-        importSource.columns.company,
         importSource.columns.productive_unit,
         importSource.columns.user,
         importSource.columns.badge,
@@ -438,7 +374,6 @@ export const saveImportSource = async (importSource) => {
       name: row.name,
       description: row.description || undefined,
       columns: {
-        company: row.company_column,
         productive_unit: row.productive_unit_column,
         user: row.user_column,
         badge: row.badge_column,
@@ -451,7 +386,7 @@ export const saveImportSource = async (importSource) => {
   }
 };
 
-export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) => {
+export const bulkInviteUsers = async ({ emails, productiveUnitId }) => {
   const normalizedEmails = [...new Set(
     emails
       .map((email) => email.toLowerCase().trim())
@@ -476,7 +411,6 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
         email,
         full_name: email.split('@')[0],
         role: 'user',
-        company_id: companyId || undefined,
         productive_unit_id: productiveUnitId || undefined,
         email_verified: false,
         notifications: [],
@@ -488,21 +422,6 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
   }
 
   try {
-    if (productiveUnitId) {
-      const productiveUnitCheck = await client.query(
-        `select id
-         from productive_units
-         where id = $1
-           and company_id = $2
-         limit 1`,
-        [productiveUnitId, companyId || null],
-      );
-
-      if (!productiveUnitCheck.rows[0]) {
-        throw new Error('A unidade produtiva informada nao pertence a empresa selecionada.');
-      }
-    }
-
     await client.query('begin');
 
     const createdUsers = [];
@@ -518,18 +437,16 @@ export const bulkInviteUsers = async ({ emails, companyId, productiveUnitId }) =
           password_hash,
           full_name,
           role,
-          company_id,
           productive_unit_id,
           email_verified
-        ) values ($1, $2, $3, $4, 'user', $5, $6, false)
+        ) values ($1, $2, $3, $4, 'user', $5, false)
         on conflict (email) do nothing
-        returning id, email, full_name, role, company_id, productive_unit_id, email_verified, created_at`,
+        returning id, email, full_name, role, productive_unit_id, email_verified, created_at`,
         [
           userId,
           email,
           passwordHash,
           email.split('@')[0],
-          companyId || null,
           productiveUnitId || null,
         ],
       );
