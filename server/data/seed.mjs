@@ -33,14 +33,10 @@ export const seedData = {
       points: 20,
     },
   ],
-  companies: [
-    { id: 'c1', name: 'Acme Corp' },
-    { id: 'c2', name: 'Builders Ltda' },
-  ],
   productiveUnits: [
-    { id: 'pu1', name: 'Fábrica Campinas', company_id: 'c1' },
-    { id: 'pu2', name: 'Centro de Distribuição SP', company_id: 'c1' },
-    { id: 'pu3', name: 'Obra Matriz', company_id: 'c2' },
+    { id: 'pu1', name: 'Fábrica Campinas' },
+    { id: 'pu2', name: 'Centro de Distribuição SP' },
+    { id: 'pu3', name: 'Obra Matriz' },
   ],
   badgeLegends: {
     bronze: 'Bronze: 1 selo no mês',
@@ -53,9 +49,8 @@ export const seedData = {
     {
       id: 'source-default',
       name: 'Planilha Operacional',
-      description: 'Modelo base para importar empresa, unidade, colaborador e selo.',
+      description: 'Modelo base para importar unidade, colaborador e selo.',
       columns: {
-        company: 'empresa',
         productive_unit: 'unidade_produtiva',
         user: 'colaborador',
         badge: 'selo',
