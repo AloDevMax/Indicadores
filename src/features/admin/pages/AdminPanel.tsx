@@ -384,7 +384,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const productiveUnitId = (formData.get('productive_unit_id') as string) || undefined;
-    const validProductiveUnitId = (productiveUnitId && productiveUnits.some(unit => unit.id === productiveUnitId))
+
+    if (!productiveUnitId) {
+      toast.error('Selecione a unidade produtiva do colaborador.');
+      return;
+    }
+
+    const validProductiveUnitId = (productiveUnits.some(unit => unit.id === productiveUnitId))
       ? productiveUnitId
       : undefined;
 
@@ -1338,9 +1344,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva</label>
-                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
-                    <option value="">Nenhuma</option>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva *</label>
+                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} required className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
+                    <option value="">Selecionar unidade...</option>
                     {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                 </div>
