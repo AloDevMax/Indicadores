@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, Company, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
+import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { Plus, FileText } from 'lucide-react';
@@ -11,7 +11,6 @@ interface DashboardProps {
   badgeLegends: BadgeLegendSettings;
   submissions: BadgeSubmission[];
   users: Profile[];
-  companies: Company[];
   productiveUnits: ProductiveUnit[];
   importSources: ImportSourceConfig[];
   importBindingSnapshot: ImportBindingSnapshot | null;
@@ -26,7 +25,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   badgeLegends,
   submissions,
   users,
-  companies,
   productiveUnits,
   importSources,
   importBindingSnapshot,
@@ -48,41 +46,25 @@ const Dashboard: React.FC<DashboardProps> = ({
     return base.filter(profile => {
       if (profile.id === user.id) return true;
       if (user.productive_unit_id) return profile.productive_unit_id === user.productive_unit_id;
-      if (user.company_id) return profile.company_id === user.company_id;
       return profile.id === user.id;
     });
-  }, [isAdmin, user.id, user.company_id, user.productive_unit_id, users]);
+  }, [isAdmin, user.id, user.productive_unit_id, users]);
   const groupedCollaborators = useMemo(() => {
-    const groups = new Map<string, {
-      companyId: string;
-      companyName: string;
-      units: Map<string, { unitId: string; unitName: string; collaborators: Profile[] }>;
-    }>();
+    const groups = new Map<string, { unitId: string; unitName: string; collaborators: Profile[] }>();
 
     visibleCollaborators.forEach((collaborator) => {
-      const companyId = collaborator.company_id || 'independente';
-      const companyName = companies.find(company => company.id === collaborator.company_id)?.name || 'Independente';
-      const unitId = collaborator.productive_unit_id || `${companyId}-sem-unidade`;
+      const unitId = collaborator.productive_unit_id || 'sem-unidade';
       const unitName = productiveUnits.find(unit => unit.id === collaborator.productive_unit_id)?.name || 'Sem unidade produtiva';
 
-      if (!groups.has(companyId)) {
-        groups.set(companyId, { companyId, companyName, units: new Map() });
+      if (!groups.has(unitId)) {
+        groups.set(unitId, { unitId, unitName, collaborators: [] });
       }
 
-      const companyGroup = groups.get(companyId)!;
-
-      if (!companyGroup.units.has(unitId)) {
-        companyGroup.units.set(unitId, { unitId, unitName, collaborators: [] });
-      }
-
-      companyGroup.units.get(unitId)!.collaborators.push(collaborator);
+      groups.get(unitId)!.collaborators.push(collaborator);
     });
 
-    return Array.from(groups.values()).map(group => ({
-      ...group,
-      units: Array.from(group.units.values()),
-    }));
-  }, [companies, productiveUnits, visibleCollaborators]);
+    return Array.from(groups.values());
+  }, [productiveUnits, visibleCollaborators]);
 
   // Só renderiza quando os dados essenciais estiverem disponíveis
   if (!allBadges || allBadges.length === 0) {
@@ -284,100 +266,82 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="px-1">
           <h3 className="text-lg md:text-2xl font-bold font-heading text-slate-900 tracking-tight">Selos por colaborador</h3>
           <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">
-            {isAdmin ? 'Visão geral da operação' : 'Visão da sua empresa ou unidade'}
+            {isAdmin ? 'Visão geral da operação' : 'Visão da sua unidade'}
           </p>
         </div>
 
         <div className="space-y-6">
-          {groupedCollaborators.map((companyGroup) => (
-            <div key={companyGroup.companyId} className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
+          {groupedCollaborators.map((unitGroup) => (
+            <div key={unitGroup.unitId} className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 md:p-8 space-y-6">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <h4 className="text-xl font-bold font-heading text-slate-900">{companyGroup.companyName}</h4>
+                  <h4 className="text-xl font-bold font-heading text-slate-900">{unitGroup.unitName}</h4>
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">
-                    {companyGroup.units.reduce((total, unit) => total + unit.collaborators.length, 0)} colaboradores
+                    {unitGroup.collaborators.length} colaboradores na unidade
                   </p>
-                </div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-brand-primary bg-brand-primary-light px-4 py-2 rounded-xl">
-                  {companyGroup.units.length} unidades
                 </div>
               </div>
 
-              <div className="space-y-5">
-                {companyGroup.units.map((unitGroup) => (
-                  <div key={unitGroup.unitId} className="rounded-[28px] border border-slate-100 bg-slate-50/70 p-5 space-y-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div>
-                        <h5 className="text-lg font-bold font-heading text-slate-900">{unitGroup.unitName}</h5>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-brand-accent mt-2">
-                          {unitGroup.collaborators.length} colaboradores na unidade
-                        </p>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {unitGroup.collaborators.map((collaborator) => {
+                  const collaboratorBadges = userBadges.filter(ub => ub.user_id === collaborator.id);
+                  const collaboratorMetrics = getUserMonthlyBadgeMetrics(collaborator.id, userBadges);
+
+                  return (
+                    <div key={collaborator.id} className="bg-white rounded-[28px] border border-slate-100 shadow-sm p-5 space-y-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <h6 className="text-lg font-bold font-heading text-slate-900">{collaborator.full_name}</h6>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
+                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saldo do Mês</div>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                      {unitGroup.collaborators.map((collaborator) => {
-                        const collaboratorBadges = userBadges.filter(ub => ub.user_id === collaborator.id);
-                        const collaboratorMetrics = getUserMonthlyBadgeMetrics(collaborator.id, userBadges);
+                      {collaboratorBadges.length > 0 ? (
+                        <div className="flex flex-wrap gap-3">
+                          {collaboratorBadges.map((userBadge) => {
+                            const badge = allBadges.find(item => item.id === userBadge.badge_id);
+                            if (!badge) return null;
 
-                        return (
-                          <div key={collaborator.id} className="bg-white rounded-[28px] border border-slate-100 shadow-sm p-5 space-y-5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <h6 className="text-lg font-bold font-heading text-slate-900">{collaborator.full_name}</h6>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saldo do Mês</div>
-                              </div>
-                            </div>
+                            const toneAccent =
+                              userBadge.tone === 'gold' ? 'border-amber-400 bg-amber-50' :
+                              userBadge.tone === 'silver' ? 'border-slate-400 bg-slate-50' :
+                              userBadge.tone === 'bronze' ? 'border-amber-700 bg-orange-50' :
+                              userBadge.tone === 'loss_2' ? 'border-rose-600 bg-rose-100' :
+                              'border-rose-400 bg-rose-50';
 
-                            {collaboratorBadges.length > 0 ? (
-                              <div className="flex flex-wrap gap-3">
-                                {collaboratorBadges.map((userBadge) => {
-                                  const badge = allBadges.find(item => item.id === userBadge.badge_id);
-                                  if (!badge) return null;
-
-                                  const toneAccent =
-                                    userBadge.tone === 'gold' ? 'border-amber-400 bg-amber-50' :
-                                    userBadge.tone === 'silver' ? 'border-slate-400 bg-slate-50' :
-                                    userBadge.tone === 'bronze' ? 'border-amber-700 bg-orange-50' :
-                                    userBadge.tone === 'loss_2' ? 'border-rose-600 bg-rose-100' :
-                                    'border-rose-400 bg-rose-50';
-
-                                  return (
-                                    <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden bg-slate-100">
-                                          {badge.image_url ? (
-                                            <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
-                                          ) : (
-                                            <span>{badge.icon_name}</span>
-                                          )}
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-black text-slate-900 truncate">{badge?.name || 'Badge sem nome'}</div>
-                                          <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
-                                            {BADGE_TONE_LABELS[userBadge.tone]}
-                                          </div>
-                                        </div>
-                                      </div>
+                            return (
+                              <div key={userBadge.id} className={`min-w-[140px] rounded-2xl border-2 px-4 py-3 ${toneAccent}`}>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden bg-slate-100">
+                                    {badge.image_url ? (
+                                      <img src={badge.image_url} alt={badge.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <span>{badge.icon_name}</span>
+                                    )}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-black text-slate-900 truncate">{badge?.name || 'Badge sem nome'}</div>
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                      {BADGE_TONE_LABELS[userBadge.tone]}
                                     </div>
-                                  );
-                                })}
+                                  </div>
+                                </div>
                               </div>
-                            ) : (
-                              <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">
-                                Nenhum selo atribuído ainda.
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="rounded-2xl bg-slate-50 px-4 py-5 text-sm font-bold text-slate-400">
+                          Nenhum selo atribuído ainda.
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

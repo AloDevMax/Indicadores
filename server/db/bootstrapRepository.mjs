@@ -6,22 +6,8 @@ import { createPgClient } from './client.mjs';
 
 const mapRows = (rows, mapper) => rows.map(mapper);
 
-const filterDataForAdmin = (payload, currentUser) => {
-  if (!currentUser || !currentUser.company_id) return payload;
-
-  const companyId = currentUser.company_id;
-  const productiveUnits = payload.productiveUnits.filter((unit) => unit.company_id === companyId);
-  const users = payload.users.filter((user) => user.company_id === companyId);
-  const userIds = new Set(users.map((user) => user.id));
-
-  return {
-    ...payload,
-    companies: payload.companies.filter((company) => company.id === companyId),
-    productiveUnits,
-    users,
-    userBadges: payload.userBadges.filter((badge) => userIds.has(badge.user_id)),
-    submissions: payload.submissions.filter((submission) => userIds.has(submission.user_id)),
-  };
+const filterDataForAdmin = (payload) => {
+  return payload;
 };
 
 const filterDataForSupervisor = (payload, currentUser) => {
@@ -33,7 +19,6 @@ const filterDataForSupervisor = (payload, currentUser) => {
 
   return {
     ...payload,
-    companies: payload.companies.filter((c) => c.id === currentUser.company_id),
     productiveUnits: payload.productiveUnits.filter((u) => u.id === unitId),
     users,
     userBadges: payload.userBadges.filter((ub) => userIds.has(ub.user_id)),
@@ -49,7 +34,6 @@ const filterDataForUser = (payload, currentUser) => {
 
   return {
     ...payload,
-    companies: payload.companies.filter((c) => c.id === currentUser.company_id),
     productiveUnits: unitId ? payload.productiveUnits.filter((u) => u.id === unitId) : [],
     users: unitUsers,
     userBadges: payload.userBadges.filter((ub) => ub.user_id === currentUser.id),
@@ -77,7 +61,6 @@ export const loadBootstrapData = async (currentUser = null) => {
       source: 'seed',
       ...seedData,
       badges: memoryAdminStore.badges,
-      companies: memoryAdminStore.companies,
       productiveUnits: memoryAdminStore.productiveUnits,
       importSources: memoryAdminStore.importSources,
       users,
@@ -90,13 +73,12 @@ export const loadBootstrapData = async (currentUser = null) => {
   }
 
   try {
-    const [badges, companies, productiveUnits, badgeLegends, importSources, users, notifications, userBadges, submissions] = await Promise.all([
+    const [badges, productiveUnits, badgeLegends, importSources, users, notifications, userBadges, submissions] = await Promise.all([
       client.query(
         'select id, name, description, icon_name, category, points, image_url from badges order by created_at asc',
       ),
-      client.query('select id, name, logo_url from companies order by name asc'),
       client.query(
-        'select id, name, company_id from productive_units order by company_id asc, name asc',
+        'select id, name from productive_units order by name asc',
       ),
       client.query(
         'select bronze, silver, gold, loss_1, loss_2 from badge_legend_settings order by updated_at desc limit 1',
@@ -106,7 +88,6 @@ export const loadBootstrapData = async (currentUser = null) => {
           id,
           name,
           description,
-          company_column,
           productive_unit_column,
           user_column,
           badge_column,
@@ -123,7 +104,6 @@ export const loadBootstrapData = async (currentUser = null) => {
           full_name,
           avatar_url,
           role,
-          company_id,
           productive_unit_id,
           email_verified,
           created_at
@@ -183,7 +163,6 @@ export const loadBootstrapData = async (currentUser = null) => {
     return applyRoleFilter({
       source: 'database',
       badges: badges.rows,
-      companies: companies.rows,
       productiveUnits: productiveUnits.rows,
       badgeLegends: badgeLegends.rows[0] || seedData.badgeLegends,
       users: users.rows.map((user) => ({
@@ -197,7 +176,6 @@ export const loadBootstrapData = async (currentUser = null) => {
         name: row.name,
         description: row.description,
         columns: {
-          company: row.company_column,
           productive_unit: row.productive_unit_column,
           user: row.user_column,
           badge: row.badge_column,

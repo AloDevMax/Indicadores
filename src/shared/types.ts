@@ -2,7 +2,7 @@
 export type Role = 'admin' | 'user' | 'developer' | 'supervisor';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
-export type ImportSourceField = 'company' | 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
+export type ImportSourceField = 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
 
 export interface Notification {
   id: string;
@@ -18,24 +18,15 @@ export interface Profile {
   full_name: string;
   avatar_url?: string;
   role: Role;
-  company_id?: string;
   productive_unit_id?: string;
   created_at: string;
   email_verified?: boolean;
   notifications?: Notification[];
 }
 
-export interface Company {
-  id: string;
-  name: string;
-  category?: string;
-  logo_url?: string;
-}
-
 export interface ProductiveUnit {
   id: string;
   name: string;
-  company_id: string;
 }
 
 export interface Badge {
@@ -57,7 +48,6 @@ export interface UserBadge {
   awarded_at: string;
   awarded_by: string;
   tone: BadgeTone;
-  company_id?: string;
   productive_unit_id?: string;
   created_at?: string;
 }
@@ -87,7 +77,6 @@ export interface ImportBindingSnapshot {
 export interface AppBootstrapPayload {
   source: 'seed' | 'database';
   badges: Badge[];
-  companies: Company[];
   productiveUnits: ProductiveUnit[];
   badgeLegends: BadgeLegendSettings;
   importSources: ImportSourceConfig[];

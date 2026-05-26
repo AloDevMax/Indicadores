@@ -2,16 +2,14 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { BarChart3, User, Users, Shield, Inbox, Building2, Pencil, Trash2, CheckCircle, Award } from 'lucide-react';
-import { Badge, Profile, Role, Company, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
+import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award } from 'lucide-react';
+import { Badge, Profile, Role, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
 import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
-
-const COMPANY_CATEGORIES = ['Indústria', 'Serviços', 'Logística', 'Construção', 'Varejo', 'Outros'];
 
 const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -78,8 +76,6 @@ interface AdminPanelProps {
   setActiveMode: (_mode: 'management' | 'personal') => void;
   badges: Badge[];
   setBadges: React.Dispatch<React.SetStateAction<Badge[]>>;
-  companies: Company[];
-  setCompanies: React.Dispatch<React.SetStateAction<Company[]>>;
   productiveUnits: ProductiveUnit[];
   setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
   badgeLegends: BadgeLegendSettings;
@@ -92,11 +88,9 @@ interface AdminPanelProps {
   setSubmissions: React.Dispatch<React.SetStateAction<BadgeSubmission[]>>;
   onSaveBadge?: (_badge: Badge) => Promise<Badge>;
   onDeleteBadge?: (_badgeId: string) => Promise<void>;
-  onSaveCompany?: (_company: Company) => Promise<Company>;
-  onDeleteCompany?: (_companyId: string) => Promise<void>;
   onSaveProductiveUnit?: (_productiveUnit: ProductiveUnit) => Promise<ProductiveUnit>;
   onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
-  onBulkInviteUsers?: (_emails: string[], _companyId?: string, _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
+  onBulkInviteUsers?: (_emails: string[], _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
   onDeleteUser?: (_userId: string) => Promise<void>;
   onAwardBadges?: (_userIds: string[], _badgeId: string, _tone: BadgeTone) => Promise<void>;
   onRemoveUserBadge?: (_userId: string, _badgeId: string) => Promise<void>;
@@ -105,14 +99,12 @@ interface AdminPanelProps {
 }
 
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ 
+const AdminPanel: React.FC<AdminPanelProps> = ({
   currentUser,
-  activeMode, 
+  activeMode,
   setActiveMode,
   badges,
   setBadges,
-  companies,
-  setCompanies,
   productiveUnits,
   setProductiveUnits,
   badgeLegends,
@@ -125,8 +117,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   setSubmissions,
   onSaveBadge,
   onDeleteBadge,
-  onSaveCompany,
-  onDeleteCompany,
   onSaveProductiveUnit,
   onSaveUser,
   onBulkInviteUsers,
@@ -141,16 +131,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const isSupervisor = currentUser.role === 'supervisor';
   const canManageGlobalCatalog = isDeveloper;
   const allowedViews = isDeveloper
-    ? new Set(['overview', 'submissions', 'users', 'award', 'badges', 'companies'])
+    ? new Set(['overview', 'submissions', 'users', 'award', 'badges'])
     : isSupervisor
       ? new Set(['overview', 'submissions', 'users', 'award'])
-      : new Set(['overview', 'submissions', 'users', 'award', 'companies']);
+      : new Set(['overview', 'submissions', 'users', 'award']);
 
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
     return allowedViews.has(path)
-      ? path as 'overview' | 'submissions' | 'users' | 'award' | 'badges' | 'companies'
+      ? path as 'overview' | 'submissions' | 'users' | 'award' | 'badges'
       : 'overview';
   }, [allowedViews, location.pathname]);
 
@@ -164,10 +154,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
   const [badgeToDelete, setBadgeToDelete] = useState<Badge | null>(null);
 
-  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
-  const [isDeleteCompanyModalOpen, setIsDeleteCompanyModalOpen] = useState(false);
-  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
-  const [companyToDelete, setCompanyToDelete] = useState<Company | null>(null);
   const [isProductiveUnitModalOpen, setIsProductiveUnitModalOpen] = useState(false);
   const [editingProductiveUnit, setEditingProductiveUnit] = useState<ProductiveUnit | null>(null);
 
@@ -179,7 +165,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
-  const [bulkInviteCompanyId, setBulkInviteCompanyId] = useState('');
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
@@ -210,12 +195,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const [userSearch, setUserSearch] = useState('');
 
-  const [selectedCompanyFilter, setSelectedCompanyFilter] = useState<string>('');
   const [selectedProductiveUnitFilter, setSelectedProductiveUnitFilter] = useState<string>('');
 
   // Image upload states
   const [tempBadgeImageUrl, setTempBadgeImageUrl] = useState<string | undefined>();
-  const [tempCompanyLogoUrl, setTempCompanyLogoUrl] = useState<string | undefined>();
   const [tempUserAvatarUrl, setTempUserAvatarUrl] = useState<string | undefined>();
 
   // Helper functions to open modals and clear image states
@@ -229,18 +212,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsBadgeModalOpen(false);
     setEditingBadge(null);
     setTempBadgeImageUrl(undefined);
-  };
-
-  const openCompanyModal = (company?: Company) => {
-    setEditingCompany(company || null);
-    setTempCompanyLogoUrl(company?.logo_url);
-    setIsCompanyModalOpen(true);
-  };
-
-  const closeCompanyModal = () => {
-    setIsCompanyModalOpen(false);
-    setEditingCompany(null);
-    setTempCompanyLogoUrl(undefined);
   };
 
   const openUserModal = (user?: Profile) => {
@@ -273,7 +244,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     email_verified: true,
   };
   const categories = ['Qualidade', 'Segurança', 'Eficiência', 'Processos', 'Serviço'];
-  const getUnitsByCompany = (companyId?: string) => productiveUnits.filter(unit => unit.company_id === companyId);
   const adminMonthlyMetrics = getUserMonthlyBadgeMetrics(safeAdminProfile.id, userBadges);
   const renderSquareImage = (src: string, alt: string) => (
     <img
@@ -300,7 +270,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         awarded_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         awarded_by: safeAdminProfile.id,
-        company_id: targetUser.company_id,
         productive_unit_id: targetUser.productive_unit_id,
       } : ub));
       return;
@@ -314,7 +283,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       created_at: new Date().toISOString(),
       awarded_by: safeAdminProfile.id,
       tone,
-      company_id: targetUser.company_id,
       productive_unit_id: targetUser.productive_unit_id,
     };
 
@@ -392,40 +360,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleSaveCompany = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const companyData: Company = {
-      id: editingCompany?.id || Math.random().toString(36).substr(2, 9),
-      name: (formData.get('name') as string) || '',
-      category: formData.get('category') as string,
-      logo_url: tempCompanyLogoUrl || editingCompany?.logo_url,
-    };
-    try {
-      const savedCompany = onSaveCompany ? await onSaveCompany(companyData) : companyData;
-      setCompanies(prev => editingCompany ? prev.map(c => c.id === editingCompany.id ? savedCompany : c) : [...prev, savedCompany]);
-      setIsCompanyModalOpen(false);
-      setTempCompanyLogoUrl(undefined);
-    } catch (error) {
-      console.error('Error saving company:', error);
-      toast.error('Erro ao salvar empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-    }
-  };
-
   const handleSaveProductiveUnit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const companyId = formData.get('company_id') as string;
-
-    if (!companyId) {
-      toast.error('Selecione a empresa da unidade produtiva.');
-      return;
-    }
 
     const productiveUnitData: ProductiveUnit = {
       id: editingProductiveUnit?.id || Math.random().toString(36).substr(2, 9),
       name: formData.get('name') as string,
-      company_id: companyId,
     };
 
     try {
@@ -442,9 +383,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const companyId = (formData.get('company_id') as string) || undefined;
     const productiveUnitId = (formData.get('productive_unit_id') as string) || undefined;
-    const validProductiveUnitId = (productiveUnitId && productiveUnits.some(unit => unit.id === productiveUnitId && unit.company_id === companyId))
+
+    if (!productiveUnitId) {
+      toast.error('Selecione a unidade produtiva do colaborador.');
+      return;
+    }
+
+    const validProductiveUnitId = (productiveUnits.some(unit => unit.id === productiveUnitId))
       ? productiveUnitId
       : undefined;
 
@@ -454,7 +400,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       full_name: formData.get('full_name') as string,
       avatar_url: tempUserAvatarUrl || editingUser?.avatar_url || '',
       role: formData.get('role') as Role,
-      company_id: companyId,
       productive_unit_id: validProductiveUnitId,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
@@ -485,12 +430,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
-    const validProductiveUnitId = bulkInviteProductiveUnitId && productiveUnits.some(unit => unit.id === bulkInviteProductiveUnitId && unit.company_id === bulkInviteCompanyId)
+    const validProductiveUnitId = bulkInviteProductiveUnitId && productiveUnits.some(unit => unit.id === bulkInviteProductiveUnitId)
       ? bulkInviteProductiveUnitId
       : undefined;
 
     if (onBulkInviteUsers) {
-      const result = await onBulkInviteUsers(emails, bulkInviteCompanyId || undefined, validProductiveUnitId);
+      const result = await onBulkInviteUsers(emails, validProductiveUnitId);
       setUsers(prev => [...prev, ...result.createdUsers]);
       toast.success(
         result.skippedEmails.length > 0
@@ -503,7 +448,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         email,
         full_name: email.split('@')[0],
         role: 'user',
-        company_id: bulkInviteCompanyId || undefined,
         productive_unit_id: validProductiveUnitId,
         created_at: new Date().toISOString(),
       }));
@@ -514,7 +458,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     setIsBulkInviteModalOpen(false);
     setBulkInviteEmails('');
-    setBulkInviteCompanyId('');
     setBulkInviteProductiveUnitId('');
   };
 
@@ -534,21 +477,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         setUserToDelete(null);
       } catch (error) {
         toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-      }
-    }
-  };
-
-  const handleDeleteCompany = async () => {
-    if (companyToDelete) {
-      try {
-        if (onDeleteCompany) {
-          await onDeleteCompany(companyToDelete.id);
-        }
-        setCompanies(prev => prev.filter(c => c.id !== companyToDelete.id));
-        setIsDeleteCompanyModalOpen(false);
-        setCompanyToDelete(null);
-      } catch (error) {
-        toast.error('Erro ao excluir empresa: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
     }
   };
@@ -632,11 +560,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const filteredUsers = useMemo(() => {
     return users.filter(u =>
       u.full_name.toLowerCase().includes(userSearch.toLowerCase()) &&
-      (selectedCompanyFilter === '' || u.company_id === selectedCompanyFilter) &&
       (selectedProductiveUnitFilter === '' || u.productive_unit_id === selectedProductiveUnitFilter) &&
       (!isSupervisor || u.productive_unit_id === currentUser.productive_unit_id)
     );
-  }, [users, userSearch, selectedCompanyFilter, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
+  }, [users, userSearch, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
 
   const stats = useMemo(() => ({
     totalUsers: isSupervisor
@@ -644,9 +571,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       : users.length,
     activeBadges: badges.length,
     pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
-    totalCompanies: companies.length,
     totalProductiveUnits: productiveUnits.length
-  }), [users, badges, submissions, companies, productiveUnits, isSupervisor, currentUser.productive_unit_id]);
+  }), [users, badges, submissions, productiveUnits, isSupervisor, currentUser.productive_unit_id]);
 
   const handleExcelUpload = useCallback((file: File) => {
     setImportError('');
@@ -732,9 +658,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         }
 
         // Auto-match users
-        const companyUsers = currentUser.company_id
-          ? users.filter(u => u.company_id === currentUser.company_id)
-          : users;
+        const companyUsers = users;
 
         const matches: UserMatchResult[] = dataRows.map(row => {
           let bestUser: Profile | null = null;
@@ -759,7 +683,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       }
     };
     reader.readAsArrayBuffer(file);
-  }, [importMonth, users, currentUser.company_id]);
+  }, [importMonth, users]);
 
   const handleConfirmImport = async () => {
     setIsImporting(true);
@@ -831,12 +755,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </header>
 
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                   { label: 'Colaboradores', val: stats.totalUsers, icon: Users },
                   { label: 'Selos Ativos', val: stats.activeBadges, icon: Shield },
                   { label: 'Pendências', val: stats.pendingSubmissions, icon: Inbox, color: 'text-amber-600' },
-                  { label: 'Empresas', val: stats.totalCompanies, icon: Building2, color: 'text-emerald-600' },
                 ].map((kpi, idx) => {
                   const IconComponent = kpi.icon;
                   return (
@@ -853,50 +776,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
-                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Building2 size={16} /> Empresas no Ecossistema</h3>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Users size={16} /> Unidades Produtivas</h3>
                   <div className="space-y-4">
-                    {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg space-y-5 group hover:border-brand-primary-light transition-all">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner overflow-hidden">
-                          {c.logo_url ? (
-                            renderSquareImage(c.logo_url, c.name)
-                          ) : (
-                            <Building2 size={24} />
-                          )}
-                        </div>
+                    {productiveUnits.map(unit => (
+                      <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                         <div>
-                          <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
-                          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                            {c.category || 'Sem categoria'} • {users.filter(u => u.company_id === c.id).length} colaboradores • {getUnitsByCompany(c.id).length} unidades
-                          </div>
+                          <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
+                          <div className="text-[10px] font-black text-brand-accent uppercase tracking-widest">{users.filter(u => u.productive_unit_id === unit.id).length} colaboradores</div>
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                          <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
-                        )}
-                        {isDeveloper && (
-                          <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                        {!isSupervisor && (
+                          <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-accent hover:bg-white rounded-xl transition-all"><Pencil size={16} /></button>
                         )}
                       </div>
-                    </div>
-                    <div className="space-y-3">
-                      {getUnitsByCompany(c.id).length > 0 ? getUnitsByCompany(c.id).map(unit => (
-                        <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
-                          <div>
-                            <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
-                            <div className="text-[10px] font-black text-brand-accent uppercase tracking-widest">{users.filter(user => user.productive_unit_id === unit.id).length} colaboradores</div>
-                          </div>
-                          {!isSupervisor && (
-                            <button onClick={() => { setEditingProductiveUnit(unit); setIsProductiveUnitModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-accent hover:bg-white rounded-xl transition-all"><Pencil size={16} /></button>
-                          )}
-                        </div>
-                      )) : <div className="p-4 bg-slate-50 rounded-2xl text-sm text-slate-400 font-bold">Nenhuma unidade produtiva cadastrada.</div>}
-                    </div>
-                  </div>
-                ))}
+                    ))}
                   </div>
                 </div>
                 <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white">
@@ -926,15 +818,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   }
                   return true;
                 }).map(sub => {
-                  const user = users.find(u => u.id === sub.user_id);
-                  const company = companies.find(c => c.id === user?.company_id);
                   return (
                     <div key={sub.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex flex-col md:flex-row gap-6">
                       <div className="flex-1 space-y-3">
                         <div className="flex flex-wrap items-center gap-3">
                           <span className="bg-brand-primary text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">{sub.badge_name}</span>
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                            {sub.user_name} • {company?.name || 'Independente'}
+                            {sub.user_name}
                           </span>
                         </div>
                         <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl italic">"{sub.description}"</p>
@@ -968,24 +858,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Colaboradores da Rede</h2>
                 <div className="flex flex-wrap gap-2">
-                  <select 
-                    value={selectedCompanyFilter}
-                    onChange={(e) => {
-                      setSelectedCompanyFilter(e.target.value);
-                      setSelectedProductiveUnitFilter('');
-                    }}
-                    className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
-                  >
-                    <option value="">Todas as Empresas</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
-                  </select>
-                  <select 
+                  <select
                     value={selectedProductiveUnitFilter}
                     onChange={(e) => setSelectedProductiveUnitFilter(e.target.value)}
                     className="px-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-xs uppercase tracking-widest text-slate-600 outline-none"
                   >
                     <option value="">Todas as Unidades</option>
-                    {(selectedCompanyFilter ? getUnitsByCompany(selectedCompanyFilter) : productiveUnits).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
+                    {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                   <button onClick={() => openUserModal()} className="bg-brand-primary text-white px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Novo Colaborador</button>
                 </div>
@@ -1001,7 +880,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {filteredUsers.map(u => {
-                      const comp = companies.find(c => c.id === u.company_id);
                       const unit = productiveUnits.find(item => item.id === u.productive_unit_id);
                       const metrics = getUserMonthlyBadgeMetrics(u.id, userBadges);
                       return (
@@ -1017,7 +895,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                               </div>
                               <div className="flex-1">
                                 <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
-                                <div className="text-[10px] text-brand-primary font-black uppercase tracking-widest">{comp?.name || 'Independente'}</div>
                                 <div className="text-[10px] text-brand-accent font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
                                 <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
                               </div>
@@ -1075,7 +952,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-primary text-white' : 'bg-slate-100 text-slate-400'}`}><User size={18} /></div>
                           <div className="text-left">
                             <div className="font-bold text-sm text-slate-900">{u.full_name}</div>
-                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{companies.find(c => c.id === u.company_id)?.name}</div>
                           </div>
                         </div>
                         {selectedUsers.includes(u.id) && <CheckCircle size={20} className="text-emerald-600" />}
@@ -1209,7 +1085,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
                       {importRows.map((row, idx) => {
                         const match = userMatches[idx];
-                        const companyUsers = currentUser.company_id ? users.filter(u => u.company_id === currentUser.company_id) : users;
+                        const companyUsers = users;
                         return (
                           <div key={idx} className={cn("flex items-center gap-3 p-3 rounded-xl border-2", match.confidence === 'ignored' ? 'border-slate-100 bg-slate-50 opacity-50' : match.matchedUserId ? 'border-emerald-100 bg-emerald-50' : 'border-amber-100 bg-amber-50')}>
                             <div className="flex-1 min-w-0">
@@ -1362,42 +1238,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
           )}
 
-          {view === 'companies' && (
-            <div className="space-y-8 animate-in fade-in">
-              <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ecossistema Corporativo</h2>
-                <div className="flex gap-2">
-                  <button onClick={() => { setEditingProductiveUnit(null); setIsProductiveUnitModalOpen(true); }} className="bg-cyan-600 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Unidade</button>
-                  {isDeveloper && <button onClick={() => openCompanyModal()} className="bg-brand-primary text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95">+ Nova Empresa</button>}
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {companies.map(c => (
-                  <div key={c.id} className="bg-white p-8 rounded-xl border border-slate-100 shadow-lg flex items-center justify-between group hover:border-brand-primary-light transition-all flex-col md:flex-row gap-4">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="w-14 h-14 bg-slate-50 rounded-xl flex items-center justify-center text-3xl shadow-inner flex-shrink-0 overflow-hidden">
-                        {c.logo_url ? (
-                          renderSquareImage(c.logo_url, c.name)
-                        ) : (
-                          <Building2 size={24} />
-                        )}
-                      </div>
-                      <div className="font-bold text-slate-900 text-sm tracking-tight">{c?.name || 'Empresa sem nome'}</div>
-                      <div className="ml-auto bg-slate-100 px-3 py-1 rounded-lg text-[10px] font-black text-slate-500 uppercase">{c.category || 'Geral'}</div>
-                    </div>
-                    <div className="flex gap-2">
-                      {(isDeveloper || (currentUser.role === 'admin' && c.id === currentUser.company_id)) && (
-                        <button onClick={() => openCompanyModal(c)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
-                      )}
-                      {isDeveloper && (
-                        <button onClick={() => { setCompanyToDelete(c); setIsDeleteCompanyModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="space-y-12 animate-in fade-in duration-500">
@@ -1445,21 +1285,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">Convites em Lote</h2>
             <form onSubmit={handleBulkInvite} className="space-y-5">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Empresa de Destino</label>
-                <select 
-                  value={bulkInviteCompanyId}
-                  onChange={(e) => {
-                    setBulkInviteCompanyId(e.target.value);
-                    setBulkInviteProductiveUnitId('');
-                  }}
-                  className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
-                  required
-                >
-                  <option value="">Selecionar empresa...</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
-                </select>
-              </div>
-              <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Unidade Produtiva</label>
                 <select
                   value={bulkInviteProductiveUnitId}
@@ -1467,7 +1292,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold text-slate-800 outline-none focus:ring-2 focus:ring-brand-primary transition-all appearance-none"
                 >
                   <option value="">Selecionar unidade...</option>
-                  {getUnitsByCompany(bulkInviteCompanyId).map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
+                  {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                 </select>
               </div>
               <div className="space-y-2">
@@ -1508,7 +1333,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso {!editingUser && '(Opcional - padrão: changeme123)'}</label>
                 <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder={editingUser ? "Deixe vazio para manter atual" : "Digite uma senha"} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</label>
                   <select name="role" defaultValue={editingUser?.role || 'user'} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
@@ -1519,16 +1344,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
-                  <select name="company_id" defaultValue={editingUser?.company_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
-                    <option value="">Nenhuma (Independente)</option>
-                    {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva</label>
-                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
-                    <option value="">Nenhuma</option>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unidade Produtiva *</label>
+                  <select name="productive_unit_id" defaultValue={editingUser?.productive_unit_id || ''} required className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900">
+                    <option value="">Selecionar unidade...</option>
                     {productiveUnits.map(unit => <option key={unit.id} value={unit.id}>{unit?.name || 'Unidade sem nome'}</option>)}
                   </select>
                 </div>
@@ -1619,64 +1437,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* Company Modal */}
-      {isCompanyModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingCompany ? 'Editar Empresa' : 'Nova Empresa'}</h2>
-            <form onSubmit={handleSaveCompany} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Organização</label>
-                <input name="name" defaultValue={editingCompany?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria do Setor</label>
-                <select name="category" defaultValue={editingCompany?.category} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required>
-                  <option value="">Selecionar categoria...</option>
-                  {COMPANY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                </select>
-              </div>
-              <ImageUpload
-                label="Logo da Empresa (Opcional)"
-                currentImageUrl={tempCompanyLogoUrl || editingCompany?.logo_url}
-                onImageUpload={setTempCompanyLogoUrl}
-                uploadEndpoint="company-logo"
-                fieldName="logo"
-              />
-              <div className="flex gap-4 pt-4">
-                <button type="button" onClick={closeCompanyModal} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-                <button type="submit" className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark">{editingCompany ? 'Atualizar' : 'Cadastrar'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isDeleteCompanyModalOpen && companyToDelete && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
-            <h2 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">Deletar Empresa?</h2>
-            <p className="text-sm text-slate-600 mb-8">Tem certeza que deseja deletar <strong>{companyToDelete.name}</strong>? Esta ação não pode ser desfeita.</p>
-            <div className="flex gap-4">
-              <button type="button" onClick={() => { setIsDeleteCompanyModalOpen(false); setCompanyToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600 hover:bg-slate-200 transition-colors">Cancelar</button>
-              <button type="button" onClick={handleDeleteCompany} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-colors">Deletar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {isProductiveUnitModalOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95">
             <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tight">{editingProductiveUnit ? 'Editar Unidade Produtiva' : 'Nova Unidade Produtiva'}</h2>
             <form onSubmit={handleSaveProductiveUnit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresa</label>
-                <select name="company_id" defaultValue={editingProductiveUnit?.company_id || ''} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required>
-                  <option value="">Selecionar empresa...</option>
-                  {companies.map(c => <option key={c.id} value={c.id}>{c?.name || 'Empresa sem nome'}</option>)}
-                </select>
-              </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nome da Unidade</label>
                 <input name="name" defaultValue={editingProductiveUnit?.name} className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" required />
@@ -1692,7 +1457,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* User Badges Viewing Modal */}
       {viewingUserBadges && (() => {
-        const companyName = companies.find(c => c.id === viewingUserBadges.company_id)?.name || 'Independente';
         const unitName = productiveUnits.find(unit => unit.id === viewingUserBadges.productive_unit_id)?.name || 'Sem unidade produtiva';
         const metrics = getUserMonthlyBadgeMetrics(viewingUserBadges.id, userBadges);
 
@@ -1703,7 +1467,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">Cartela de selos de {viewingUserBadges.full_name}</h2>
                   <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mt-2">
-                    {companyName} - {unitName}
+                    {unitName}
                   </p>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
