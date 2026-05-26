@@ -184,6 +184,28 @@ export const loadBootstrapData = async (currentUser = null) => {
         },
       })),
     }, currentUser);
+  } catch (error) {
+    console.warn('[BOOTSTRAP] Falha ao consultar banco (schema não inicializado?), usando dados em memória:', error.message);
+    let users = [];
+    try {
+      users = await listUsers();
+    } catch {
+      // listUsers também falhou (tabela users inexistente) — servidor inicia sem dados
+    }
+    return applyRoleFilter({
+      source: 'seed',
+      ...seedData,
+      badges: memoryAdminStore.badges,
+      companies: memoryAdminStore.companies,
+      productiveUnits: memoryAdminStore.productiveUnits,
+      importSources: memoryAdminStore.importSources,
+      users,
+      userBadges: memoryStore.userBadges,
+      submissions: memoryStore.submissions.map((submission) => ({
+        ...submission,
+        badge_name: memoryAdminStore.badges.find((badge) => badge.id === submission.badge_id)?.name || submission.badge_name,
+      })),
+    }, currentUser);
   } finally {
     await client.end();
   }
