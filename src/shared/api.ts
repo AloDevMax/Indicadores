@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, Company, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
+import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -176,18 +176,13 @@ export const deleteBadgeWithApi = async (id: string) => {
   await postJson('/api/admin/badges/delete', { id }, requireAuthToken());
 };
 
-export const saveCompanyWithApi = async (company: Company) => {
-  const payload = await postJson<{ company: Company }>('/api/admin/companies', company, requireAuthToken());
-  return payload.company;
-};
-
-export const fetchProductiveUnitsByCompanyId = async (companyId: string): Promise<ProductiveUnit[]> => {
+export const fetchProductiveUnitsWithApi = async (): Promise<ProductiveUnit[]> => {
   const apiBaseUrl = getApiBaseUrl();
   const token = getStoredAuthToken();
-  const response = await fetch(`${apiBaseUrl}/api/companies/${companyId}/productive-units`, {
+  const response = await fetch(`${apiBaseUrl}/api/productive-units`, {
     headers: token ? createJsonHeaders(token) : undefined,
   });
-  
+
   if (!response.ok) {
     throw new Error(`Falha ao buscar unidades produtivas com status ${response.status}`);
   }
@@ -206,12 +201,11 @@ export const saveUserWithApi = async (user: Profile, password?: string) => {
   return payload.user;
 };
 
-export const bulkInviteUsersWithApi = async (emails: string[], companyId?: string, productiveUnitId?: string) => {
+export const bulkInviteUsersWithApi = async (emails: string[], productiveUnitId?: string) => {
   return postJson<{ createdUsers: Profile[]; skippedEmails: string[] }>(
     '/api/admin/users/bulk-invite',
     {
       emails,
-      company_id: companyId,
       productive_unit_id: productiveUnitId,
     },
     requireAuthToken(),
@@ -220,10 +214,6 @@ export const bulkInviteUsersWithApi = async (emails: string[], companyId?: strin
 
 export const deleteUserWithApi = async (id: string) => {
   await postJson('/api/admin/users/delete', { id }, requireAuthToken());
-};
-
-export const deleteCompanyWithApi = async (id: string) => {
-  await postJson('/api/admin/companies/delete', { id }, requireAuthToken());
 };
 
 export const saveImportSourceWithApi = async (importSource: ImportSourceConfig) => {
