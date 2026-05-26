@@ -39,11 +39,11 @@ export const seedData = {
     { id: 'pu3', name: 'Obra Matriz' },
   ],
   badgeLegends: {
-    bronze: 'Bronze: 1 selo no mês',
-    silver: 'Prata: 2 selos no mês',
-    gold: 'Ouro: 3 selos ou mais no mês',
-    loss_1: 'Vermelho: perda de 1 selo',
-    loss_2: 'Vermelho intenso: perda de 2 selos',
+    bronze: '1 selo no mês',
+    silver: '2 selos no mês',
+    gold: '3 selos ou mais no mês',
+    loss_1: 'perda de 1 selo',
+    loss_2: 'perda de 2 selos',
   },
   importSources: [
     {
