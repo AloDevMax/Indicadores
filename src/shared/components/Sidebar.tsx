@@ -1,7 +1,7 @@
-﻿import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { TrendingUp, Shield, Trophy, BarChart3, Award, Inbox, Users, Building2, MapPin, User } from 'lucide-react';
-import { Profile, Company, ProductiveUnit } from '@/shared/types';
+﻿import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { TrendingUp, Shield, Trophy, BarChart3, Award, Inbox, Users, User } from 'lucide-react';
+import { Profile, ProductiveUnit } from '@/shared/types';
 
 interface SidebarProps {
   user: Profile;
@@ -9,7 +9,6 @@ interface SidebarProps {
   onClose: () => void;
   adminViewMode?: 'management' | 'personal';
   setAdminViewMode?: (_mode: 'management' | 'personal') => void;
-  companies?: Company[];
   productiveUnits?: ProductiveUnit[];
 }
 
@@ -19,32 +18,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   adminViewMode = 'management',
   setAdminViewMode,
-  companies = [],
-  productiveUnits = []
 }) => {
-  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
-  const navigate = useNavigate();
-  
   if (!user) return null;
 
   const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
   const isDeveloper = user.role === 'developer';
   const isSupervisor = user.role === 'supervisor';
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
-
-  const toggleExpandCompany = (companyId: string) => {
-    const newExpanded = new Set(expandedCompanies);
-    if (newExpanded.has(companyId)) {
-      newExpanded.delete(companyId);
-    } else {
-      newExpanded.add(companyId);
-    }
-    setExpandedCompanies(newExpanded);
-  };
-  
-  const getCompanyUnits = (companyId: string) => {
-    return productiveUnits.filter(u => u.company_id === companyId);
-  };
 
   const userLinks = [
     { to: '/dashboard', label: 'Meu Progresso', icon: TrendingUp },
@@ -59,7 +39,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     { to: '/admin/award', label: 'Premiar Selos', icon: Award },
     { to: '/admin/submissions', label: 'Solicitações', icon: Inbox },
     { to: '/admin/users', label: 'Colaboradores', icon: Users },
-    ...(!isSupervisor ? [{ to: '/admin/companies', label: 'Empresas', icon: Building2 }] : []),
     ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: Shield }] : []),
   ];
 
@@ -112,72 +91,23 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <nav className="space-y-1">
-            {links.map((link) => {
-              if (link.label === 'Empresas' && !showUserMenu && companies.length > 0) {
-                return (
-                  <div key={link.to}>
-                    <button
-                      onClick={() => navigate(link.to)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                    >
-                      <link.icon size={20} strokeWidth={2} />
-                      <span className="flex-1 text-left">{link.label}</span>
-                    </button>
-                    <div className="ml-2 border-l-2 border-slate-100 pl-2 space-y-1">
-                      {companies.map((company) => {
-                        const units = getCompanyUnits(company.id);
-                        const isExpanded = expandedCompanies.has(company.id);
-                        return (
-                          <div key={company.id}>
-                            <button
-                              onClick={() => toggleExpandCompany(company.id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all"
-                            >
-                              <span className="text-sm">{isExpanded ? '▼' : '▶'}</span>
-                              <span className="flex-1 text-left truncate">{company.name}</span>
-                            </button>
-                            {isExpanded && units.length > 0 && (
-                              <div className="ml-4 space-y-1">
-                                {units.map((unit) => (
-                                  <button
-                                    key={unit.id}
-                                    onClick={() => {
-                                      navigate(`/empresas/${company.id}#${unit.id}`);
-                                      if (window.innerWidth < 768) onClose();
-                                    }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-brand-primary-light hover:text-brand-primary transition-all truncate"
-                                  >
-                                    <MapPin size={16} strokeWidth={2} />
-                                    <span className="flex-1 text-left truncate">{unit.name}</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              }
-              return (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.to === '/admin' || link.to === '/dashboard'}
-                  onClick={() => {
-                    if (window.innerWidth < 768) onClose();
-                  }}
-                  className={({ isActive }) => `
-                    flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all
-                    ${isActive ? activeClass : inactiveClass}
-                  `}
-                >
-                  <link.icon size={20} strokeWidth={2} />
-                  <span>{link.label}</span>
-                </NavLink>
-              );
-            })}
+            {links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.to === '/admin' || link.to === '/dashboard'}
+                onClick={() => {
+                  if (window.innerWidth < 768) onClose();
+                }}
+                className={({ isActive }) => `
+                  flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-sm transition-all
+                  ${isActive ? activeClass : inactiveClass}
+                `}
+              >
+                <link.icon size={20} strokeWidth={2} />
+                <span>{link.label}</span>
+              </NavLink>
+            ))}
           </nav>
 
         </div>

@@ -13,17 +13,16 @@ import AwardBadges from '@/features/admin/pages/AwardBadges';
 import Requests from '@/features/admin/pages/Requests';
 import Explorers from '@/features/admin/pages/Explorers';
 import Library from '@/features/admin/pages/Library';
-import CompaniesPage from '@/features/admin/pages/CompaniesPage';
-import CompanyUnitsPage from '@/features/admin/pages/CompanyUnitsPage';
 import Settings from '@/features/settings/pages/Settings';
+import UnitsPage from '@/features/admin/pages/UnitsPage';
 import Navbar from '@/shared/components/Navbar';
 import Sidebar from '@/shared/components/Sidebar';
 import BottomNav from '@/shared/components/BottomNav';
 import SolicitationModal from '@/features/badges/components/SolicitationModal';
 import ToastContainer from '@/shared/components/ToastContainer';
 import '@/index.css';
-import { Profile, Badge, Company, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from '@/shared/types';
-import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteCompanyWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveCompanyWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from '@/shared/api';
+import { Profile, Badge, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from '@/shared/types';
+import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from '@/shared/api';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -32,21 +31,16 @@ const INITIAL_BADGES: Badge[] = [
   { id: '4', name: 'Herói do Cliente', description: 'Recebeu 5 feedbacks positivos de clientes', icon_name: '\u{1F9B8}', category: 'Serviço', points: 20 },
 ];
 
-const INITIAL_COMPANIES: Company[] = [
-  { id: 'c1', name: 'Acme Corp' },
-  { id: 'c2', name: 'Builders Ltda' },
-];
-
 const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
-  { id: 'pu1', name: 'Fábrica Campinas', company_id: 'c1' },
-  { id: 'pu2', name: 'Centro de Distribuição SP', company_id: 'c1' },
-  { id: 'pu3', name: 'Obra Matriz', company_id: 'c2' },
+  { id: 'pu1', name: 'Fábrica Campinas' },
+  { id: 'pu2', name: 'Centro de Distribuição SP' },
+  { id: 'pu3', name: 'Obra Matriz' },
 ];
 
 const INITIAL_USERS: Profile[] = [
   { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', created_at: new Date().toISOString(), email_verified: true },
   { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', created_at: new Date().toISOString(), email_verified: true },
-  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', company_id: 'c1', productive_unit_id: 'pu1', created_at: '2023-01-01', email_verified: true },
+  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', productive_unit_id: 'pu1', created_at: '2023-01-01', email_verified: true },
 ];
 
 const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
@@ -63,7 +57,6 @@ const INITIAL_IMPORT_SOURCES: ImportSourceConfig[] = [
     name: 'Planilha Operacional',
     description: 'Modelo base para importar empresa, unidade, colaborador e selo.',
     columns: {
-      company: 'empresa',
       productive_unit: 'unidade_produtiva',
       user: 'colaborador',
       badge: 'selo',
@@ -81,7 +74,6 @@ const App: React.FC = () => {
   const [isSolicitationOpen, setIsSolicitationOpen] = useState(false);
 
   const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
-  const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES);
   const [productiveUnits, setProductiveUnits] = useState<ProductiveUnit[]>(INITIAL_PRODUCTIVE_UNITS);
   const [users, setUsers] = useState<Profile[]>(INITIAL_USERS);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
@@ -103,7 +95,6 @@ const App: React.FC = () => {
 
         if (bootstrap) {
           setBadges(bootstrap.badges || INITIAL_BADGES);
-          setCompanies(bootstrap.companies || INITIAL_COMPANIES);
           setProductiveUnits(bootstrap.productiveUnits || INITIAL_PRODUCTIVE_UNITS);
           setBadgeLegends(bootstrap.badgeLegends || INITIAL_BADGE_LEGENDS);
           setImportSources(bootstrap.importSources || INITIAL_IMPORT_SOURCES);
@@ -124,7 +115,6 @@ const App: React.FC = () => {
         console.warn('Falha ao carregar dados iniciais da API. Mantendo fallback local.', error);
         // Garantir que o estado tenha valores padrão em caso de erro
         setBadges(INITIAL_BADGES);
-        setCompanies(INITIAL_COMPANIES);
         setProductiveUnits(INITIAL_PRODUCTIVE_UNITS);
         setBadgeLegends(INITIAL_BADGE_LEGENDS);
         setImportSources(INITIAL_IMPORT_SOURCES);
@@ -223,7 +213,6 @@ const App: React.FC = () => {
         const targetUser = users.find((entry) => entry.id === result.awardedBadge?.user_id);
         const enrichedBadge: UserBadge = {
           ...(result.awardedBadge as UserBadge),
-          company_id: result.awardedBadge.company_id || targetUser?.company_id,
           productive_unit_id: result.awardedBadge.productive_unit_id || targetUser?.productive_unit_id,
           created_at: result.awardedBadge.created_at || result.awardedBadge.awarded_at,
         };
@@ -238,19 +227,13 @@ const App: React.FC = () => {
     await deleteBadgeWithApi(badgeId);
   };
 
-  const handleDeleteCompany = async (companyId: string) => {
-    await deleteCompanyWithApi(companyId);
-  };
-
-  const handleSaveCompany = async (company: Company) => saveCompanyWithApi(company);
-
   const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) =>
     saveProductiveUnitWithApi(productiveUnit);
 
   const handleSaveUser = async (profile: Profile, password?: string) => saveUserWithApi(profile, password);
 
-  const handleBulkInviteUsers = async (emails: string[], companyId?: string, productiveUnitId?: string) =>
-    bulkInviteUsersWithApi(emails, companyId, productiveUnitId);
+  const handleBulkInviteUsers = async (emails: string[], productiveUnitId?: string) =>
+    bulkInviteUsersWithApi(emails, productiveUnitId);
 
   const handleDeleteUser = async (userId: string) => {
     await deleteUserWithApi(userId);
@@ -269,7 +252,6 @@ const App: React.FC = () => {
         const targetUser = users.find((entry) => entry.id === awarded.user_id);
         return {
           ...awarded,
-          company_id: awarded.company_id || targetUser?.company_id,
           productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
           created_at: awarded.created_at || awarded.awarded_at,
         };
@@ -303,7 +285,6 @@ const App: React.FC = () => {
         const targetUser = users.find((entry) => entry.id === awarded.user_id);
         return {
           ...awarded,
-          company_id: awarded.company_id || targetUser?.company_id,
           productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
           created_at: awarded.created_at || awarded.awarded_at,
         };
@@ -314,17 +295,10 @@ const App: React.FC = () => {
     return result.summary.valid;
   };
 
-  const visibleCompanies = useMemo(() => {
-    if (!user) return [];
-    if (user.role === 'developer') return companies;
-    return companies.filter((company) => company.id === user.company_id);
-  }, [companies, user]);
-
   const visibleProductiveUnits = useMemo(() => {
     if (!user) return [];
-    if (user.role === 'developer') return productiveUnits;
     if (user.role === 'supervisor') return productiveUnits.filter((u) => u.id === user.productive_unit_id);
-    return productiveUnits.filter((unit) => unit.company_id === user.company_id);
+    return productiveUnits;
   }, [productiveUnits, user]);
 
   const visibleUsers = useMemo(() => {
@@ -354,7 +328,6 @@ const App: React.FC = () => {
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
               setAdminViewMode={setAdminViewMode}
-              companies={visibleCompanies}
               productiveUnits={visibleProductiveUnits}
             />
           )}
@@ -388,7 +361,6 @@ const App: React.FC = () => {
                       badgeLegends={badgeLegends}
                       submissions={submissions}
                       users={visibleUsers}
-                      companies={visibleCompanies}
                       productiveUnits={visibleProductiveUnits}
                       importSources={importSources}
                       importBindingSnapshot={importBindingSnapshot}
@@ -421,9 +393,7 @@ const App: React.FC = () => {
               <Route path="/requests" element={user ? <Requests /> : <Navigate to="/login" />} />
               <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/login" />} />
               <Route path="/library" element={user ? <Library /> : <Navigate to="/login" />} />
-              <Route path="/companies" element={user ? <CompaniesPage companies={visibleCompanies} /> : <Navigate to="/login" />} />
-              <Route path="/empresas" element={user ? <CompaniesPage companies={visibleCompanies} /> : <Navigate to="/login" />} />
-              <Route path="/empresas/:companyId" element={user ? <CompanyUnitsPage companies={visibleCompanies} users={visibleUsers} currentUser={user} /> : <Navigate to="/login" />} />
+              <Route path="/units" element={user ? <UnitsPage users={visibleUsers} currentUser={user} /> : <Navigate to="/login" />} />
               <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/login" />} />
               <Route
                 path="/admin/*"
@@ -435,8 +405,6 @@ const App: React.FC = () => {
                       badges={badges}
                       setBadges={setBadges}
                       currentUser={user}
-                      companies={visibleCompanies}
-                      setCompanies={setCompanies}
                       productiveUnits={visibleProductiveUnits}
                       setProductiveUnits={setProductiveUnits}
                       badgeLegends={badgeLegends}
@@ -449,8 +417,6 @@ const App: React.FC = () => {
                       setSubmissions={setSubmissions}
                       onSaveBadge={handleSaveBadge}
                       onDeleteBadge={handleDeleteBadge}
-                      onSaveCompany={handleSaveCompany}
-                      onDeleteCompany={handleDeleteCompany}
                       onSaveProductiveUnit={handleSaveProductiveUnit}
                       onSaveUser={handleSaveUser}
                       onBulkInviteUsers={handleBulkInviteUsers}
