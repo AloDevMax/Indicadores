@@ -270,7 +270,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         awarded_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         awarded_by: safeAdminProfile.id,
-        company_id: targetUser.company_id,
         productive_unit_id: targetUser.productive_unit_id,
       } : ub));
       return;
@@ -284,7 +283,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       created_at: new Date().toISOString(),
       awarded_by: safeAdminProfile.id,
       tone,
-      company_id: targetUser.company_id,
       productive_unit_id: targetUser.productive_unit_id,
     };
 
