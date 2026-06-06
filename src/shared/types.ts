@@ -2,6 +2,7 @@
 export type Role = 'admin' | 'user' | 'developer' | 'supervisor';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
+export type BadgeCategory = 'Qualidade' | 'Segurança' | 'Eficiência' | 'Processos' | 'Serviço';
 export type ImportSourceField = 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
 
 export interface Notification {
@@ -46,7 +47,7 @@ export interface UserBadge {
   user_id: string;
   badge_id: string;
   awarded_at: string;
-  awarded_by: string;
+  awarded_by: string | null;
   tone: BadgeTone;
   productive_unit_id?: string;
   created_at?: string;

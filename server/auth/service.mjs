@@ -2,7 +2,6 @@ import { z } from 'zod';
 import {
   createSession,
   createUser,
-  ensureBuiltInDeveloper,
   findActiveSession,
   findUserByEmail,
   findUserById,
@@ -31,7 +30,11 @@ const loginSchema = z.object({
 const getExpirationTimestamp = () => Date.now() + 1000 * 60 * 60 * 24 * 7;
 
 export const registerUser = async (input) => {
-  const payload = registerSchema.parse(input);
+  const parsed = registerSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 400, body: { error: 'Dados inválidos.', details: parsed.error.errors } };
+  }
+  const payload = parsed.data;
   const existingUser = await findUserByEmail(payload.email);
 
   if (existingUser) {
@@ -69,11 +72,11 @@ export const registerUser = async (input) => {
 };
 
 export const loginUser = async (input) => {
-  const payload = loginSchema.parse(input);
-  if (payload.email.toLowerCase().trim() === 'alo.de.castro@hotmail.com') {
-    await ensureBuiltInDeveloper();
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 400, body: { error: 'Dados inválidos.' } };
   }
-
+  const payload = parsed.data;
   const user = await findUserByEmail(payload.email);
 
   if (!user || !(await verifyPassword(payload.password, user.password_hash))) {

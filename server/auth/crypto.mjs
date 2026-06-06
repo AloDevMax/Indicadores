@@ -1,6 +1,10 @@
 import crypto from 'node:crypto';
 
 const TOKEN_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+
+if (!process.env.AUTH_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('AUTH_SECRET must be set in production');
+}
 const AUTH_SECRET = process.env.AUTH_SECRET || 'dev-only-auth-secret-change-me';
 
 const base64url = (value) => Buffer.from(value).toString('base64url');

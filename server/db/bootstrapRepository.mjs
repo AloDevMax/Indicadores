@@ -43,7 +43,18 @@ const filterDataForUser = (payload, currentUser) => {
 };
 
 const applyRoleFilter = (payload, currentUser) => {
-  if (!currentUser) return payload;
+  if (!currentUser) {
+    return {
+      source: payload.source,
+      badges: payload.badges,
+      productiveUnits: payload.productiveUnits,
+      badgeLegends: payload.badgeLegends,
+      users: [],
+      userBadges: [],
+      submissions: [],
+      importSources: [],
+    };
+  }
   const { role } = currentUser;
   if (role === 'developer') return payload;
   if (role === 'admin') return filterDataForAdmin(payload, currentUser);
@@ -185,12 +196,12 @@ export const loadBootstrapData = async (currentUser = null) => {
       })),
     }, currentUser);
   } catch (error) {
-    console.warn('[BOOTSTRAP] Falha ao consultar banco (schema não inicializado?), usando dados em memória:', error.message);
+    console.error('[BOOTSTRAP] Falha ao consultar banco, usando dados em memória:', error);
     let users = [];
     try {
       users = await listUsers();
-    } catch {
-      // listUsers também falhou (tabela users inexistente) — servidor inicia sem dados
+    } catch (usersError) {
+      console.error('[BOOTSTRAP] listUsers também falhou:', usersError);
     }
     return applyRoleFilter({
       source: 'seed',

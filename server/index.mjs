@@ -8,7 +8,7 @@ import { createPgClient } from './db/client.mjs';
 import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
-import { listUsers } from './auth/repository.mjs';
+import { ensureBuiltInDeveloper, listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
@@ -24,18 +24,20 @@ const __dirname = path.dirname(__filename);
 
 const frontendPath = path.resolve(__dirname, '..');
 
+const asyncRoute = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 // Verificar conexão com banco de dados na inicialização
 console.log('\n========================================');
-console.log('🔍 Verificando conexão com o banco de dados...');
+console.log('Verificando conexão com o banco de dados...');
 console.log('========================================\n');
 
-// Função com retry
 const checkConnectionWithRetry = async (maxAttempts = 3) => {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`Tentativa ${attempt}/${maxAttempts}...`);
     const connected = await checkDatabaseConnection(false);
     if (connected) return true;
-    
+
     if (attempt < maxAttempts) {
       console.log(`Aguardando 2 segundos antes de próxima tentativa...\n`);
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -47,30 +49,37 @@ const checkConnectionWithRetry = async (maxAttempts = 3) => {
 const dbConnected = await checkConnectionWithRetry(3);
 
 if (!dbConnected) {
-  console.error('\n❌ ⚠️  [AVISO CRÍTICO]');
-  console.error('A aplicação está usando FALLBACK EM MEMÓRIA');
+  console.error('\n[AVISO CRÍTICO] A aplicação está usando FALLBACK EM MEMÓRIA');
   console.error('Dados adicionados ao site NÃO serão persistidos após reiniciar!\n');
   if (process.env.NODE_ENV === 'production') {
-    console.error('💥 Erro Crítico em Produção!');
-    console.error('Possíveis causas:');
-    console.error('  1. Módulo pg não está instalado (npm install falhou)');
-    console.error('  2. DATABASE_URL não está correto ou acessível');
-    console.error('  3. Banco PostgreSQL está offline\n');
+    console.error('[PRODUÇÃO] Verifique: DATABASE_URL, módulo pg instalado, PostgreSQL acessível');
   }
 }
-console.log('');
 
-console.log("Caminho atual (CWD):", process.cwd());
+// Garantir conta developer uma vez na inicialização
+ensureBuiltInDeveloper().catch(err =>
+  console.error('[STARTUP] ensureBuiltInDeveloper falhou:', err.message),
+);
+
+console.log('Caminho atual (CWD):', process.cwd());
 try {
   const distContent = fs.readdirSync(path.resolve(process.cwd(), 'dist'), { recursive: true });
-  console.log("Arquivos encontrados na dist:", distContent.length, "arquivos");
+  console.log('Arquivos encontrados na dist:', distContent.length, 'arquivos');
 } catch (e) {
-  console.log("Erro ao ler a pasta dist:", e.message);
+  console.log('Erro ao ler a pasta dist:', e.message);
 }
+
 app.use(express.json());
 
+const allowedOrigins = new Set(
+  (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()),
+);
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
@@ -79,26 +88,21 @@ app.use((req, res, next) => {
 
 app.use(express.static(frontendPath));
 
-// Servir uploads como arquivos estáticos
 const uploadsPath = path.join(__dirname, '..', 'public', 'uploads');
 if (!fs.existsSync(uploadsPath)) {
   fs.mkdirSync(uploadsPath, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsPath));
 
-// Rotas de upload
 app.use('/api/upload', uploadRouter);
 
-// Helper para verificar se o usuário é admin ou desenvolvedor
 const isAdminOrDeveloper = (user) => user.role === 'admin' || user.role === 'developer';
 const isDeveloper = (user) => user.role === 'developer';
-const isManager = (user) => user.role === 'admin';
 const isSupervisor = (user) => user.role === 'supervisor';
 const canManageUnit = (user) => isAdminOrDeveloper(user) || isSupervisor(user);
 
 const ensureManagerUnitScope = (user, unitId) => {
   if (isSupervisor(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
-  if (isManager(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
   return true;
 };
 
@@ -147,73 +151,55 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
   }
 };
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', asyncRoute(async (req, res) => {
   const result = await loginUser(req.body);
   res.status(result.status).json(result.body);
-});
+}));
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', asyncRoute(async (req, res) => {
   const result = await registerUser(req.body);
   res.status(result.status).json(result.body);
-});
+}));
 
-app.post('/api/auth/logout', async (req, res) => {
+app.post('/api/auth/logout', asyncRoute(async (req, res) => {
   const result = await logoutUser(req.headers.authorization);
   res.status(result.status).json(result.body);
-});
+}));
 
-app.get('/api/auth/me', async (req, res) => {
+app.get('/api/auth/me', asyncRoute(async (req, res) => {
   const result = await getAuthenticatedUser(req.headers.authorization);
   res.status(result.status).json(result.body);
-});
+}));
 
-app.get('/api/bootstrap', async (req, res) => {
+app.get('/api/bootstrap', asyncRoute(async (req, res) => {
   const auth = await getAuthenticatedUser(req.headers.authorization);
   const currentUser = auth.status === 200 ? auth.body.user : null;
   const data = await loadBootstrapData(currentUser);
   res.json(data);
-});
+}));
 
-app.get('/api/health', async (_req, res) => {
-  const health = {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    database: {
-      url: process.env.DATABASE_URL ? 'configurada' : 'não configurada',
-      ssl: process.env.DATABASE_SSL === 'true' ? 'ativado' : 'desativado',
-    },
-    environment: process.env.NODE_ENV || 'development',
-  };
-
-  // Tenta conectar ao banco para verificar se está disponível
+app.get('/api/health', asyncRoute(async (_req, res) => {
   try {
     const client = await createPgClient();
     if (client) {
-      const result = await client.query('SELECT NOW()');
-      health.database.connected = true;
-      health.database.timestamp = result.rows[0].now;
+      await client.query('SELECT 1');
       await client.end();
-    } else {
-      health.database.connected = false;
-      health.database.info = 'usando fallback em memória';
     }
-  } catch (error) {
-    health.database.connected = false;
-    health.database.error = error.message;
+    res.json({ status: 'ok' });
+  } catch {
+    res.json({ status: 'degraded' });
   }
+}));
 
-  res.json(health);
-});
-
-app.post('/api/admin/seed-indicator-badges', async (req, res) => {
+app.post('/api/admin/seed-indicator-badges', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
 
   const badges = await seedIndicatorBadges();
   res.status(200).json({ badges });
-});
+}));
 
-app.post('/api/admin/import-monthly-badges', async (req, res) => {
+app.post('/api/admin/import-monthly-badges', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
 
@@ -242,9 +228,9 @@ app.post('/api/admin/import-monthly-badges', async (req, res) => {
   });
 
   res.status(200).json(result);
-});
+}));
 
-app.post('/api/admin/award-badges', async (req, res) => {
+app.post('/api/admin/award-badges', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, req.body.user_ids || req.body.userIds || []))) {
@@ -259,9 +245,9 @@ app.post('/api/admin/award-badges', async (req, res) => {
   });
 
   res.status(200).json({ awardedBadges });
-});
+}));
 
-app.post('/api/admin/user-badges/remove', async (req, res) => {
+app.post('/api/admin/user-badges/remove', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, [req.body.user_id || req.body.userId].filter(Boolean)))) {
@@ -274,10 +260,9 @@ app.post('/api/admin/user-badges/remove', async (req, res) => {
     badgeId: req.body.badge_id || req.body.badgeId,
   });
   res.status(200).json(result);
-}); 
+}));
 
-
-app.post('/api/submissions', async (req, res) => {
+app.post('/api/submissions', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
@@ -285,12 +270,12 @@ app.post('/api/submissions', async (req, res) => {
     userId: auth.body.user.id,
     badgeId: req.body.badge_id,
     description: req.body.description,
-    proofUrl: req.body.proof_url
+    proofUrl: req.body.proof_url,
   });
   res.status(201).json(submission);
-});
+}));
 
-app.post('/api/submissions/:id/review', async (req, res) => {
+app.post('/api/submissions/:id/review', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
   if (!canManageUnit(auth.body.user)) {
@@ -306,10 +291,9 @@ app.post('/api/submissions/:id/review', async (req, res) => {
     status: req.body.status,
   });
   res.status(200).json(result);
-});
+}));
 
-
-app.post('/api/admin/users', async (req, res) => {
+app.post('/api/admin/users', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
@@ -329,9 +313,9 @@ app.post('/api/admin/users', async (req, res) => {
 
   const user = await saveUser(req.body, req.body.password);
   res.status(201).json({ user });
-});
+}));
 
-app.post('/api/admin/import-sources', async (req, res) => {
+app.post('/api/admin/import-sources', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Somente o desenvolvedor pode manter fontes globais de importação.' });
@@ -339,27 +323,27 @@ app.post('/api/admin/import-sources', async (req, res) => {
 
   const importSource = await saveImportSource(req.body);
   res.status(201).json({ importSource });
-});
+}));
 
-app.post('/api/admin/badges', async (req, res) => {
+app.post('/api/admin/badges', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Somente o desenvolvedor pode manter a biblioteca global de selos.' });
   }
   const badge = await saveBadge(req.body);
   res.status(200).json({ badge });
-});
+}));
 
-app.post('/api/admin/badges/delete', async (req, res) => {
+app.post('/api/admin/badges/delete', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
     return res.status(403).json({ error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' });
   }
   const result = await deleteBadge(req.body.id);
   res.status(200).json(result);
-});
+}));
 
-app.post('/api/admin/import-runs', async (req, res) => {
+app.post('/api/admin/import-runs', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
     return res.status(403).json({ error: 'Acesso restrito.' });
@@ -383,37 +367,31 @@ app.post('/api/admin/import-runs', async (req, res) => {
   });
 
   res.status(200).json(result);
-});
+}));
 
-app.post('/api/admin/users/delete', async (req, res) => {
+app.post('/api/admin/users/delete', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!(await ensureUsersWithinScope(auth.body.user, [req.body.id].filter(Boolean)))) {
     return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
   }
-  
-  const result = await deleteUser(req.body.id); 
+
+  const result = await deleteUser(req.body.id);
   res.status(200).json(result);
-});
+}));
 
-
-app.post('/api/admin/productive-units', async (req, res) => {
-  try {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
-    if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
-      return res.status(403).json({ error: 'Gestores só podem acessar a própria unidade produtiva.' });
-    }
-    
-    const productiveUnit = await saveProductiveUnit(req.body);
-    res.status(201).json({ productiveUnit });
-  } catch (error) {
-    console.error('Error saving productive unit:', error);
-    res.status(500).json({ error: error instanceof Error ? error.message : 'Erro ao salvar unidade produtiva' });
+app.post('/api/admin/productive-units', asyncRoute(async (req, res) => {
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+  if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+    return res.status(403).json({ error: 'Gestores só podem acessar a própria unidade produtiva.' });
   }
-});
 
-app.post('/api/admin/users/bulk-invite', async (req, res) => {
+  const productiveUnit = await saveProductiveUnit(req.body);
+  res.status(201).json({ productiveUnit });
+}));
+
+app.post('/api/admin/users/bulk-invite', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
   if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
@@ -421,46 +399,35 @@ app.post('/api/admin/users/bulk-invite', async (req, res) => {
   }
   const result = await bulkInviteUsers(req.body);
   res.status(200).json(result);
-});
+}));
 
-app.put('/api/user/profile', async (req, res) => {
+app.put('/api/user/profile', asyncRoute(async (req, res) => {
   const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
   const currentUser = auth.body.user;
   const { full_name, email, password } = req.body;
 
-  // Users can only update their own profile
   const updates = {};
   if (full_name !== undefined) updates.full_name = full_name;
   if (email !== undefined) updates.email = email;
   if (password !== undefined && password.trim()) updates.password = password;
 
-  try {
-    const savedUser = await updateUserProfile(currentUser.id, updates);
-    res.status(200).json({ user: savedUser });
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    res.status(500).json({ error: error.message || 'Erro ao atualizar perfil.' });
+  const savedUser = await updateUserProfile(currentUser.id, updates);
+  res.status(200).json({ user: savedUser });
+}));
+
+app.get('/api/productive-units', asyncRoute(async (_req, res) => {
+  const client = await createPgClient();
+
+  if (!client) {
+    return res.json({ productiveUnits: memoryAdminStore.productiveUnits });
   }
-});
 
-app.get('/api/productive-units', async (_req, res) => {
-  try {
-    const client = await createPgClient();
-
-    if (!client) {
-      return res.json({ productiveUnits: memoryAdminStore.productiveUnits });
-    }
-
-    const result = await client.query('select id, name from productive_units order by name asc');
-    await client.end();
-    res.json({ productiveUnits: result.rows });
-  } catch (error) {
-    console.error('Error fetching productive units:', error);
-    res.status(500).json({ error: 'Erro ao buscar unidades produtivas' });
-  }
-});
+  const result = await client.query('select id, name from productive_units order by name asc');
+  await client.end();
+  res.json({ productiveUnits: result.rows });
+}));
 
 app.use((err, _req, res, _next) => {
   if (err instanceof ZodError) {
@@ -470,195 +437,11 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Erro interno no servidor' });
 });
 
-app.get('*', (req, res) => {
+app.get('*', (_req, res) => {
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 server.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 Servidor pronto na porta ${port}`);
-  console.log(`📁 Buscando arquivos do site em: ${frontendPath}`);
+  console.log(`Servidor pronto na porta ${port}`);
+  console.log(`Buscando arquivos do site em: ${frontendPath}`);
 });
-
-// app.post('/api/auth/login', async (req, res) => {
-//   const result = await loginUser(req.body); 
-//   res.status(result.status).json(result.body);
-// });
-
-//     app.get('/api/auth/me', async (req, res) => {
-//   const result = await getAuthenticatedUser(req.headers.authorization);
-//   res.status(result.status).json(result.body);
-// });
-
-// app.post('/api/auth/logout', async (req, res) => {
-//   const result = await logoutUser(req.headers.authorization);
-//   res.status(result.status).json(result.body);
-// });
-
-// app.get('/api/ZodError', async (_req, res) => { 
-//   try {
-//     throw new ZodError([{ message: 'Campo obrigatório', path: ['email'], code: 'invalid_type' }]);
-//   } catch (error) {
-//     if (error instanceof ZodError) {
-//       res.status(400).json({ error: 'Erro de validação', details: error.errors });
-//     } else {
-//       res.status(500).json({ error: 'Erro interno no servidor' });
-//     }
-//   }
-// });
-
-// app.post('/api/awardsBadges', async (req, res) => {
-//   const result = await awardBadges(req.body); 
-//   res.status(201).json(result);
-// });
-
-// app.post('/api/submissions', async (req, res) => {
-//   const auth = await requireAuthenticatedUser(req.headers.authorization);
-//   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
-
-//   const result = await createSubmission({
-//     userId: auth.body.user.id,
-//     badgeId: req.body.badge_id,
-//     description: req.body.description,
-//     proofUrl: req.body.proof_url
-//   });
-
-// res.status(201).json(result);
-// });
-
-// app.post('/api/review', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200) return res.status(authResult.status).json(authResult.body);
-   
-//    const result = await reviewSubmission({
-//     submissionId: req.body.submissionId, // Use req.body se não for via URL
-//     reviewerId: authResult.body.user.id,
-//     status: req.body.status,
-//   });
-
-// res.status(200).json({ result, message: 'Revisão salva!' });
-// });
-  
-
-//     app.post('/api/admin/award-badges', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   res.status(201).json({ message: 'Badge atribuída!' });
-// });
-
-//    app.post('/api/admin/user-badges/remove', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   const result = await removeUserBadge({
-//     reviewerId: authResult.body.user.id,
-//     userId: req.body.user_id, // O Express já lê o corpo com 'req.body'
-//     badgeId: req.body.badge_id,
-//   });
-//   res.status(200).json(result);
-// });
-
-// app.post('/api/admin/import-runs', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   const result = await persistImportRun({
-//     reviewerId: authResult.body.user.id,
-//     sourceId: req.body.source_id,
-//     status: req.body.status,
-//     details: req.body.details,
-//   });
-//   res.status(200).json(result);
-// });
-
-
-   
-//     app.post('/api/admin/badges', async (req, res) => { 
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//    const badge = await saveBadge(req.body);
-//   res.status(200).json({ badge });
-// });
-
-// app.post('/api/admin/badges/delete', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   const result = await deleteBadge(req.body.id);
-//   res.status(200).json(result);
-// });
-
-
-
-//   res.status(201).json({ message: 'Empresa criada!' });
-
-//     app.post('/api/admin/productive-units', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//   const productiveUnit = await saveProductiveUnit(req.body);
-//   res.status(200).json({ productiveUnit });
-// });
-
-//    app.post('/api/admin/import-sources', async (req, res) => {  
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//       const importSource = await saveImportSource(req.body);
-//   res.status(200).json({ importSource });
-
-//    app.post('/api/admin/users', async (req, res) => {
-//   const authResult = await requireAuthenticatedUser(req.headers.authorization);
-//   if (authResult.status !== 200 || authResult.body.user.role !== 'admin') {
-//     return res.status(403).json({ error: 'Acesso restrito a administradores.' });
-//   }
-
-//      const user = await saveUser(req.body);
-//   res.status(200).json({ user });
-// });
-//     },
-
-//   app.post('/api/admin/users/bulk-invite', async (req, res) => {
-//   const auth = await requireAuthenticatedUser(req.headers.authorization);
-//   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.status(403).json({ error: 'Acesso restrito.' });
-  
-//   const result = await bulkInviteUsers({
-//     emails: req.body.emails || [],
-//     productiveUnitId: req.body.productive_unit_id,
-//   });
-//   res.status(200).json(result);
-//   }));
-
-// app.post('/api/admin/users/delete', async (req, res) => {
-//   const auth = await requireAuthenticatedUser(req.headers.authorization);
-//   if (auth.status !== 200 || auth.body.user.role !== 'admin') return res.status(403).json({ error: 'Acesso restrito.' });
-  
-//   const result = await deleteUser(req.body.id);
-//   res.status(200).json(result);
-// });
-
-// app.use(express.static(frontendPath));
-
-// app.get('*', (req, res) => {
-//   res.sendFile(path.join(frontendPath, 'index.html'));
-// });
-
-// server.listen(port, '0.0.0.0', () => {
-//   console.log(`Servidor rodando na porta ${port}`);
-// });

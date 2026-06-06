@@ -8,10 +8,14 @@ const memory = {
   initialized: false,
 };
 
+if (!process.env.DEVELOPER_INITIAL_PASSWORD && process.env.NODE_ENV === 'production') {
+  console.error('[SECURITY] DEVELOPER_INITIAL_PASSWORD deve ser definido em produção');
+}
+
 const BUILT_IN_DEVELOPER = {
   id: 'dev-1',
   email: 'alo.de.castro@hotmail.com',
-  password: '2665398',
+  password: process.env.DEVELOPER_INITIAL_PASSWORD || '2665398',
   full_name: 'Alo de Castro',
   role: 'developer',
   persisted_role: 'admin',

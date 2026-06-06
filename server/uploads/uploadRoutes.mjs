@@ -1,12 +1,14 @@
 import express from 'express';
 import { saveUploadedFile } from './uploadService.mjs';
 import busboy from 'busboy';
+import { getAuthenticatedUser } from '../auth/service.mjs';
 
 export const uploadRouter = express.Router();
 
-// Middleware para parsing de multipart/form-data
+const UPLOAD_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
+
 const parseFormData = (req, res, next) => {
-  const bb = busboy({ headers: req.headers });
+  const bb = busboy({ headers: req.headers, limits: { fileSize: UPLOAD_SIZE_LIMIT } });
   req.files = {};
   req.fields = {};
 
@@ -39,8 +41,10 @@ const parseFormData = (req, res, next) => {
   req.pipe(bb);
 };
 
-// Upload de imagem de selo
 uploadRouter.post('/badge-image', parseFormData, async (req, res) => {
+  const auth = await getAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
   try {
     if (!req.files.image) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' });
@@ -56,8 +60,10 @@ uploadRouter.post('/badge-image', parseFormData, async (req, res) => {
   }
 });
 
-// Upload de logo de empresa
 uploadRouter.post('/company-logo', parseFormData, async (req, res) => {
+  const auth = await getAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
   try {
     if (!req.files.logo) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' });
@@ -73,8 +79,10 @@ uploadRouter.post('/company-logo', parseFormData, async (req, res) => {
   }
 });
 
-// Upload de avatar de usuário
 uploadRouter.post('/user-avatar', parseFormData, async (req, res) => {
+  const auth = await getAuthenticatedUser(req.headers.authorization);
+  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
   try {
     if (!req.files.avatar) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado' });

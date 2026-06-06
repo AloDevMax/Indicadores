@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
+import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ImportSourceField, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -55,13 +55,13 @@ export const fetchBootstrapData = async (): Promise<AppBootstrapPayload | null> 
 };
 
 export const storeAuthToken = (token: string) => {
-  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
 };
 
-export const getStoredAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+export const getStoredAuthToken = () => sessionStorage.getItem(AUTH_TOKEN_KEY);
 
 export const clearStoredAuthToken = () => {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
 };
 
 export const registerWithApi = async (email: string, password: string, fullName: string) => {
@@ -271,7 +271,7 @@ interface ImportRowPayload {
 export const persistImportRunWithApi = async (
   sourceId: string,
   sourceName: string,
-  matchedColumns: Partial<Record<string, string>>,
+  matchedColumns: Partial<Record<ImportSourceField, string>>,
   rows: ImportRowPayload[],
 ) => {
   const payload = await postJson<{

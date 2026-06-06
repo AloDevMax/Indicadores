@@ -21,8 +21,9 @@ import BottomNav from '@/shared/components/BottomNav';
 import SolicitationModal from '@/features/badges/components/SolicitationModal';
 import ToastContainer from '@/shared/components/ToastContainer';
 import '@/index.css';
-import { Profile, Badge, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from '@/shared/types';
-import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, persistImportRunWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveImportSourceWithApi, saveProductiveUnitWithApi, saveUserWithApi } from '@/shared/api';
+import { Profile, Badge, BadgeTone, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from '@/shared/types';
+import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi } from '@/shared/api';
+import { toast } from '@/shared/lib/toast';
 
 const INITIAL_BADGES: Badge[] = [
   { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
@@ -112,13 +113,12 @@ const App: React.FC = () => {
           );
         }
       } catch (error) {
-        console.warn('Falha ao carregar dados iniciais da API. Mantendo fallback local.', error);
-        // Garantir que o estado tenha valores padrão em caso de erro
+        console.warn('Falha ao carregar dados iniciais da API.', error);
         setBadges(INITIAL_BADGES);
         setProductiveUnits(INITIAL_PRODUCTIVE_UNITS);
         setBadgeLegends(INITIAL_BADGE_LEGENDS);
         setImportSources(INITIAL_IMPORT_SOURCES);
-        setUser(INITIAL_USERS.find(u => u.role === 'developer') || null);
+        setUser(null);
         setUserBadges([]);
         setSubmissions([]);
       } finally {
@@ -139,8 +139,6 @@ const App: React.FC = () => {
   try {
     const authenticatedUser = await loginWithApi(email, password);
 
-    console.log('LOGIN RESULT:', authenticatedUser); // 👈 AQUI
-
     setUser(authenticatedUser);
 
     setUsers(prev =>
@@ -157,8 +155,6 @@ const App: React.FC = () => {
 
     return { success: true };
   } catch (error) {
-    console.error('LOGIN ERROR:', error); // 👈 adiciona isso também
-
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
@@ -194,12 +190,16 @@ const App: React.FC = () => {
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
   const handleAddSubmission = async (badgeId: string, description: string) => {
-    const submission = await createSubmissionWithApi(badgeId, description);
-    setSubmissions(prev => [submission, ...prev]);
+    try {
+      const submission = await createSubmissionWithApi(badgeId, description);
+      setSubmissions(prev => [submission, ...prev]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
+      throw error;
+    }
   };
 
   const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
-    console.log('Reviewing submission:', { submissionId, status });
     const result = await reviewSubmissionWithApi(submissionId, status);
     setSubmissions(prev => prev.map(submission => (
       submission.id === submissionId ? { ...submission, ...result.submission } : submission
@@ -224,25 +224,45 @@ const App: React.FC = () => {
   const handleSaveBadge = async (badge: Badge) => saveBadgeWithApi(badge);
 
   const handleDeleteBadge = async (badgeId: string) => {
-    await deleteBadgeWithApi(badgeId);
+    try {
+      await deleteBadgeWithApi(badgeId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao excluir selo.');
+      throw error;
+    }
   };
 
-  const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) =>
-    saveProductiveUnitWithApi(productiveUnit);
+  const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) => {
+    try {
+      return await saveProductiveUnitWithApi(productiveUnit);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao salvar unidade produtiva.');
+      throw error;
+    }
+  };
 
-  const handleSaveUser = async (profile: Profile, password?: string) => saveUserWithApi(profile, password);
+  const handleSaveUser = async (profile: Profile, password?: string) => {
+    try {
+      return await saveUserWithApi(profile, password);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao salvar usuário.');
+      throw error;
+    }
+  };
 
   const handleBulkInviteUsers = async (emails: string[], productiveUnitId?: string) =>
     bulkInviteUsersWithApi(emails, productiveUnitId);
 
   const handleDeleteUser = async (userId: string) => {
-    await deleteUserWithApi(userId);
+    try {
+      await deleteUserWithApi(userId);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao excluir usuário.');
+      throw error;
+    }
   };
 
-  const _handleSaveImportSource = async (importSource: ImportSourceConfig) => saveImportSourceWithApi(importSource);
-
-  const handleAwardBadges = async (userIds: string[], badgeId: string, tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2') => {
-    userIds.forEach((userId) => console.log('Awarding badge:', { userId, badgeId }));
+  const handleAwardBadges = async (userIds: string[], badgeId: string, tone: BadgeTone) => {
     const awardedBadges = await awardBadgesWithApi(userIds, badgeId, tone);
     setUserBadges(prev => {
       const filtered = prev.filter(existing =>
@@ -261,38 +281,13 @@ const App: React.FC = () => {
   };
 
   const handleRemoveUserBadge = async (userId: string, badgeId: string) => {
-    await removeUserBadgeWithApi(userId, badgeId);
-    setUserBadges(prev => prev.filter(badge => !(badge.user_id === userId && badge.badge_id === badgeId)));
-  };
-
-  const _handlePersistImport = async (
-    sourceId: string,
-    sourceName: string,
-    matchedColumns: Partial<Record<string, string>>,
-    rows: Array<{ row: Record<string, string>; user_id?: string; badge_id?: string; tone: 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2'; status: 'valid' | 'invalid'; reason?: string }>,
-  ) => {
-    rows.forEach((row) => {
-      if (row.user_id && row.badge_id) {
-        console.log('Awarding badge:', { userId: row.user_id, badgeId: row.badge_id });
-      }
-    });
-    const result = await persistImportRunWithApi(sourceId, sourceName, matchedColumns, rows);
-    setUserBadges(prev => {
-      const filtered = prev.filter(existing =>
-        !result.awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
-      );
-      const enrichedBadges = result.awardedBadges.map((awarded) => {
-        const targetUser = users.find((entry) => entry.id === awarded.user_id);
-        return {
-          ...awarded,
-          productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
-          created_at: awarded.created_at || awarded.awarded_at,
-        };
-      });
-      return [...filtered, ...enrichedBadges];
-    });
-    setImportBindingSnapshot(result.bindingSnapshot);
-    return result.summary.valid;
+    try {
+      await removeUserBadgeWithApi(userId, badgeId);
+      setUserBadges(prev => prev.filter(badge => !(badge.user_id === userId && badge.badge_id === badgeId)));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao remover selo.');
+      throw error;
+    }
   };
 
   const visibleProductiveUnits = useMemo(() => {

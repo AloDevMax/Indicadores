@@ -23,10 +23,14 @@ export const validateImageFile = (mimeType, size) => {
   }
 };
 
+const EXT_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+
 export const saveUploadedFile = async (buffer, mimeType, _filename) => {
   validateImageFile(mimeType, buffer.length);
-  
-  const ext = mimeType.split('/')[1];
+
+  const ext = EXT_MAP[mimeType];
+  if (!ext) throw new Error('Tipo de arquivo não suportado.');
+
   const uniqueName = `${crypto.randomBytes(8).toString('hex')}-${Date.now()}.${ext}`;
   const filePath = path.join(uploadsDir, uniqueName);
   

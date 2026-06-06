@@ -130,11 +130,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const isDeveloper = currentUser.role === 'developer';
   const isSupervisor = currentUser.role === 'supervisor';
   const canManageGlobalCatalog = isDeveloper;
-  const allowedViews = isDeveloper
-    ? new Set(['overview', 'submissions', 'users', 'award', 'badges'])
-    : isSupervisor
-      ? new Set(['overview', 'submissions', 'users', 'award'])
-      : new Set(['overview', 'submissions', 'users', 'award']);
+  const allowedViews = new Set([
+    'overview', 'submissions', 'users', 'award',
+    ...(isDeveloper ? ['badges'] : []),
+  ]);
 
   const view = useMemo(() => {
     const path = location.pathname.split('/').pop();
@@ -173,14 +172,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // Excel monthly import state
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   useEffect(() => {
-    document.body.style.overflow = isImportModalOpen ? 'hidden' : '';
+    const anyOpen = isImportModalOpen || isUserModalOpen;
+    document.body.style.overflow = anyOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
-  }, [isImportModalOpen]);
-
-  useEffect(() => {
-    document.body.style.overflow = isUserModalOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
-  }, [isUserModalOpen]);
+  }, [isImportModalOpen, isUserModalOpen]);
   type ImportStep = 'select' | 'matching' | 'preview' | 'done';
   const [importStep, setImportStep] = useState<ImportStep>('select');
   const [importMonth, setImportMonth] = useState<number>(new Date().getMonth() + 1);
@@ -254,11 +249,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   );
 
   const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
-    console.log('Awarding badge:', { userId: targetUserId, badgeId });
     const targetUser = users.find((user) => user.id === targetUserId);
     const badge = badges.find((entry) => entry.id === badgeId);
     if (!targetUser || !badge) {
-      console.log('[badge-award] concessao ignorada por dados invalidos', { targetUserId, badgeId });
       return;
     }
     const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);

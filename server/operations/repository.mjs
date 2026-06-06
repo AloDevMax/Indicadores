@@ -148,21 +148,24 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
 
 export const reviewSubmission = async ({ submissionId, reviewerId, status }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
-    throw new Error('Apenas administradores podem revisar solicitações.');
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
+    throw new Error('Apenas administradores e supervisores podem revisar solicitações.');
   }
 
   const client = await createPgClient();
 
   if (!client) {
-    const submission = memoryStore.submissions.find((entry) => entry.id === submissionId);
-    if (!submission) {
+    const submissionIndex = memoryStore.submissions.findIndex((entry) => entry.id === submissionId);
+    if (submissionIndex === -1) {
       throw new Error('Solicitação não encontrada.');
     }
-
-    submission.status = status;
-    submission.reviewed_by = reviewerId;
-    submission.reviewed_at = new Date().toISOString();
+    const submission = {
+      ...memoryStore.submissions[submissionIndex],
+      status,
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+    };
+    memoryStore.submissions[submissionIndex] = submission;
 
     let awardedBadge = null;
     if (status === 'approved') {
@@ -248,8 +251,8 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
 
 export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
-    throw new Error('Apenas administradores podem conceder badges.');
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
+    throw new Error('Apenas administradores e supervisores podem conceder badges.');
   }
 
   const badgeName = memoryAdminStore.badges.find((badge) => badge.id === badgeId)?.name || 'Badge';
@@ -257,7 +260,11 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
 
   if (!client) {
     const awardedBadges = await Promise.all(userIds.map((userId) => upsertMemoryBadgeAward({ userId, badgeId, awardedBy: reviewerId, tone })));
-    await persistAwardNotifications({ client: null, userIds, badgeName, tone });
+    try {
+      await persistAwardNotifications({ client: null, userIds, badgeName, tone });
+    } catch (notifError) {
+      console.error('[awardBadges] falha ao enviar notificações (badges já concedidos):', notifError.message);
+    }
     return awardedBadges;
   }
 
@@ -297,7 +304,11 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
       }));
     }
 
-    await persistAwardNotifications({ client, userIds, badgeName: resolvedBadgeName, tone });
+    try {
+      await persistAwardNotifications({ client, userIds, badgeName: resolvedBadgeName, tone });
+    } catch (notifError) {
+      console.error('[awardBadges] falha ao enviar notificações (badges já concedidos):', notifError.message);
+    }
 
     await client.query('commit');
     return results;
@@ -311,8 +322,8 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
 
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
-    throw new Error('Apenas administradores podem remover badges.');
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
+    throw new Error('Apenas administradores e supervisores podem remover badges.');
   }
 
   const client = await createPgClient();
@@ -345,8 +356,8 @@ export const persistImportRun = async ({
   rows,
 }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
-    throw new Error('Apenas administradores podem processar importações.');
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
+    throw new Error('Apenas administradores e supervisores podem processar importações.');
   }
 
   const validRows = rows.filter((row) => row.status === 'valid');
@@ -459,8 +470,8 @@ export const persistImportRun = async ({
 // awards: [{ userId, badgeId, tone }] — only non-zero values
 export const importMonthlyBadges = async ({ reviewerId, awards, month, year }) => {
   const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer')) {
-    throw new Error('Apenas administradores podem importar badges mensais.');
+  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
+    throw new Error('Apenas administradores e supervisores podem importar badges mensais.');
   }
 
   const client = await createPgClient();
