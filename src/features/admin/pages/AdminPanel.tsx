@@ -8,7 +8,7 @@ import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
-import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, fetchImportSourcesWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
@@ -212,44 +212,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     />
   );
 
-  const upsertUserBadge = (targetUserId: string, badgeId: string, tone: BadgeTone) => {
-    const targetUser = users.find((user) => user.id === targetUserId);
-    const badge = badges.find((entry) => entry.id === badgeId);
-    if (!targetUser || !badge) {
-      return;
-    }
-    const existingAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
-
-    if (existingAward) {
-      setUserBadges(prev => prev.map(ub => ub.id === existingAward.id ? {
-        ...ub,
-        tone,
-        awarded_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-        awarded_by: safeAdminProfile.id,
-        productive_unit_id: targetUser.productive_unit_id,
-      } : ub));
-      return;
-    }
-
-    const newAward: UserBadge = {
-      id: Math.random().toString(36).substr(2, 9),
-      user_id: targetUserId,
-      badge_id: badgeId,
-      awarded_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      awarded_by: safeAdminProfile.id,
-      tone,
-      productive_unit_id: targetUser.productive_unit_id,
-    };
-
-    setUserBadges(prev => [...prev, newAward]);
-  };
-
-  const handleLegendChange = (tone: BadgeTone, value: string) => {
-    setBadgeLegends(prev => ({ ...prev, [tone]: value }));
-  };
-
   const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
     const submission = submissions.find(s => s.id === submissionId);
     if (!submission) return;
@@ -284,7 +246,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       image_url: tempBadgeImageUrl || editingBadge?.image_url,
     };
     try {
-      const savedBadge = await saveBadgeWithApi(badgeData);
+      await saveBadgeWithApi(badgeData);
       invalidateCache('badges');
       await refreshBadges();
       setIsBadgeModalOpen(false);
@@ -326,7 +288,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     try {
-      const savedProductiveUnit = await saveProductiveUnitWithApi(productiveUnitData);
+      await saveProductiveUnitWithApi(productiveUnitData);
       invalidateCache('units');
       await refreshUnits();
       setIsProductiveUnitModalOpen(false);
@@ -365,7 +327,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const password = (formData.get('password') as string)?.trim();
 
     try {
-      const savedUser = await saveUserWithApi(userData, password);
+      await saveUserWithApi(userData, password);
       invalidateCache('users');
       await refreshUsers();
       setIsUserModalOpen(false);
@@ -628,11 +590,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
       const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
       if (result.awardedBadges?.length) {
-        const ids = new Set(result.awardedBadges.map(b => `${b.user_id}:${b.badge_id}`));
-        setUserBadges(prev => [
-          ...prev.filter(ub => !ids.has(`${ub.user_id}:${ub.badge_id}`)),
-          ...result.awardedBadges!,
-        ]);
+        invalidateCache('userBadges');
+        await refreshUserBadges();
       }
       setImportResult({ awardedCount: result.awardedCount });
       setImportStep('done');
@@ -980,12 +939,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <button
                       onClick={async () => {
                         try {
-                          const seeded = await seedIndicatorBadgesWithApi();
-                          setBadges(prev => {
-                            const existingIds = new Set(prev.map(b => b.id));
-                            const newOnes = seeded.filter(b => !existingIds.has(b.id));
-                            return newOnes.length ? [...prev, ...newOnes] : prev.map(b => seeded.find(s => s.id === b.id) || b);
-                          });
+                          await seedIndicatorBadgesWithApi();
+                          invalidateCache('badges');
+                          await refreshBadges();
                           toast.success('Selos de indicadores criados/atualizados com sucesso!');
                         }
                         catch (err) { toast.error('Erro ao criar selos: ' + (err instanceof Error ? err.message : 'Erro')); }

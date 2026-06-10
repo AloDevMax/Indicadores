@@ -4,11 +4,10 @@ import { fetchProductiveUnitsWithApi } from '@/shared/api';
 import { ProductiveUnit, Profile } from '@/shared/types';
 
 interface UnitsPageProps {
-  users: Profile[];
-  currentUser: Profile;
+  users?: Profile[];
 }
 
-const UnitsPage: React.FC<UnitsPageProps> = ({ users, currentUser: _currentUser }) => {
+const UnitsPage: React.FC<UnitsPageProps> = ({ users = [] }) => {
   const navigate = useNavigate();
   const [units, setUnits] = useState<ProductiveUnit[]>([]);
   const [loading, setLoading] = useState(true);

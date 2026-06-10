@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from '@/features/auth/pages/Landing';
 import Login from '@/features/auth/pages/Login';
@@ -21,51 +21,9 @@ import BottomNav from '@/shared/components/BottomNav';
 import SolicitationModal from '@/features/badges/components/SolicitationModal';
 import ToastContainer from '@/shared/components/ToastContainer';
 import '@/index.css';
-import { Profile, Badge, BadgeTone, ProductiveUnit, BadgeLegendSettings, BadgeSubmission, UserBadge, ImportSourceConfig, ImportBindingSnapshot } from '@/shared/types';
-import { awardBadgesWithApi, bulkInviteUsersWithApi, createSubmissionWithApi, deleteBadgeWithApi, deleteUserWithApi, fetchBootstrapData, fetchCurrentUser, loginWithApi, logoutWithApi, registerWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi, saveBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi } from '@/shared/api';
-import { toast } from '@/shared/lib/toast';
+import { Profile } from '@/shared/types';
+import { fetchCurrentUser, loginWithApi, logoutWithApi, registerWithApi } from '@/shared/api';
 
-const INITIAL_BADGES: Badge[] = [
-  { id: '1', name: 'Mestre de Processos', description: 'Documentou 10 processos sem erros', icon_name: '\u{1F4CB}', category: 'Qualidade', points: 50 },
-  { id: '2', name: 'Segurança em Primeiro Lugar', description: 'Zero incidentes por 30 dias consecutivos', icon_name: '\u{1F9BA}', category: 'Segurança', points: 30 },
-  { id: '3', name: 'Ninja da Eficiência', description: 'Reduziu desperdícios em 15% na produção', icon_name: '\u{1F977}', category: 'Eficiência', points: 40 },
-  { id: '4', name: 'Herói do Cliente', description: 'Recebeu 5 feedbacks positivos de clientes', icon_name: '\u{1F9B8}', category: 'Serviço', points: 20 },
-];
-
-const INITIAL_PRODUCTIVE_UNITS: ProductiveUnit[] = [
-  { id: 'pu1', name: 'Fábrica Campinas' },
-  { id: 'pu2', name: 'Centro de Distribuição SP' },
-  { id: 'pu3', name: 'Obra Matriz' },
-];
-
-const INITIAL_USERS: Profile[] = [
-  { id: 'admin-1', email: 'admin@test.com', full_name: 'Gestor Supremo', role: 'admin', created_at: new Date().toISOString(), email_verified: true },
-  { id: 'dev-1', email: 'alo.de.castro@hotmail.com', full_name: 'Alo de Castro', role: 'developer', created_at: new Date().toISOString(), email_verified: true },
-  { id: 'u1', email: 'joao@acme.com', full_name: 'João Silva', role: 'user', productive_unit_id: 'pu1', created_at: '2023-01-01', email_verified: true },
-];
-
-const INITIAL_BADGE_LEGENDS: BadgeLegendSettings = {
-  bronze: 'Bronze: 1 selo no mês',
-  silver: 'Prata: 2 selos no mês',
-  gold: 'Ouro: 3 selos ou mais no mês',
-  loss_1: 'Vermelho: perda de 1 selo',
-  loss_2: 'Vermelho intenso: perda de 2 selos',
-};
-
-const INITIAL_IMPORT_SOURCES: ImportSourceConfig[] = [
-  {
-    id: 'source-default',
-    name: 'Planilha Operacional',
-    description: 'Modelo base para importar empresa, unidade, colaborador e selo.',
-    columns: {
-      productive_unit: 'unidade_produtiva',
-      user: 'colaborador',
-      badge: 'selo',
-      tone: 'marcacao',
-      award: 'premio',
-    },
-  },
-];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<Profile | null>(null);
@@ -74,97 +32,33 @@ const App: React.FC = () => {
   const [adminViewMode, setAdminViewMode] = useState<'management' | 'personal'>('management');
   const [isSolicitationOpen, setIsSolicitationOpen] = useState(false);
 
-  // These states are kept for legacy/future use but components now self-fetch via useRouteData
-  const [productiveUnits, setProductiveUnits] = useState<ProductiveUnit[]>(INITIAL_PRODUCTIVE_UNITS);
-
   useEffect(() => {
-    let isMounted = true;
-    
-    const initializeBootstrap = async () => {
-      try {
-        const [bootstrap, currentUser] = await Promise.all([
-          fetchBootstrapData(),
-          fetchCurrentUser(),
-        ]);
-        if (!isMounted) return;
-
-        if (bootstrap) {
-          setBadges(bootstrap.badges || INITIAL_BADGES);
-          setProductiveUnits(bootstrap.productiveUnits || INITIAL_PRODUCTIVE_UNITS);
-          setBadgeLegends(bootstrap.badgeLegends || INITIAL_BADGE_LEGENDS);
-          setImportSources(bootstrap.importSources || INITIAL_IMPORT_SOURCES);
-          setUsers(bootstrap.users || INITIAL_USERS);
-          setUserBadges(bootstrap.userBadges || []);
-          setSubmissions(bootstrap.submissions || []);
-        }
-
-        if (currentUser) {
-          setUser(currentUser);
-          setUsers(prev =>
-            prev.some(existingUser => existingUser.id === currentUser.id)
-              ? prev.map(existingUser => (existingUser.id === currentUser.id ? { ...existingUser, ...currentUser } : existingUser))
-              : [...prev, currentUser],
-          );
-        }
-      } catch (error) {
-        console.warn('Falha ao carregar dados iniciais da API.', error);
-        setBadges(INITIAL_BADGES);
-        setProductiveUnits(INITIAL_PRODUCTIVE_UNITS);
-        setBadgeLegends(INITIAL_BADGE_LEGENDS);
-        setImportSources(INITIAL_IMPORT_SOURCES);
-        setUser(null);
-        setUserBadges([]);
-        setSubmissions([]);
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeBootstrap();
-
-    return () => {
-      isMounted = false;
-    };
+    let cancelled = false;
+    fetchCurrentUser()
+      .then(u => { if (!cancelled) setUser(u); })
+      .catch(() => { if (!cancelled) setUser(null); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleLogin = async (email: string, password: string) => {
-  try {
-    const authenticatedUser = await loginWithApi(email, password);
-
-    setUser(authenticatedUser);
-
-    setUsers(prev =>
-      prev.some(existingUser => existingUser.id === authenticatedUser.id)
-        ? prev.map(existingUser =>
-            existingUser.id === authenticatedUser.id
-              ? { ...existingUser, ...authenticatedUser }
-              : existingUser
-          )
-        : [...prev, authenticatedUser],
-    );
-
-    setAdminViewMode('management');
-
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
-    };
-  }
-};
+    try {
+      const authenticatedUser = await loginWithApi(email, password);
+      setUser(authenticatedUser);
+      setAdminViewMode('management');
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Não foi possível fazer login.',
+      };
+    }
+  };
 
   const handleRegister = async (email: string, password: string, full_name: string) => {
     try {
       const registeredUser = await registerWithApi(email, password, full_name);
       setUser(registeredUser);
-      setUsers(prev =>
-        prev.some(existingUser => existingUser.id === registeredUser.id)
-          ? prev.map(existingUser => (existingUser.id === registeredUser.id ? { ...existingUser, ...registeredUser } : existingUser))
-          : [...prev, registeredUser],
-      );
       setAdminViewMode('management');
       return { success: true };
     } catch (error) {
@@ -183,119 +77,6 @@ const App: React.FC = () => {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  const handleAddSubmission = async (badgeId: string, description: string) => {
-    try {
-      const submission = await createSubmissionWithApi(badgeId, description);
-      setSubmissions(prev => [submission, ...prev]);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao enviar solicitação.');
-      throw error;
-    }
-  };
-
-  const handleReviewSubmission = async (submissionId: string, status: 'approved' | 'rejected') => {
-    const result = await reviewSubmissionWithApi(submissionId, status);
-    setSubmissions(prev => prev.map(submission => (
-      submission.id === submissionId ? { ...submission, ...result.submission } : submission
-    )));
-
-    if (result.awardedBadge) {
-      setUserBadges(prev => { 
-        const filtered = prev.filter(
-          badge => !(result.awardedBadge && badge.user_id === result.awardedBadge.user_id && badge.badge_id === result.awardedBadge.badge_id),
-        );
-        const targetUser = users.find((entry) => entry.id === result.awardedBadge?.user_id);
-        const enrichedBadge: UserBadge = {
-          ...(result.awardedBadge as UserBadge),
-          productive_unit_id: result.awardedBadge.productive_unit_id || targetUser?.productive_unit_id,
-          created_at: result.awardedBadge.created_at || result.awardedBadge.awarded_at,
-        };
-        return [...filtered, enrichedBadge];
-      });
-    }
-  };
-
-  const handleSaveBadge = async (badge: Badge) => saveBadgeWithApi(badge);
-
-  const handleDeleteBadge = async (badgeId: string) => {
-    try {
-      await deleteBadgeWithApi(badgeId);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao excluir selo.');
-      throw error;
-    }
-  };
-
-  const handleSaveProductiveUnit = async (productiveUnit: ProductiveUnit) => {
-    try {
-      return await saveProductiveUnitWithApi(productiveUnit);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao salvar unidade produtiva.');
-      throw error;
-    }
-  };
-
-  const handleSaveUser = async (profile: Profile, password?: string) => {
-    try {
-      return await saveUserWithApi(profile, password);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao salvar usuário.');
-      throw error;
-    }
-  };
-
-  const handleBulkInviteUsers = async (emails: string[], productiveUnitId?: string) =>
-    bulkInviteUsersWithApi(emails, productiveUnitId);
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await deleteUserWithApi(userId);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao excluir usuário.');
-      throw error;
-    }
-  };
-
-  const handleAwardBadges = async (userIds: string[], badgeId: string, tone: BadgeTone) => {
-    const awardedBadges = await awardBadgesWithApi(userIds, badgeId, tone);
-    setUserBadges(prev => {
-      const filtered = prev.filter(existing =>
-        !awardedBadges.some(awarded => awarded.user_id === existing.user_id && awarded.badge_id === existing.badge_id),
-      );
-      const enrichedBadges = awardedBadges.map((awarded) => {
-        const targetUser = users.find((entry) => entry.id === awarded.user_id);
-        return {
-          ...awarded,
-          productive_unit_id: awarded.productive_unit_id || targetUser?.productive_unit_id,
-          created_at: awarded.created_at || awarded.awarded_at,
-        };
-      });
-      return [...filtered, ...enrichedBadges];
-    });
-  };
-
-  const handleRemoveUserBadge = async (userId: string, badgeId: string) => {
-    try {
-      await removeUserBadgeWithApi(userId, badgeId);
-      setUserBadges(prev => prev.filter(badge => !(badge.user_id === userId && badge.badge_id === badgeId)));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Falha ao remover selo.');
-      throw error;
-    }
-  };
-
-  const visibleProductiveUnits = useMemo(() => {
-    if (!user) return [];
-    if (user.role === 'supervisor') return productiveUnits.filter((u) => u.id === user.productive_unit_id);
-    return productiveUnits;
-  }, [productiveUnits, user]);
-
-  const visibleUsers = useMemo(() => {
-    if (!user) return [];
-    // bootstrap já filtra os dados por role — retornar diretamente
-    return users;
-  }, [users, user]);
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-primary-light">
@@ -307,7 +88,7 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-50 flex flex-col">
-        {user && <Navbar user={user} userBadges={userBadges} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
+        {user && <Navbar user={user} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
 
         <div className="flex flex-1 overflow-hidden relative">
           {user && (
@@ -317,7 +98,6 @@ const App: React.FC = () => {
               onClose={() => setIsSidebarOpen(false)}
               adminViewMode={adminViewMode}
               setAdminViewMode={setAdminViewMode}
-              productiveUnits={visibleProductiveUnits}
             />
           )}
 
@@ -367,7 +147,7 @@ const App: React.FC = () => {
               <Route path="/requests" element={user ? <Requests /> : <Navigate to="/login" />} />
               <Route path="/explorers" element={user ? <Explorers /> : <Navigate to="/login" />} />
               <Route path="/library" element={user ? <Library /> : <Navigate to="/login" />} />
-              <Route path="/units" element={user ? <UnitsPage users={visibleUsers} currentUser={user} /> : <Navigate to="/login" />} />
+              <Route path="/units" element={user ? <UnitsPage /> : <Navigate to="/login" />} />
               <Route path="/settings" element={user ? <Settings user={user} setUser={setUser} /> : <Navigate to="/login" />} />
               <Route
                 path="/admin/*"

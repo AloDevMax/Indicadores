@@ -5,7 +5,7 @@ import { getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 
 interface NavbarProps {
   user: Profile;
-  userBadges: UserBadge[];
+  userBadges?: UserBadge[];
   onLogout: () => void;
   onToggleSidebar: () => void;
 }
@@ -13,7 +13,7 @@ interface NavbarProps {
 const getInitials = (name: string) =>
   name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
 
-const Navbar: React.FC<NavbarProps> = ({ user, userBadges, onLogout, onToggleSidebar }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, userBadges = [], onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
   const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
   const isSupervisor = user.role === 'supervisor';
