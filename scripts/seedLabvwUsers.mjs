@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { config } from 'dotenv';
 config();
-import { createPgClient } from '../server/db/client.mjs';
+import { createPgClient } from '../dist/server/db/client.mjs';
 
 const hashPassword = async (password) => {
   const salt = crypto.randomBytes(16).toString('hex');
