@@ -303,3 +303,94 @@ export const persistImportRunWithApi = async (
     bindingSnapshot,
   };
 };
+
+// Per-route fetch functions for data loading
+export const fetchBadgesWithApi = async (): Promise<Badge[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/badges`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar selos com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { badges: Badge[] };
+  return data.badges;
+};
+
+export const fetchUsersWithApi = async (): Promise<Profile[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/users`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar usuários com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { users: Profile[] };
+  return data.users;
+};
+
+export const fetchUserBadgesWithApi = async (): Promise<UserBadge[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/user-badges`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar selos do usuário com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { userBadges: UserBadge[] };
+  return data.userBadges;
+};
+
+export const fetchSubmissionsWithApi = async (): Promise<BadgeSubmission[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/submissions`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar solicitações com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { submissions: BadgeSubmission[] };
+  return data.submissions;
+};
+
+export const fetchBadgeLegendsWithApi = async () => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/badge-legends`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar legendas com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { badgeLegends: Record<string, string> };
+  return data.badgeLegends;
+};
+
+export const fetchImportSourcesWithApi = async (): Promise<ImportSourceConfig[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/import-sources`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar fontes de importação com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { importSources: ImportSourceConfig[] };
+  return data.importSources;
+};

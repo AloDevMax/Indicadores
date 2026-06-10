@@ -13,6 +13,7 @@ import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, r
 import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
+import { listBadges, listUsers, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
 
 
 const app = express();
@@ -433,6 +434,36 @@ app.get('/api/productive-units', asyncRoute(async (_req, res) => {
   const result = await client.query('select id, name from productive_units order by name asc');
   await client.end();
   res.json({ productiveUnits: result.rows });
+}));
+
+app.get('/api/badges', asyncRoute(async (_req, res) => {
+  const badges = await listBadges();
+  res.json({ badges });
+}));
+
+app.get('/api/users', asyncRoute(async (_req, res) => {
+  const users = await listUsers();
+  res.json({ users });
+}));
+
+app.get('/api/user-badges', asyncRoute(async (_req, res) => {
+  const userBadges = await listUserBadges();
+  res.json({ userBadges });
+}));
+
+app.get('/api/submissions', asyncRoute(async (_req, res) => {
+  const submissions = await listSubmissions();
+  res.json({ submissions });
+}));
+
+app.get('/api/badge-legends', asyncRoute(async (_req, res) => {
+  const badgeLegends = await getBadgeLegends();
+  res.json({ badgeLegends });
+}));
+
+app.get('/api/import-sources', asyncRoute(async (_req, res) => {
+  const importSources = await listImportSources();
+  res.json({ importSources });
 }));
 
 app.use((err, _req, res, _next) => {

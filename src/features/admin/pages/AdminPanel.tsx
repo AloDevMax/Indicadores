@@ -3,13 +3,16 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award } from 'lucide-react';
-import { Badge, Profile, Role, ProductiveUnit, BadgeSubmission, UserBadge, BadgeLegendSettings, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
+import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
-import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi } from '@/shared/api';
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, fetchImportSourcesWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useRouteData } from '@/shared/hooks/useRouteData';
+import { invalidateCache } from '@/shared/lib/resourceCache';
 
 const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -71,61 +74,23 @@ const stringSimilarity = (a: string, b: string): number => {
 };
 
 interface AdminPanelProps {
-  currentUser: Profile;
   activeMode: 'management' | 'personal';
   setActiveMode: (_mode: 'management' | 'personal') => void;
-  badges: Badge[];
-  setBadges: React.Dispatch<React.SetStateAction<Badge[]>>;
-  productiveUnits: ProductiveUnit[];
-  setProductiveUnits: React.Dispatch<React.SetStateAction<ProductiveUnit[]>>;
-  badgeLegends: BadgeLegendSettings;
-  setBadgeLegends: React.Dispatch<React.SetStateAction<BadgeLegendSettings>>;
-  users: Profile[];
-  setUsers: React.Dispatch<React.SetStateAction<Profile[]>>;
-  userBadges: UserBadge[];
-  setUserBadges: React.Dispatch<React.SetStateAction<UserBadge[]>>;
-  submissions: BadgeSubmission[];
-  setSubmissions: React.Dispatch<React.SetStateAction<BadgeSubmission[]>>;
-  onSaveBadge?: (_badge: Badge) => Promise<Badge>;
-  onDeleteBadge?: (_badgeId: string) => Promise<void>;
-  onSaveProductiveUnit?: (_productiveUnit: ProductiveUnit) => Promise<ProductiveUnit>;
-  onSaveUser?: (_user: Profile, _password?: string) => Promise<Profile>;
-  onBulkInviteUsers?: (_emails: string[], _productiveUnitId?: string) => Promise<{ createdUsers: Profile[]; skippedEmails: string[] }>;
-  onDeleteUser?: (_userId: string) => Promise<void>;
-  onAwardBadges?: (_userIds: string[], _badgeId: string, _tone: BadgeTone) => Promise<void>;
-  onRemoveUserBadge?: (_userId: string, _badgeId: string) => Promise<void>;
-  onReviewSubmission?: (_submissionId: string, _status: 'approved' | 'rejected') => Promise<void>;
   onOpenSolicitation?: () => void;
 }
 
-
 const AdminPanel: React.FC<AdminPanelProps> = ({
-  currentUser,
   activeMode,
   setActiveMode,
-  badges,
-  setBadges,
-  productiveUnits,
-  setProductiveUnits,
-  badgeLegends,
-  setBadgeLegends,
-  users,
-  setUsers,
-  userBadges,
-  setUserBadges,
-  submissions,
-  setSubmissions,
-  onSaveBadge,
-  onDeleteBadge,
-  onSaveProductiveUnit,
-  onSaveUser,
-  onBulkInviteUsers,
-  onDeleteUser,
-  onAwardBadges,
-  onRemoveUserBadge,
-  onReviewSubmission,
   onOpenSolicitation
 }) => {
+  const { user: currentUser } = useAuth();
+  const { data: badges = [], refresh: refreshBadges } = useRouteData('badges', fetchBadgesWithApi);
+  const { data: users = [], refresh: refreshUsers } = useRouteData('users', fetchUsersWithApi);
+  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi);
+  const { data: submissions = [], refresh: refreshSubmissions } = useRouteData('submissions', fetchSubmissionsWithApi);
+  const { data: productiveUnits = [], refresh: refreshUnits } = useRouteData('units', fetchProductiveUnitsWithApi);
+  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
   const isSupervisor = currentUser.role === 'supervisor';
@@ -289,24 +254,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const submission = submissions.find(s => s.id === submissionId);
     if (!submission) return;
 
-    if (onReviewSubmission) {
-      try {
-        await onReviewSubmission(submissionId, status);
-        setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
-        toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
+    try {
+      await reviewSubmissionWithApi(submissionId, status);
+      invalidateCache('submissions');
+      if (status === 'approved') {
+        invalidateCache('userBadges');
       }
-      return;
+      await Promise.all([refreshSubmissions(), refreshUserBadges()]);
+      toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao revisar solicitação.');
     }
-
-    setSubmissions(prev => prev.map(s => s.id === submissionId ? { ...s, status } : s));
-
-    if (status === 'approved') {
-      upsertUserBadge(submission.user_id, submission.badge_id, 'bronze');
-    }
-    
-    toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
   };
 
   const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -326,11 +284,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       image_url: tempBadgeImageUrl || editingBadge?.image_url,
     };
     try {
-      const savedBadge = onSaveBadge ? await onSaveBadge(badgeData) : badgeData;
-      setBadges(prev => editingBadge ? prev.map(b => b.id === editingBadge.id ? savedBadge : b) : [...prev, savedBadge]);
+      const savedBadge = await saveBadgeWithApi(badgeData);
+      invalidateCache('badges');
+      await refreshBadges();
       setIsBadgeModalOpen(false);
       setEditingBadge(null);
       setTempBadgeImageUrl(undefined);
+      toast.success('Selo salvo com sucesso.');
     } catch (error) {
       console.error('Error saving badge:', error);
       toast.error('Erro ao salvar selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -343,12 +303,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
     if (badgeToDelete) {
-      if (onDeleteBadge) {
-        await onDeleteBadge(badgeToDelete.id);
+      try {
+        await deleteBadgeWithApi(badgeToDelete.id);
+        invalidateCache('badges');
+        await refreshBadges();
+        setIsDeleteBadgeModalOpen(false);
+        setBadgeToDelete(null);
+        toast.success('Selo removido com sucesso.');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Falha ao remover selo.');
       }
-      setBadges(prev => prev.filter(b => b.id !== badgeToDelete.id));
-      setIsDeleteBadgeModalOpen(false);
-      setBadgeToDelete(null);
     }
   };
 
@@ -362,10 +326,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     };
 
     try {
-      const savedProductiveUnit = onSaveProductiveUnit ? await onSaveProductiveUnit(productiveUnitData) : productiveUnitData;
-      setProductiveUnits(prev => editingProductiveUnit ? prev.map(unit => unit.id === editingProductiveUnit.id ? savedProductiveUnit : unit) : [...prev, savedProductiveUnit]);
+      const savedProductiveUnit = await saveProductiveUnitWithApi(productiveUnitData);
+      invalidateCache('units');
+      await refreshUnits();
       setIsProductiveUnitModalOpen(false);
       setEditingProductiveUnit(null);
+      toast.success('Unidade produtiva salva com sucesso.');
     } catch (error) {
       console.error('Error saving productive unit:', error);
       toast.error('Erro ao salvar unidade produtiva: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -399,11 +365,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const password = (formData.get('password') as string)?.trim();
 
     try {
-      const savedUser = onSaveUser ? await onSaveUser(userData, password) : userData;
-      setUsers(prev => editingUser ? prev.map(u => u.id === editingUser.id ? savedUser : u) : [...prev, savedUser]);
+      const savedUser = await saveUserWithApi(userData, password);
+      invalidateCache('users');
+      await refreshUsers();
       setIsUserModalOpen(false);
       setEditingUser(null);
       setTempUserAvatarUrl(undefined);
+      toast.success('Usuário salvo com sucesso.');
     } catch (error) {
       console.error('Error saving user:', error);
       toast.error('Erro ao salvar usuário: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
@@ -426,26 +394,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       ? bulkInviteProductiveUnitId
       : undefined;
 
-    if (onBulkInviteUsers) {
-      const result = await onBulkInviteUsers(emails, validProductiveUnitId);
-      setUsers(prev => [...prev, ...result.createdUsers]);
+    try {
+      const result = await bulkInviteUsersWithApi(emails, validProductiveUnitId);
+      invalidateCache('users');
+      await refreshUsers();
       toast.success(
         result.skippedEmails.length > 0
           ? `${result.createdUsers.length} convites persistidos. ${result.skippedEmails.length} e-mail(s) ja existiam e foram ignorados.`
           : `${result.createdUsers.length} convites persistidos com sucesso para os novos colaboradores!`,
       );
-    } else {
-      const newUsers: Profile[] = emails.map(email => ({
-        id: Math.random().toString(36).substr(2, 9),
-        email,
-        full_name: email.split('@')[0],
-        role: 'user',
-        productive_unit_id: validProductiveUnitId,
-        created_at: new Date().toISOString(),
-      }));
-
-      setUsers(prev => [...prev, ...newUsers]);
-      toast.success(`${emails.length} convites enviados com sucesso para os novos colaboradores!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao convidar usuários.');
     }
 
     setIsBulkInviteModalOpen(false);
@@ -461,12 +420,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         return;
       }
       try {
-        if (onDeleteUser) {
-          await onDeleteUser(userToDelete.id);
-        }
-        setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+        await deleteUserWithApi(userToDelete.id);
+        invalidateCache('users');
+        await refreshUsers();
         setIsDeleteUserModalOpen(false);
         setUserToDelete(null);
+        toast.success('Colaborador removido com sucesso.');
       } catch (error) {
         toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
       }
@@ -483,33 +442,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       setIsAwardingBadges(true);
-      if (onAwardBadges) {
-        await onAwardBadges(selectedUsers, selectedAwardBadge, selectedAwardTone);
-      } else {
-        selectedUsers.forEach(userId => upsertUserBadge(userId, selectedAwardBadge, selectedAwardTone));
-      }
-
-      if (badge) {
-        setUsers(prev => prev.map(u => {
-          if (!selectedUsers.includes(u.id)) return u;
-
-          const updatedUser = {
-            ...u,
-            notifications: [
-              ...(u.notifications || []),
-              {
-                id: Math.random().toString(36).slice(2, 10),
-                title: 'Selo concedido',
-                message: `Parabens ${u.full_name}, voce recebeu o selo ${badge?.name || 'Badge'} com marcacao ${BADGE_TONE_LABELS[selectedAwardTone]}.`,
-                sent_at: new Date().toISOString(),
-                read: false,
-              }
-            ]
-          };
-
-          return updatedUser;
-        }));
-      }
+      await awardBadgesWithApi(selectedUsers, selectedAwardBadge, selectedAwardTone);
+      invalidateCache('userBadges');
+      await refreshUserBadges();
 
       toast.success(`${selectedUsers.length} colaboradores foram premiados!`);
       setSelectedUsers([]);
@@ -523,26 +458,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleAssignBadgeToUser = async (targetUserId: string, badgeId: string, tone: BadgeTone) => {
     try {
-      if (onAwardBadges) {
-        await onAwardBadges([targetUserId], badgeId, tone);
-        return;
-      }
-      upsertUserBadge(targetUserId, badgeId, tone);
+      await awardBadgesWithApi([targetUserId], badgeId, tone);
+      invalidateCache('userBadges');
+      await refreshUserBadges();
+      toast.success('Selo atribuído com sucesso.');
     } catch (error) {
       toast.error('Erro ao atribuir selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
   const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
-    const badgeAward = userBadges.find(ub => ub.user_id === targetUserId && ub.badge_id === badgeId);
-    if (!badgeAward) return;
-
     try {
-      if (onRemoveUserBadge) {
-        await onRemoveUserBadge(targetUserId, badgeId);
-        return;
-      }
-      setUserBadges(prev => prev.filter(ub => ub.id !== badgeAward.id));
+      await removeUserBadgeWithApi(targetUserId, badgeId);
+      invalidateCache('userBadges');
+      await refreshUserBadges();
+      toast.success('Selo removido com sucesso.');
     } catch (error) {
       toast.error('Erro ao remover selo: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }

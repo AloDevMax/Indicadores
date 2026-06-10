@@ -74,14 +74,8 @@ const App: React.FC = () => {
   const [adminViewMode, setAdminViewMode] = useState<'management' | 'personal'>('management');
   const [isSolicitationOpen, setIsSolicitationOpen] = useState(false);
 
-  const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
+  // These states are kept for legacy/future use but components now self-fetch via useRouteData
   const [productiveUnits, setProductiveUnits] = useState<ProductiveUnit[]>(INITIAL_PRODUCTIVE_UNITS);
-  const [users, setUsers] = useState<Profile[]>(INITIAL_USERS);
-  const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
-  const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings>(INITIAL_BADGE_LEGENDS);
-  const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
-  const [importSources, setImportSources] = useState<ImportSourceConfig[]>(INITIAL_IMPORT_SOURCES);
-  const [importBindingSnapshot, _setImportBindingSnapshot] = useState<ImportBindingSnapshot | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -350,15 +344,6 @@ const App: React.FC = () => {
                 element={
                   user ? (
                     <Dashboard
-                      user={user}
-                      allBadges={badges}
-                      userBadges={userBadges}
-                      badgeLegends={badgeLegends}
-                      submissions={submissions}
-                      users={visibleUsers}
-                      productiveUnits={visibleProductiveUnits}
-                      importSources={importSources}
-                      importBindingSnapshot={importBindingSnapshot}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/login" />
@@ -368,19 +353,13 @@ const App: React.FC = () => {
                 path="/badges"
                 element={
                   user ? (
-                    <UserBadgesPage
-                      user={user}
-                      allBadges={badges}
-                      userBadges={userBadges}
-                      badgeLegends={badgeLegends}
-                      submissions={submissions}
-                    />
+                    <UserBadgesPage />
                   ) : <Navigate to="/login" />
                 }
               />
               <Route
                 path="/ranking"
-                element={user ? <Ranking currentUser={user} /> : <Navigate to="/login" />}
+                element={user ? <Ranking /> : <Navigate to="/login" />}
               />
               <Route path="/overview" element={user ? <Overview /> : <Navigate to="/login" />} />
               <Route path="/global-ranking" element={user ? <GlobalRanking /> : <Navigate to="/login" />} />
@@ -397,28 +376,6 @@ const App: React.FC = () => {
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}
-                      badges={badges}
-                      setBadges={setBadges}
-                      currentUser={user}
-                      productiveUnits={visibleProductiveUnits}
-                      setProductiveUnits={setProductiveUnits}
-                      badgeLegends={badgeLegends}
-                      setBadgeLegends={setBadgeLegends}
-                      users={visibleUsers}
-                      setUsers={setUsers}
-                      userBadges={userBadges}
-                      setUserBadges={setUserBadges}
-                      submissions={submissions}
-                      setSubmissions={setSubmissions}
-                      onSaveBadge={handleSaveBadge}
-                      onDeleteBadge={handleDeleteBadge}
-                      onSaveProductiveUnit={handleSaveProductiveUnit}
-                      onSaveUser={handleSaveUser}
-                      onBulkInviteUsers={handleBulkInviteUsers}
-                      onDeleteUser={handleDeleteUser}
-                      onAwardBadges={handleAwardBadges}
-                      onRemoveUserBadge={handleRemoveUserBadge}
-                      onReviewSubmission={handleReviewSubmission}
                       onOpenSolicitation={() => setIsSolicitationOpen(true)}
                     />
                   ) : <Navigate to="/login" />
@@ -440,10 +397,6 @@ const App: React.FC = () => {
             <SolicitationModal
               isOpen={isSolicitationOpen}
               onClose={() => setIsSolicitationOpen(false)}
-              user={user}
-              allBadges={badges}
-              userBadges={userBadges}
-              onAddSubmission={handleAddSubmission}
             />
           )}
         </div>

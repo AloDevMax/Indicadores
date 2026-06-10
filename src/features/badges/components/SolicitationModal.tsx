@@ -1,32 +1,30 @@
 import React, { useMemo, useState } from 'react';
-import { Badge, Profile, UserBadge } from '@/shared/types';
 import { toast } from '@/shared/lib/toast';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useRouteData } from '@/shared/hooks/useRouteData';
+import { fetchBadgesWithApi, fetchUserBadgesWithApi, createSubmissionWithApi } from '@/shared/api';
+import { invalidateCache } from '@/shared/lib/resourceCache';
 
 interface SolicitationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: Profile;
-  allBadges: Badge[];
-  userBadges: UserBadge[];
-  onAddSubmission: (_badgeId: string, _description: string) => Promise<void>;
 }
 
 const SolicitationModal: React.FC<SolicitationModalProps> = ({
   isOpen,
   onClose,
-  user,
-  allBadges,
-  userBadges,
-  onAddSubmission,
 }) => {
+  const { user } = useAuth();
+  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi);
+  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi);
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [proofDescription, setProofDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const unlockedIds = useMemo(
-    () => userBadges.filter((ub) => ub.user_id === user.id).map((ub) => ub.badge_id),
-    [userBadges, user.id],
-  );
+  const unlockedIds = useMemo(() => {
+    if (!user) return [];
+    return userBadges.filter((ub) => ub.user_id === user.id).map((ub) => ub.badge_id);
+  }, [userBadges, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +35,9 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
 
     try {
       setSubmitting(true);
-      await onAddSubmission(selectedBadgeId, proofDescription);
+      await createSubmissionWithApi(selectedBadgeId, proofDescription);
+      invalidateCache('submissions');
+      await refreshUserBadges();
       onClose();
       setSelectedBadgeId('');
       setProofDescription('');
@@ -49,7 +49,7 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !user) return null;
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-4 bg-slate-900/60 backdrop-blur-md">

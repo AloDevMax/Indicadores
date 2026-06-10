@@ -1,44 +1,27 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, BadgeLegendSettings, Profile, UserBadge } from '@/shared/types';
+import React, { useMemo, useState } from 'react';
 import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, getUserMonthlyBadgeMetrics, getUserMonthlyBadges } from '@/features/badges/badgeMetrics';
-import { fetchBootstrapData } from '@/shared/api';
 import { BarChart3, User, X } from 'lucide-react';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useRouteData } from '@/shared/hooks/useRouteData';
+import { fetchUsersWithApi, fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi } from '@/shared/api';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-interface RankingProps {
-  currentUser: Profile;
-}
+const Ranking: React.FC = () => {
+  const { user: currentUser } = useAuth();
+  const { data: users = [], loading: usersLoading } = useRouteData('users', fetchUsersWithApi);
+  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
+  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
 
-const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
-  const isSupervisor = currentUser.role === 'supervisor';
   const now = new Date();
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
-  const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const isSupervisor = currentUser?.role === 'supervisor';
+  const [selectedUser, setSelectedUser] = useState<typeof currentUser | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [filterMonth, setFilterMonth] = useState(now.getUTCMonth());
   const [filterYear, setFilterYear] = useState(now.getUTCFullYear());
 
   const referenceDate = useMemo(() => new Date(Date.UTC(filterYear, filterMonth, 15)), [filterMonth, filterYear]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchBootstrapData().then(data => {
-      if (cancelled || !data) return;
-      setUsers(data.users || []);
-      setBadges(data.badges || []);
-      setUserBadges(data.userBadges || []);
-      setBadgeLegends(data.badgeLegends || null);
-    }).finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, []);
 
   const filteredExplorers = useMemo(() => users.filter(u => {
     if (u.role !== 'user') return false;
@@ -73,7 +56,7 @@ const Ranking: React.FC<RankingProps> = ({ currentUser }) => {
 
   const scoreLabel = selectedCategory === 'Todos' ? 'saldo do mês' : selectedCategory.toLowerCase();
 
-  if (loading) {
+  if (usersLoading) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="text-brand-primary font-bold text-sm uppercase tracking-widest">Carregando...</div>

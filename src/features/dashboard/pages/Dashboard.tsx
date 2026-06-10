@@ -1,54 +1,65 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile, Badge, BadgeLegendSettings, BadgeSubmission, UserBadge, ProductiveUnit, ImportSourceConfig, ImportSourceField, ImportBindingSnapshot } from '@/shared/types';
+import { Profile } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { Plus, FileText } from 'lucide-react';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useRouteData } from '@/shared/hooks/useRouteData';
+import { fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi, fetchSubmissionsWithApi, fetchUsersWithApi, fetchProductiveUnitsWithApi } from '@/shared/api';
 
 interface DashboardProps {
-  user: Profile;
-  allBadges: Badge[];
-  userBadges: UserBadge[];
-  badgeLegends: BadgeLegendSettings;
-  submissions: BadgeSubmission[];
-  users: Profile[];
-  productiveUnits: ProductiveUnit[];
-  importSources: ImportSourceConfig[];
-  importBindingSnapshot: ImportBindingSnapshot | null;
   onOpenSolicitation: () => void;
   onVerifyEmail?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
-  user,
-  allBadges,
-  userBadges,
-  badgeLegends,
-  submissions,
-  users,
-  productiveUnits,
-  importSources,
-  importBindingSnapshot,
   onOpenSolicitation,
   onVerifyEmail,
 }) => {
-  const isAdmin = ['admin', 'developer'].includes(user?.role);
+  const { user } = useAuth();
+  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
+  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
+  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi);
+  const { data: users = [] } = useRouteData('users', fetchUsersWithApi);
+  const { data: productiveUnits = [] } = useRouteData('units', fetchProductiveUnitsWithApi);
 
-  const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id), [submissions, user.id]);
-  const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
-  const myBadgeSummary = useMemo(() => getUserBadgeSummary(user.id, userBadges), [user.id, userBadges]);
-  const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
+  // Call all hooks before any conditionals
+  const isAdmin = user ? ['admin', 'developer'].includes(user.role) : false;
+
+  const mySubmissions = useMemo(() => {
+    if (!user) return [];
+    return submissions.filter(s => s.user_id === user.id);
+  }, [submissions, user]);
+
+  const myUnlockedBadges = useMemo(() => {
+    if (!user) return [];
+    return userBadges.filter(ub => ub.user_id === user.id);
+  }, [userBadges, user]);
+
+  const myBadgeSummary = useMemo(() => {
+    if (!user) return { total: 0, byBadge: {} };
+    return getUserBadgeSummary(user.id, userBadges);
+  }, [user, userBadges]);
+
+  const monthlyMetrics = useMemo(() => {
+    if (!user) return { counts: { bronze: 0, silver: 0, gold: 0, loss_1: 0, loss_2: 0 }, monthlyScore: 0, positiveCount: 0, lossCount: 0 };
+    return getUserMonthlyBadgeMetrics(user.id, userBadges);
+  }, [user, userBadges]);
 
   const visibleCollaborators = useMemo(() => {
     const base = users.filter(profile => profile.role === 'user');
+    if (!user || !isAdmin) {
+      if (!user) return [];
+      return base.filter(profile => {
+        if (profile.id === user.id) return true;
+        if (user.productive_unit_id) return profile.productive_unit_id === user.productive_unit_id;
+        return profile.id === user.id;
+      });
+    }
+    return base;
+  }, [isAdmin, user, users]);
 
-    if (isAdmin) return base;
-
-    return base.filter(profile => {
-      if (profile.id === user.id) return true;
-      if (user.productive_unit_id) return profile.productive_unit_id === user.productive_unit_id;
-      return profile.id === user.id;
-    });
-  }, [isAdmin, user.id, user.productive_unit_id, users]);
   const groupedCollaborators = useMemo(() => {
     const groups = new Map<string, { unitId: string; unitName: string; collaborators: Profile[] }>();
 
@@ -66,8 +77,16 @@ const Dashboard: React.FC<DashboardProps> = ({
     return Array.from(groups.values());
   }, [productiveUnits, visibleCollaborators]);
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando...</div>
+      </div>
+    );
+  }
+
   // Só renderiza quando os dados essenciais estiverem disponíveis
-  if (!allBadges || allBadges.length === 0) {
+  if (!badges || badges.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando dados...</div>
@@ -75,7 +94,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
   }
 
-  const linkedImportSource = importSources.find(source => source.id === importBindingSnapshot?.sourceId) || importSources[0];
   const progress = Math.min(100, Math.max(0, (monthlyMetrics.positiveCount / 3) * 100));
 
   return (
@@ -151,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="flex flex-wrap gap-2">
               {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
                 Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
-                  const badge = allBadges.find((entry) => entry.id === badgeId);
+                  const badge = badges.find((entry) => entry.id === badgeId);
                   return (
                     <span key={badgeId} className="px-3 py-2 rounded-2xl bg-slate-100 text-slate-700 font-bold">
                       {badge?.name || 'Selo'} x{count}
@@ -169,7 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <div className="grid grid-cols-2 gap-3">
               {Object.keys(myBadgeSummary.byBadge).length > 0 ? (
                 Object.entries(myBadgeSummary.byBadge).map(([badgeId, count]) => {
-                  const badge = allBadges.find((entry) => entry.id === badgeId);
+                  const badge = badges.find((entry) => entry.id === badgeId);
                   return (
                     <div key={badgeId} className="bg-slate-50 rounded-2xl px-4 py-3">
                       <div className="text-sm font-black text-slate-900">{count}</div>
@@ -200,24 +218,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </section>
 
-      {linkedImportSource && (
-        <section className="bg-white rounded-2xl border border-slate-100 shadow-xl p-6 space-y-4">
-          <div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Fonte Excel Vinculada ao Dashboard</div>
-            <h3 className="text-lg font-black text-slate-900 mt-2">{linkedImportSource?.name || 'Fonte sem nome'}</h3>
-            {linkedImportSource.description && <p className="text-sm text-slate-500 mt-2">{linkedImportSource.description}</p>}
-            {importBindingSnapshot && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mt-3">Último Vínculo: {new Date(importBindingSnapshot.importedAt).toLocaleString('pt-BR')}</p>}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {(Object.entries(linkedImportSource.columns) as [ImportSourceField, string][]).map(([field, column]) => (
-              <div key={field} className="bg-slate-50 rounded-2xl px-4 py-3">
-                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{field}</div>
-                <div className="text-sm font-bold text-slate-900 mt-1">{importBindingSnapshot?.matchedColumns[field] || column}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {mySubmissions.length > 0 && (
         <section className="space-y-4">
@@ -247,7 +247,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <section className="space-y-6">
         <h3 className="text-lg md:text-2xl font-bold font-heading text-slate-900 tracking-tight px-1">Indicadores Obtidos</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-          {(allBadges || []).map((badge) => {
+          {(badges || []).map((badge) => {
             const badgeAward = myUnlockedBadges.find(ub => ub.badge_id === badge.id);
             return (
               <BadgeCard
@@ -303,7 +303,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       {collaboratorBadges.length > 0 ? (
                         <div className="flex flex-wrap gap-3">
                           {collaboratorBadges.map((userBadge) => {
-                            const badge = allBadges.find(item => item.id === userBadge.badge_id);
+                            const badge = badges.find(item => item.id === userBadge.badge_id);
                             if (!badge) return null;
 
                             const toneAccent =

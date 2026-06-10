@@ -1,22 +1,28 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { Profile, Badge, BadgeLegendSettings, UserBadge, BadgeSubmission } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { Tag, Inbox } from 'lucide-react';
+import { useAuth } from '@/shared/contexts/AuthContext';
+import { useRouteData } from '@/shared/hooks/useRouteData';
+import { fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi, fetchSubmissionsWithApi } from '@/shared/api';
 
-interface UserBadgesPageProps {
-  user: Profile;
-  allBadges: Badge[];
-  userBadges: UserBadge[];
-  badgeLegends: BadgeLegendSettings;
-  submissions: BadgeSubmission[];
-}
-
-const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBadges, badgeLegends, submissions }) => {
+const UserBadgesPage: React.FC = () => {
+  const { user } = useAuth();
+  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
+  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
+  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi);
   const [monthFilter, setMonthFilter] = useState<string>('all');
 
-  const myUnlockedBadges = useMemo(() => userBadges.filter(ub => ub.user_id === user.id), [userBadges, user.id]);
-  const monthlyMetrics = useMemo(() => getUserMonthlyBadgeMetrics(user.id, userBadges), [user.id, userBadges]);
+  const myUnlockedBadges = useMemo(() => {
+    if (!user) return [];
+    return userBadges.filter(ub => ub.user_id === user.id);
+  }, [userBadges, user]);
+
+  const monthlyMetrics = useMemo(() => {
+    if (!user) return { counts: { bronze: 0, silver: 0, gold: 0, loss_1: 0, loss_2: 0 }, monthlyScore: 0, positiveCount: 0, lossCount: 0 };
+    return getUserMonthlyBadgeMetrics(user.id, userBadges);
+  }, [user, userBadges]);
 
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
@@ -37,13 +43,24 @@ const UserBadgesPage: React.FC<UserBadgesPageProps> = ({ user, allBadges, userBa
     });
   }, [myUnlockedBadges, monthFilter]);
 
-  const mySubmissions = useMemo(() => submissions.filter(s => s.user_id === user.id).sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()), [submissions, user.id]);
+  const mySubmissions = useMemo(() => {
+    if (!user) return [];
+    return submissions.filter(s => s.user_id === user.id).sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+  }, [submissions, user]);
 
   const formatMonthLabel = (yearMonth: string) => {
     const [year, month] = yearMonth.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1);
     return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
+
+  if (!user || !badgeLegends) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="text-brand-primary font-bold text-sm uppercase tracking-widest">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12 animate-in fade-in duration-500 pb-20">
