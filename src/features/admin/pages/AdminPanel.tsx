@@ -1081,8 +1081,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</span>
                         <input
                           value={badgeLegends[tone]}
-                          onChange={(e) => handleLegendChange(tone, e.target.value)}
-                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900"
+                          readOnly
+                          className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none text-slate-900"
                         />
                       </label>
                     ))}
