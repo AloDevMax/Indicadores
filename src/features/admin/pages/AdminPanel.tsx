@@ -130,18 +130,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const isDeveloper = currentUser.role === 'developer';
   const isSupervisor = currentUser.role === 'supervisor';
   const canManageGlobalCatalog = isDeveloper;
-  const allowedViews = new Set([
-    'overview', 'submissions', 'users', 'award',
-    ...(isDeveloper ? ['badges'] : []),
-  ]);
-
   const view = useMemo(() => {
+    const allowedViews = new Set([
+      'overview', 'submissions', 'users', 'award',
+      ...(isDeveloper ? ['badges'] : []),
+    ]);
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
     return allowedViews.has(path)
       ? path as 'overview' | 'submissions' | 'users' | 'award' | 'badges'
       : 'overview';
-  }, [allowedViews, location.pathname]);
+  }, [isDeveloper, location.pathname]);
 
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);

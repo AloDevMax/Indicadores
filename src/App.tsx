@@ -81,7 +81,7 @@ const App: React.FC = () => {
   const [badgeLegends, setBadgeLegends] = useState<BadgeLegendSettings>(INITIAL_BADGE_LEGENDS);
   const [submissions, setSubmissions] = useState<BadgeSubmission[]>([]);
   const [importSources, setImportSources] = useState<ImportSourceConfig[]>(INITIAL_IMPORT_SOURCES);
-  const [importBindingSnapshot, setImportBindingSnapshot] = useState<ImportBindingSnapshot | null>(null);
+  const [importBindingSnapshot, _setImportBindingSnapshot] = useState<ImportBindingSnapshot | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -300,7 +300,7 @@ const App: React.FC = () => {
     if (!user) return [];
     // bootstrap já filtra os dados por role — retornar diretamente
     return users;
-  }, [users]);
+  }, [users, user]);
 
   if (loading) {
     return (
