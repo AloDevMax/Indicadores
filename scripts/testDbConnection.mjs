@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { createPgClient as _createPgClient } from '../server/db/client.mjs';
 import readline from 'node:readline';
 
 const rl = readline.createInterface({

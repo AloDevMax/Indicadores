@@ -86,7 +86,13 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(frontendPath));
+app.use(express.static(frontendPath, {
+  setHeaders(res, filePath) {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    }
+  },
+}));
 
 const uploadsPath = path.join(__dirname, '..', 'public', 'uploads');
 if (!fs.existsSync(uploadsPath)) {
@@ -438,6 +444,7 @@ app.use((err, _req, res, _next) => {
 });
 
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
