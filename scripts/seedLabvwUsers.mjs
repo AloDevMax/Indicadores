@@ -14,7 +14,6 @@ const hashPassword = async (password) => {
   return `scrypt:${salt}:${Buffer.from(derivedKey).toString('hex')}`;
 };
 
-const COMPANY_ID = 'labvw';
 const DEFAULT_PASSWORD = 'labvw@2026';
 
 const PRODUCTIVE_UNITS = [
@@ -176,31 +175,16 @@ console.log('🔑 Gerando hash da senha padrão...');
 const passwordHash = await hashPassword(DEFAULT_PASSWORD);
 
 try {
-  // 1. Company
-  console.log('\n📦 Criando empresa LabVW...');
-  const companyResult = await client.query(
-    `INSERT INTO companies (id, name, category, created_at)
-     VALUES ($1, 'LabVW', 'Laboratório', NOW())
-     ON CONFLICT (id) DO NOTHING
-     RETURNING id`,
-    [COMPANY_ID],
-  );
-  if (companyResult.rowCount > 0) {
-    console.log('  ✓ Empresa criada: LabVW');
-  } else {
-    console.log('  - Empresa já existe, ignorada');
-  }
-
-  // 2. Productive Units
+  // 1. Productive Units
   console.log('\n🏢 Criando unidades produtivas...');
   let unitsCreated = 0;
   for (const unit of PRODUCTIVE_UNITS) {
     const result = await client.query(
-      `INSERT INTO productive_units (id, company_id, name, created_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (company_id, name) DO NOTHING
+      `INSERT INTO productive_units (id, name, created_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (name) DO NOTHING
        RETURNING id`,
-      [unit.id, COMPANY_ID, unit.name],
+      [unit.id, unit.name],
     );
     if (result.rowCount > 0) {
       console.log(`  ✓ ${unit.name}`);
@@ -211,18 +195,18 @@ try {
   }
   console.log(`  Total: ${unitsCreated} novas unidades criadas`);
 
-  // 3. Users
+  // 2. Users
   console.log('\n👤 Criando usuários...');
   let usersCreated = 0;
   let usersSkipped = 0;
   for (const user of USERS) {
     const id = crypto.randomUUID();
     const result = await client.query(
-      `INSERT INTO users (id, email, password_hash, full_name, role, company_id, productive_unit_id, email_verified, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'user', $5, $6, true, NOW(), NOW())
+      `INSERT INTO users (id, email, password_hash, full_name, role, productive_unit_id, email_verified, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'user', $5, true, NOW(), NOW())
        ON CONFLICT (email) DO NOTHING
        RETURNING email, full_name`,
-      [id, user.email, passwordHash, user.full_name, COMPANY_ID, user.unit_id],
+      [id, user.email, passwordHash, user.full_name, user.unit_id],
     );
     if (result.rows[0]) {
       console.log(`  ✓ ${result.rows[0].full_name} <${result.rows[0].email}>`);
