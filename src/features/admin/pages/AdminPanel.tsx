@@ -16,6 +16,8 @@ import { invalidateCache } from '@/shared/lib/resourceCache';
 
 const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const AWARD_PAGE_SIZE = 10;
+const UNITS_PAGE_SIZE = 5;
+const ACTIVITY_PAGE_SIZE = 5;
 
 // Maps normalized Excel column header keywords → badge ID (more specific keys must come first)
 const EXCEL_COLUMN_TO_BADGE_ID: Record<string, string> = {
@@ -111,6 +113,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [awardListPage, setAwardListPage] = useState(1);
+  const [unitsPage, setUnitsPage] = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
   const [selectedAwardBadge, setSelectedAwardBadge] = useState<string>('');
   const [selectedAwardTone, setSelectedAwardTone] = useState<BadgeTone>('bronze');
   
@@ -462,6 +466,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setAwardListPage(1);
   }, [filteredUsers]);
 
+  const unitsTotalPages = Math.max(1, Math.ceil(productiveUnits.length / UNITS_PAGE_SIZE));
+  const clampedUnitsPage = Math.min(unitsPage, unitsTotalPages);
+  const paginatedProductiveUnits = useMemo(() => {
+    const start = (clampedUnitsPage - 1) * UNITS_PAGE_SIZE;
+    return productiveUnits.slice(start, start + UNITS_PAGE_SIZE);
+  }, [productiveUnits, clampedUnitsPage]);
+
+  const activityTotalPages = Math.max(1, Math.ceil(submissions.length / ACTIVITY_PAGE_SIZE));
+  const clampedActivityPage = Math.min(activityPage, activityTotalPages);
+  const paginatedSubmissions = useMemo(() => {
+    const start = (clampedActivityPage - 1) * ACTIVITY_PAGE_SIZE;
+    return submissions.slice(start, start + ACTIVITY_PAGE_SIZE);
+  }, [submissions, clampedActivityPage]);
+
   const stats = useMemo(() => ({
     totalUsers: isSupervisor
       ? users.filter(u => u.productive_unit_id === currentUser.productive_unit_id).length
@@ -669,10 +687,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
+                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl flex flex-col">
                   <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6 flex items-center gap-2"><Users size={16} /> Unidades Produtivas</h3>
                   <div className="space-y-4">
-                    {productiveUnits.map(unit => (
+                    {paginatedProductiveUnits.map(unit => (
                       <div key={unit.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl">
                         <div>
                           <div className="font-bold text-slate-900 text-sm">{unit?.name || 'Unidade sem nome'}</div>
@@ -683,18 +701,61 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                         )}
                       </div>
                     ))}
+                    {productiveUnits.length === 0 && <p className="text-xs text-slate-400">Nenhuma unidade cadastrada.</p>}
                   </div>
+                  {productiveUnits.length > UNITS_PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => setUnitsPage(p => Math.max(1, p - 1))}
+                        disabled={clampedUnitsPage === 1}
+                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-brand-primary disabled:opacity-50 disabled:hover:text-slate-500"
+                      >
+                        <ChevronLeft size={14} /> Anterior
+                      </button>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Página {clampedUnitsPage} de {unitsTotalPages}
+                      </span>
+                      <button
+                        onClick={() => setUnitsPage(p => Math.min(unitsTotalPages, p + 1))}
+                        disabled={clampedUnitsPage === unitsTotalPages}
+                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-brand-primary disabled:opacity-50 disabled:hover:text-slate-500"
+                      >
+                        Próxima <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white">
+                <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white flex flex-col">
                   <h3 className="text-sm font-black text-brand-primary-light uppercase tracking-widest mb-6 flex items-center gap-2"><Inbox size={16} /> Atividade de Rede</h3>
                   <div className="space-y-4">
-                    {submissions.slice(0, 3).map(sub => (
+                    {paginatedSubmissions.map(sub => (
                       <div key={sub.id} className="bg-white/10 p-4 rounded-lg border border-white/5 text-xs">
                         <span className="font-black text-brand-secondary">{sub.user_name}</span> solicitou <span className="font-black text-white">{sub.badge_name}</span>
                       </div>
                     ))}
                     {submissions.length === 0 && <p className="text-xs text-brand-secondary">Nenhuma atividade recente.</p>}
                   </div>
+                  {submissions.length > ACTIVITY_PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t border-white/10">
+                      <button
+                        onClick={() => setActivityPage(p => Math.max(1, p - 1))}
+                        disabled={clampedActivityPage === 1}
+                        className="flex items-center gap-1 text-[10px] font-black text-brand-secondary uppercase tracking-widest hover:text-white disabled:opacity-50 disabled:hover:text-brand-secondary"
+                      >
+                        <ChevronLeft size={14} /> Anterior
+                      </button>
+                      <span className="text-[10px] font-black text-white/50 uppercase tracking-widest">
+                        Página {clampedActivityPage} de {activityTotalPages}
+                      </span>
+                      <button
+                        onClick={() => setActivityPage(p => Math.min(activityTotalPages, p + 1))}
+                        disabled={clampedActivityPage === activityTotalPages}
+                        className="flex items-center gap-1 text-[10px] font-black text-brand-secondary uppercase tracking-widest hover:text-white disabled:opacity-50 disabled:hover:text-brand-secondary"
+                      >
+                        Próxima <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
