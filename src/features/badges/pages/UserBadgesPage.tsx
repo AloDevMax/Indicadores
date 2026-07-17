@@ -5,13 +5,14 @@ import { Tag, Inbox } from 'lucide-react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
 import { fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi, fetchSubmissionsWithApi } from '@/shared/api';
+import { DEFAULT_BADGE_LEGENDS } from '@/shared/types';
 
 const UserBadgesPage: React.FC = () => {
   const { user } = useAuth();
-  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi);
-  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
-  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
-  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi);
+  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi, []);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
+  const { data: badgeLegends = DEFAULT_BADGE_LEGENDS } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi, DEFAULT_BADGE_LEGENDS);
+  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi, []);
   const [monthFilter, setMonthFilter] = useState<string>('all');
 
   const myUnlockedBadges = useMemo(() => {

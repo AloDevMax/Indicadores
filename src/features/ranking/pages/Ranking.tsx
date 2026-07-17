@@ -4,15 +4,16 @@ import { BarChart3, User, X } from 'lucide-react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
 import { fetchUsersWithApi, fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi } from '@/shared/api';
+import { DEFAULT_BADGE_LEGENDS } from '@/shared/types';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 const Ranking: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { data: users = [], loading: usersLoading } = useRouteData('users', fetchUsersWithApi);
-  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi);
-  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
-  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
+  const { data: users = [], loading: usersLoading } = useRouteData('users', fetchUsersWithApi, []);
+  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi, []);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
+  const { data: badgeLegends = DEFAULT_BADGE_LEGENDS } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi, DEFAULT_BADGE_LEGENDS);
 
   const now = new Date();
   const isSupervisor = currentUser?.role === 'supervisor';

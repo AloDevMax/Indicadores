@@ -15,8 +15,9 @@ interface UseRouteDataResult<T> {
 export function useRouteData<T>(
   cacheKey: string,
   fetchFn: () => Promise<T>,
+  initialValue: T | null = null,
 ): UseRouteDataResult<T> {
-  const [data, setData] = useState<T | null>(null);
+  const [data, setData] = useState<T | null>(initialValue);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 

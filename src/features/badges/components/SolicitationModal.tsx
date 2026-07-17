@@ -15,8 +15,8 @@ const SolicitationModal: React.FC<SolicitationModalProps> = ({
   onClose,
 }) => {
   const { user } = useAuth();
-  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi);
-  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi);
+  const { data: allBadges = [] } = useRouteData('badges', fetchBadgesWithApi, []);
+  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
   const [selectedBadgeId, setSelectedBadgeId] = useState('');
   const [proofDescription, setProofDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);

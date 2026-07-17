@@ -2,8 +2,8 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award } from 'lucide-react';
-import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult } from '@/shared/types';
+import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult, DEFAULT_BADGE_LEGENDS } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
@@ -15,6 +15,7 @@ import { useRouteData } from '@/shared/hooks/useRouteData';
 import { invalidateCache } from '@/shared/lib/resourceCache';
 
 const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const AWARD_PAGE_SIZE = 10;
 
 // Maps normalized Excel column header keywords → badge ID (more specific keys must come first)
 const EXCEL_COLUMN_TO_BADGE_ID: Record<string, string> = {
@@ -85,12 +86,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenSolicitation
 }) => {
   const { user: currentUser } = useAuth();
-  const { data: badges = [], refresh: refreshBadges } = useRouteData('badges', fetchBadgesWithApi);
-  const { data: users = [], refresh: refreshUsers } = useRouteData('users', fetchUsersWithApi);
-  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi);
-  const { data: submissions = [], refresh: refreshSubmissions } = useRouteData('submissions', fetchSubmissionsWithApi);
-  const { data: productiveUnits = [], refresh: refreshUnits } = useRouteData('units', fetchProductiveUnitsWithApi);
-  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
+  const { data: badges = [], refresh: refreshBadges } = useRouteData('badges', fetchBadgesWithApi, []);
+  const { data: users = [], refresh: refreshUsers } = useRouteData('users', fetchUsersWithApi, []);
+  const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
+  const { data: submissions = [], refresh: refreshSubmissions } = useRouteData('submissions', fetchSubmissionsWithApi, []);
+  const { data: productiveUnits = [], refresh: refreshUnits } = useRouteData('units', fetchProductiveUnitsWithApi, []);
+  const { data: badgeLegends = DEFAULT_BADGE_LEGENDS } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi, DEFAULT_BADGE_LEGENDS);
   const location = useLocation();
   const isDeveloper = currentUser.role === 'developer';
   const isSupervisor = currentUser.role === 'supervisor';
@@ -109,6 +110,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [awardListPage, setAwardListPage] = useState(1);
   const [selectedAwardBadge, setSelectedAwardBadge] = useState<string>('');
   const [selectedAwardTone, setSelectedAwardTone] = useState<BadgeTone>('bronze');
   
@@ -448,6 +450,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       (!isSupervisor || u.productive_unit_id === currentUser.productive_unit_id)
     );
   }, [users, userSearch, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
+
+  const awardTotalPages = Math.max(1, Math.ceil(filteredUsers.length / AWARD_PAGE_SIZE));
+
+  const paginatedAwardUsers = useMemo(() => {
+    const start = (awardListPage - 1) * AWARD_PAGE_SIZE;
+    return filteredUsers.slice(start, start + AWARD_PAGE_SIZE);
+  }, [filteredUsers, awardListPage]);
+
+  useEffect(() => {
+    setAwardListPage(1);
+  }, [filteredUsers]);
 
   const stats = useMemo(() => ({
     totalUsers: isSupervisor
@@ -805,7 +818,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
 
           {view === 'award' && (
-            <div className="space-y-8 animate-in fade-in">
+            <div className="space-y-6 animate-in fade-in">
               <header className="flex items-start justify-between gap-4">
                 <div>
                   <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">Premiar Colaboradores</h2>
@@ -820,14 +833,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl flex flex-col min-h-[500px]">
+                <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl flex flex-col min-h-[500px] self-start">
                   <div className="mb-6 flex items-center justify-between">
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">1. Selecione colaboradores</h3>
                     <div className="bg-slate-50 px-3 py-1 rounded-lg text-[10px] font-black text-brand-primary">{selectedUsers.length} selecionados</div>
                   </div>
                   <input type="text" placeholder="Buscar colaborador..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)} className="w-full px-6 py-4 bg-slate-50 rounded-2xl border-none font-bold text-sm mb-6 outline-none focus:ring-2 focus:ring-brand-primary" />
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                    {filteredUsers.map(u => (
+                  <div className="max-h-[380px] overflow-y-auto space-y-2 pr-2">
+                    {paginatedAwardUsers.map(u => (
                       <button key={u.id} onClick={() => toggleUserSelection(u.id)} className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${selectedUsers.includes(u.id) ? 'bg-brand-primary-light border-brand-primary shadow-lg' : 'bg-white border-slate-50 hover:border-slate-200'}`}>
                         <div className="flex items-center gap-4">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl ${selectedUsers.includes(u.id) ? 'bg-brand-primary text-white' : 'bg-slate-100 text-slate-400'}`}><User size={18} /></div>
@@ -839,47 +852,70 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                       </button>
                     ))}
                   </div>
+                  {filteredUsers.length > AWARD_PAGE_SIZE && (
+                    <div className="flex items-center justify-between pt-4 mt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => setAwardListPage(p => Math.max(1, p - 1))}
+                        disabled={awardListPage === 1}
+                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-brand-primary disabled:opacity-50 disabled:hover:text-slate-500"
+                      >
+                        <ChevronLeft size={14} /> Anterior
+                      </button>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        Página {awardListPage} de {awardTotalPages}
+                      </span>
+                      <button
+                        onClick={() => setAwardListPage(p => Math.min(awardTotalPages, p + 1))}
+                        disabled={awardListPage === awardTotalPages}
+                        className="flex items-center gap-1 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-brand-primary disabled:opacity-50 disabled:hover:text-slate-500"
+                      >
+                        Próxima <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-8">
-                  <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {badges.map(badge => (
-                        <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-primary-light border-brand-primary shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
-                          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
-                            {badge.image_url ? (
-                              renderSquareImage(badge.image_url, badge.name)
-                            ) : (
-                              <span>{badge.icon_name}</span>
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge?.name || 'Badge sem nome'}</div>
-                            <div className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{badge.category}</div>
-                          </div>
-                        </button>
-                      ))}
+                <div className="space-y-6 self-start">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">2. Escolha a Recompensa</h3>
+                      <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2">
+                        {badges.map(badge => (
+                          <button key={badge.id} onClick={() => setSelectedAwardBadge(badge.id)} className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${selectedAwardBadge === badge.id ? 'bg-brand-primary-light border-brand-primary shadow-lg' : 'bg-slate-50 border-transparent hover:border-slate-200'}`}>
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 overflow-hidden bg-slate-100">
+                              {badge.image_url ? (
+                                renderSquareImage(badge.image_url, badge.name)
+                              ) : (
+                                <span>{badge.icon_name}</span>
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-bold text-sm text-slate-900 leading-none mb-1">{badge?.name || 'Badge sem nome'}</div>
+                              <div className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{badge.category}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
+                      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcação do mês</h3>
+                      <div className="grid grid-cols-1 gap-3 max-h-[300px] overflow-y-auto pr-2">
+                        {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
+                          <button
+                            key={tone}
+                            onClick={() => setSelectedAwardTone(tone)}
+                            className={cn("px-4 py-4 rounded-xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-primary bg-brand-primary-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
+                          >
+                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
+                            <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-xl">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-6">3. Escolha a marcação do mês</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {(['bronze', 'silver', 'gold', 'loss_1', 'loss_2'] as BadgeTone[]).map(tone => (
-                        <button
-                          key={tone}
-                          onClick={() => setSelectedAwardTone(tone)}
-                          className={cn("px-4 py-4 rounded-xl border-2 text-left transition-all", selectedAwardTone === tone ? "border-brand-primary bg-brand-primary-light shadow-lg" : "border-slate-100 bg-slate-50 hover:border-slate-200")}
-                        >
-                          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">{BADGE_TONE_LABELS[tone]}</div>
-                          <div className="text-sm font-bold text-slate-900 mt-2">{badgeLegends[tone]}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="bg-brand-dark p-10 rounded-2xl shadow-2xl text-white text-center space-y-6">
+                  <div className="bg-brand-dark p-8 rounded-2xl shadow-2xl text-white text-center space-y-4">
                     <h3 className="text-sm font-black text-brand-primary-light uppercase tracking-widest">4. Confirmar Premiação</h3>
-                    <button onClick={handleAwardBadges} className="w-full py-6 bg-white text-brand-dark rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-primary-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
+                    <button onClick={handleAwardBadges} className="w-full py-5 bg-white text-brand-dark rounded-2xl font-black text-sm uppercase tracking-[0.2em] shadow-xl hover:bg-brand-primary-light transition-all disabled:opacity-50" disabled={selectedUsers.length === 0 || !selectedAwardBadge || isAwardingBadges}>{isAwardingBadges ? 'Premiando...' : 'Conceder selos agora'}</button>
                   </div>
                 </div>
               </div>

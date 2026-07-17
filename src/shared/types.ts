@@ -61,6 +61,14 @@ export interface BadgeLegendSettings {
   loss_2: string;
 }
 
+export const DEFAULT_BADGE_LEGENDS: BadgeLegendSettings = {
+  bronze: 'Bronze - Boa performance',
+  silver: 'Prata - Excelente performance',
+  gold: 'Ouro - Desempenho excepcional',
+  loss_1: 'Perda 1 - Expectativa não atendida',
+  loss_2: 'Perda 2 - Falha grave',
+};
+
 export interface ImportSourceConfig {
   id: string;
   name: string;

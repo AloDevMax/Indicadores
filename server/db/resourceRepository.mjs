@@ -34,7 +34,7 @@ export const listUsers = async () => {
   try {
     const result = await client.query(
       `select id, email, full_name, role, productive_unit_id, avatar_url, email_verified, created_at
-       from profiles
+       from users
        order by full_name asc`
     );
     return result.rows;
@@ -52,7 +52,7 @@ export const listUserBadges = async () => {
 
   try {
     const result = await client.query(
-      `select id, user_id, badge_id, tone, awarded_at, created_at, awarded_by, productive_unit_id
+      `select id, user_id, badge_id, tone, awarded_at, awarded_by
        from user_badges
        order by awarded_at desc`
     );
@@ -71,9 +71,10 @@ export const listSubmissions = async () => {
 
   try {
     const result = await client.query(
-      `select id, user_id, badge_id, badge_name, description, status, submitted_at, proof_url
-       from badge_submissions
-       order by submitted_at desc`
+      `select s.id, s.user_id, s.badge_id, b.name as badge_name, s.description, s.status, s.submitted_at, s.proof_url
+       from badge_submissions s
+       left join badges b on b.id = s.badge_id
+       order by s.submitted_at desc`
     );
     return result.rows;
   } finally {
@@ -95,7 +96,9 @@ export const getBadgeLegends = async () => {
   }
 
   try {
-    const result = await client.query('select legends from badge_legend_settings limit 1');
+    const result = await client.query(
+      'select bronze, silver, gold, loss_1, loss_2 from badge_legend_settings order by updated_at desc limit 1'
+    );
     if (result.rows.length === 0) {
       return {
         bronze: 'Bronze - Boa performance',
@@ -105,7 +108,7 @@ export const getBadgeLegends = async () => {
         loss_2: 'Perda 2 - Falha grave',
       };
     }
-    return result.rows[0].legends;
+    return result.rows[0];
   } finally {
     await client.end();
   }
@@ -120,14 +123,20 @@ export const listImportSources = async () => {
 
   try {
     const result = await client.query(
-      `select id, name, description, columns
-       from import_source_configs
-       order by name asc`
+      `select
+        id,
+        name,
+        description,
+        productive_unit_column,
+        user_column,
+        badge_column,
+        tone_column,
+        award_column
+       from import_sources
+       where archived_at is null
+       order by created_at asc`
     );
-    return result.rows.map(row => ({
-      ...row,
-      columns: typeof row.columns === 'string' ? JSON.parse(row.columns) : row.columns,
-    }));
+    return result.rows;
   } finally {
     await client.end();
   }

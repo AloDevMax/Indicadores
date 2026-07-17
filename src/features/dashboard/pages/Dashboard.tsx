@@ -1,5 +1,5 @@
 ﻿import React, { useMemo } from 'react';
-import { Profile } from '@/shared/types';
+import { Profile, DEFAULT_BADGE_LEGENDS } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { BADGE_TONE_LABELS, getUserBadgeSummary, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { Plus, FileText } from 'lucide-react';
@@ -17,12 +17,12 @@ const Dashboard: React.FC<DashboardProps> = ({
   onVerifyEmail,
 }) => {
   const { user } = useAuth();
-  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi);
-  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi);
-  const { data: badgeLegends } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi);
-  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi);
-  const { data: users = [] } = useRouteData('users', fetchUsersWithApi);
-  const { data: productiveUnits = [] } = useRouteData('units', fetchProductiveUnitsWithApi);
+  const { data: badges = [] } = useRouteData('badges', fetchBadgesWithApi, []);
+  const { data: userBadges = [] } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
+  const { data: badgeLegends = DEFAULT_BADGE_LEGENDS } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi, DEFAULT_BADGE_LEGENDS);
+  const { data: submissions = [] } = useRouteData('submissions', fetchSubmissionsWithApi, []);
+  const { data: users = [] } = useRouteData('users', fetchUsersWithApi, []);
+  const { data: productiveUnits = [] } = useRouteData('units', fetchProductiveUnitsWithApi, []);
 
   // Call all hooks before any conditionals
   const isAdmin = user ? ['admin', 'developer'].includes(user.role) : false;
@@ -100,7 +100,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="relative min-h-[calc(100vh-8rem)] space-y-8 md:space-y-12 animate-in fade-in duration-500 pb-24 md:pb-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white p-6 md:bg-transparent md:p-0 rounded-3xl border border-slate-100 md:border-none shadow-sm md:shadow-none">
         <div className="space-y-1">
-          <h1 className="text-3xl md:text-4xl font-bold font-heading text-slate-900 tracking-tight">olá, {user.full_name.split(' ')[0]}!</h1>
+          <h1 className="text-3xl md:text-4xl font-bold font-heading text-slate-900 tracking-tight">Olá, {user.full_name.split(' ')[0]}!</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest">
               {isAdmin ? 'centro de comando pessoal' : 'saldo mensal de selos'}
