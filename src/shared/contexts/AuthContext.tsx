@@ -4,6 +4,7 @@ import { loginWithApi, registerWithApi, logoutWithApi, fetchCurrentUser } from '
 
 interface AuthContextType {
   user: Profile | null;
+  setUser: React.Dispatch<React.SetStateAction<Profile | null>>;
   isAuthLoading: boolean;
   login: (email: string, password: string) => Promise<Profile>;
   register: (email: string, password: string, fullName: string) => Promise<Profile>;
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, isAuthLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

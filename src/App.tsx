@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing from '@/features/auth/pages/Landing';
 import Login from '@/features/auth/pages/Login';
@@ -21,30 +21,18 @@ import BottomNav from '@/shared/components/BottomNav';
 import SolicitationModal from '@/features/badges/components/SolicitationModal';
 import ToastContainer from '@/shared/components/ToastContainer';
 import '@/index.css';
-import { Profile } from '@/shared/types';
-import { fetchCurrentUser, loginWithApi, logoutWithApi, registerWithApi } from '@/shared/api';
+import { useAuth } from '@/shared/contexts/AuthContext';
 
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, setUser, isAuthLoading, login, register, logout } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [adminViewMode, setAdminViewMode] = useState<'management' | 'personal'>('management');
   const [isSolicitationOpen, setIsSolicitationOpen] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchCurrentUser()
-      .then(u => { if (!cancelled) setUser(u); })
-      .catch(() => { if (!cancelled) setUser(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
-
   const handleLogin = async (email: string, password: string) => {
     try {
-      const authenticatedUser = await loginWithApi(email, password);
-      setUser(authenticatedUser);
+      await login(email, password);
       setAdminViewMode('management');
       return { success: true };
     } catch (error) {
@@ -57,8 +45,7 @@ const App: React.FC = () => {
 
   const handleRegister = async (email: string, password: string, full_name: string) => {
     try {
-      const registeredUser = await registerWithApi(email, password, full_name);
-      setUser(registeredUser);
+      await register(email, password, full_name);
       setAdminViewMode('management');
       return { success: true };
     } catch (error) {
@@ -70,14 +57,13 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await logoutWithApi();
-    setUser(null);
+    await logout();
     setIsSidebarOpen(false);
   };
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  if (loading) {
+  if (isAuthLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-primary-light">
         <div className="text-brand-primary font-bold text-xl uppercase tracking-widest">Carregando...</div>
