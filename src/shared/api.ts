@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { AppBootstrapPayload, Badge, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ImportSourceField, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
+import { AppBootstrapPayload, Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ImportSourceField, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -376,7 +376,7 @@ export const fetchBadgeLegendsWithApi = async () => {
     throw new Error(`Falha ao buscar legendas com status ${response.status}`);
   }
 
-  const data = (await response.json()) as { badgeLegends: Record<string, string> };
+  const data = (await response.json()) as { badgeLegends: BadgeLegendSettings };
   return data.badgeLegends;
 };
 
