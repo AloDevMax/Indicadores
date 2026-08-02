@@ -131,35 +131,40 @@ const CONFIRMED_USERS = [
   { full_name: 'Élvis Forbici', email: 'elvis.forbici@labvw.com.br', unit_id: 'labvw-area-tecnica-brusque' },
 ];
 
-// Pessoas que aparecem nos XLSX (Jan–Jun) sem e-mail cadastrado hoje. Ficam de
-// fora da migração até `email` ser preenchido — rode o script de novo depois
-// de completar a lista (é seguro repetir: usa ON CONFLICT DO NOTHING).
+// Pessoas que aparecem nos XLSX (Jan–Jun) sem e-mail cadastrado hoje. Sem
+// e-mail real disponível, usam o padrão nome.sobrenome@labvw.com.br a pedido
+// do usuário — devem ser revisadas/atualizadas depois pelo painel admin.
+// 'Emili dos Santos Antunes' levou um e-mail com o nome completo porque
+// colidiria com 'Emili Antunes' (mesmo primeiro nome + sobrenome final,
+// unidades diferentes — vale checar se não são a mesma pessoa duplicada).
+// 'Maria Luiza K.' usa o primeiro+segundo nome pois o sobrenome real é
+// desconhecido (só a inicial "K." aparece na planilha).
 const PENDING_NEW_USERS = [
-  { xlsx_name: 'Bruna Roza', unit_id: 'labvw-angeloni', email: null },
-  { xlsx_name: 'Melissa Winter', unit_id: 'labvw-angeloni', email: null },
-  { xlsx_name: 'Jessica Cristina Ramos Da Luz', unit_id: 'labvw-azambuja', email: null },
-  { xlsx_name: 'Emili Antunes', unit_id: 'labvw-azambuja-mais', email: null },
-  { xlsx_name: 'Thagrady Belchor', unit_id: 'labvw-azambuja-mais', email: null },
-  { xlsx_name: 'Adriana Luciana dos Santos', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Maria Eduarda de Paula', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Mariana Vieira', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Mayara Ribeiro', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Mylena Freire de Carvalho Pires', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Rosane de Souza Leão', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Thais Cristina Rodrigues', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Aline Araujo', unit_id: 'labvw-pst', email: null },
-  { xlsx_name: 'Aline Costa', unit_id: 'labvw-pst', email: null },
-  { xlsx_name: 'Bruna Aparecida Miór', unit_id: 'labvw-sjb', email: null },
-  { xlsx_name: 'Emili dos Santos Antunes', unit_id: 'labvw-sjb', email: null },
-  { xlsx_name: 'Jucilane Motta Zandonai do Amaral', unit_id: 'labvw-sjb', email: null },
-  { xlsx_name: 'Larissa Messagi da Silva Rodrigues', unit_id: 'labvw-sjb', email: null },
-  { xlsx_name: 'Mylene Gabriele da Silva de Jesus', unit_id: 'labvw-sjb', email: null },
-  { xlsx_name: 'Amanda Gabriela', unit_id: 'labvw-area-tecnica-blumenau', email: null },
-  { xlsx_name: 'Andressa T. Klabunde', unit_id: 'labvw-area-tecnica-blumenau', email: null },
-  { xlsx_name: 'Luisa Mahnke Ruysam', unit_id: 'labvw-area-tecnica-blumenau', email: null },
-  { xlsx_name: 'Maria Luiza K.', unit_id: 'labvw-area-tecnica-blumenau', email: null },
-  { xlsx_name: 'Thaynara C. Dupilar', unit_id: 'labvw-area-tecnica-brusque', email: null },
-  { xlsx_name: 'Álvaro B. Netto', unit_id: 'labvw-area-tecnica-brusque', email: null },
+  { xlsx_name: 'Bruna Roza', unit_id: 'labvw-angeloni', email: 'bruna.roza@labvw.com.br' },
+  { xlsx_name: 'Melissa Winter', unit_id: 'labvw-angeloni', email: 'melissa.winter@labvw.com.br' },
+  { xlsx_name: 'Jessica Cristina Ramos Da Luz', unit_id: 'labvw-azambuja', email: 'jessica.luz@labvw.com.br' },
+  { xlsx_name: 'Emili Antunes', unit_id: 'labvw-azambuja-mais', email: 'emili.antunes@labvw.com.br' },
+  { xlsx_name: 'Thagrady Belchor', unit_id: 'labvw-azambuja-mais', email: 'thagrady.belchor@labvw.com.br' },
+  { xlsx_name: 'Adriana Luciana dos Santos', unit_id: 'labvw-blumenau', email: 'adriana.santos@labvw.com.br' },
+  { xlsx_name: 'Maria Eduarda de Paula', unit_id: 'labvw-blumenau', email: 'maria.paula@labvw.com.br' },
+  { xlsx_name: 'Mariana Vieira', unit_id: 'labvw-blumenau', email: 'mariana.vieira@labvw.com.br' },
+  { xlsx_name: 'Mayara Ribeiro', unit_id: 'labvw-blumenau', email: 'mayara.ribeiro@labvw.com.br' },
+  { xlsx_name: 'Mylena Freire de Carvalho Pires', unit_id: 'labvw-blumenau', email: 'mylena.pires@labvw.com.br' },
+  { xlsx_name: 'Rosane de Souza Leão', unit_id: 'labvw-blumenau', email: 'rosane.leao@labvw.com.br' },
+  { xlsx_name: 'Thais Cristina Rodrigues', unit_id: 'labvw-blumenau', email: 'thais.rodrigues@labvw.com.br' },
+  { xlsx_name: 'Aline Araujo', unit_id: 'labvw-pst', email: 'aline.araujo@labvw.com.br' },
+  { xlsx_name: 'Aline Costa', unit_id: 'labvw-pst', email: 'aline.costa@labvw.com.br' },
+  { xlsx_name: 'Bruna Aparecida Miór', unit_id: 'labvw-sjb', email: 'bruna.mior@labvw.com.br' },
+  { xlsx_name: 'Emili dos Santos Antunes', unit_id: 'labvw-sjb', email: 'emili.santos.antunes@labvw.com.br' },
+  { xlsx_name: 'Jucilane Motta Zandonai do Amaral', unit_id: 'labvw-sjb', email: 'jucilane.amaral@labvw.com.br' },
+  { xlsx_name: 'Larissa Messagi da Silva Rodrigues', unit_id: 'labvw-sjb', email: 'larissa.rodrigues@labvw.com.br' },
+  { xlsx_name: 'Mylene Gabriele da Silva de Jesus', unit_id: 'labvw-sjb', email: 'mylene.jesus@labvw.com.br' },
+  { xlsx_name: 'Amanda Gabriela', unit_id: 'labvw-area-tecnica-blumenau', email: 'amanda.gabriela@labvw.com.br' },
+  { xlsx_name: 'Andressa T. Klabunde', unit_id: 'labvw-area-tecnica-blumenau', email: 'andressa.klabunde@labvw.com.br' },
+  { xlsx_name: 'Luisa Mahnke Ruysam', unit_id: 'labvw-area-tecnica-blumenau', email: 'luisa.ruysam@labvw.com.br' },
+  { xlsx_name: 'Maria Luiza K.', unit_id: 'labvw-area-tecnica-blumenau', email: 'maria.luiza@labvw.com.br' },
+  { xlsx_name: 'Thaynara C. Dupilar', unit_id: 'labvw-area-tecnica-brusque', email: 'thaynara.dupilar@labvw.com.br' },
+  { xlsx_name: 'Álvaro B. Netto', unit_id: 'labvw-area-tecnica-brusque', email: 'alvaro.netto@labvw.com.br' },
 ];
 
 const client = await createPgClient();
