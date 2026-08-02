@@ -12,7 +12,7 @@
     "db:check": "node --env-file=.env scripts/verifyDb.mjs",
     "db:test": "node --env-file=.env scripts/testDbConnection.mjs",
     "db:diagnose": "node --env-file=.env scripts/diagnoseDb.mjs",
-    "db:seed:labvw": "node --env-file=.env scripts/seedLabvwUsers.mjs",
+    "db:reset:labvw": "node --env-file=.env scripts/resetLabvwFromXlsx.mjs",
     "build": "node scripts/build.mjs",
     "start": "node dist/server/index.mjs",
     "lint": "eslint .",
