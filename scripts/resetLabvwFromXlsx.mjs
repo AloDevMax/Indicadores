@@ -41,6 +41,7 @@ const PRODUCTIVE_UNITS = [
 // contaminação de cópia entre planilhas, prevaleceu a unidade que a pessoa já
 // tem cadastrada atualmente.
 const CONFIRMED_USERS = [
+  { full_name: 'Adriana Ferreira Lima', email: 'adriana.lima@labvw.com.br', unit_id: 'labvw-guabiruba' },
   { full_name: 'Alanis Cibele Januario dos Santos', email: 'alanis.santos@labvw.com.br', unit_id: 'labvw-blumenau' },
   { full_name: 'Aline Serpa', email: 'aline.serpa@labvw.com.br', unit_id: 'labvw-area-tecnica-blumenau' },
   { full_name: 'Alyne Alves da Maia', email: 'alyne.maia@labvw.com.br', unit_id: 'labvw-area-tecnica-blumenau' },
@@ -56,6 +57,7 @@ const CONFIRMED_USERS = [
   { full_name: 'Bruna Maria Kruze', email: 'bruna.kruze@labvw.com.br', unit_id: 'labvw-area-tecnica-brusque' },
   { full_name: 'Bruna Reis', email: 'bruna.reis@labvw.com.br', unit_id: 'labvw-prime' },
   { full_name: 'Bruna Ries', email: 'bruna.ries@labvw.com.br', unit_id: 'labvw-azambuja' },
+  { full_name: 'Bruna Silva Milagre', email: 'bruna.milagre@labvw.com.br', unit_id: 'labvw-area-tecnica-brusque' },
   { full_name: 'Bruna de Araujo', email: 'bruna.araujo@labvw.com.br', unit_id: 'labvw-area-tecnica-brusque' },
   { full_name: 'Camilli Raiser Machado', email: 'camilli.machado@labvw.com.br', unit_id: 'labvw-azambuja' },
   { full_name: 'Camily Moraes', email: 'camily.moraes@labvw.com.br', unit_id: 'labvw-angeloni' },
@@ -132,12 +134,6 @@ const CONFIRMED_USERS = [
 // Pessoas que aparecem nos XLSX (Jan–Jun) sem e-mail cadastrado hoje. Ficam de
 // fora da migração até `email` ser preenchido — rode o script de novo depois
 // de completar a lista (é seguro repetir: usa ON CONFLICT DO NOTHING).
-// 'Adriana Ferreira Lima' também precisa de unit_id (Guabiruba ou PST — ela
-// batia com as duas planilhas e a unidade atual dela no banco, "Santa
-// Terezinha", não é uma das 12 unidades novas).
-// 'Bruna Silva' (AT Brusque) também é ambígua: pode ser "Bruna Durante da
-// Silva" (Azambuja) ou "Bruna Silva Milagre" (Área Técnica 1) já cadastradas
-// — confirme se é uma dessas ou uma pessoa nova antes de preencher o e-mail.
 const PENDING_NEW_USERS = [
   { xlsx_name: 'Bruna Roza', unit_id: 'labvw-angeloni', email: null },
   { xlsx_name: 'Melissa Winter', unit_id: 'labvw-angeloni', email: null },
@@ -151,7 +147,6 @@ const PENDING_NEW_USERS = [
   { xlsx_name: 'Mylena Freire de Carvalho Pires', unit_id: 'labvw-blumenau', email: null },
   { xlsx_name: 'Rosane de Souza Leão', unit_id: 'labvw-blumenau', email: null },
   { xlsx_name: 'Thais Cristina Rodrigues', unit_id: 'labvw-blumenau', email: null },
-  { xlsx_name: 'Adriana Ferreira Lima', unit_id: null, email: null }, // Guabiruba OU PST — decidir
   { xlsx_name: 'Aline Araujo', unit_id: 'labvw-pst', email: null },
   { xlsx_name: 'Aline Costa', unit_id: 'labvw-pst', email: null },
   { xlsx_name: 'Bruna Aparecida Miór', unit_id: 'labvw-sjb', email: null },
@@ -163,7 +158,6 @@ const PENDING_NEW_USERS = [
   { xlsx_name: 'Andressa T. Klabunde', unit_id: 'labvw-area-tecnica-blumenau', email: null },
   { xlsx_name: 'Luisa Mahnke Ruysam', unit_id: 'labvw-area-tecnica-blumenau', email: null },
   { xlsx_name: 'Maria Luiza K.', unit_id: 'labvw-area-tecnica-blumenau', email: null },
-  { xlsx_name: 'Bruna Silva', unit_id: 'labvw-area-tecnica-brusque', email: null }, // ver nota acima
   { xlsx_name: 'Thaynara C. Dupilar', unit_id: 'labvw-area-tecnica-brusque', email: null },
   { xlsx_name: 'Álvaro B. Netto', unit_id: 'labvw-area-tecnica-brusque', email: null },
 ];
