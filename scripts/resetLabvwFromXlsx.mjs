@@ -175,6 +175,10 @@ if (!client) {
 
 try {
   console.log('🗑️  Resetando usuários (role=user) e unidades produtivas...');
+  await client.query(`delete from auth_sessions where user_id in (select id from users where role = 'user')`);
+  await client.query(`delete from user_badges where user_id in (select id from users where role = 'user')`);
+  await client.query(`delete from badge_submissions where user_id in (select id from users where role = 'user')`);
+  await client.query(`delete from notifications where user_id in (select id from users where role = 'user')`);
   const deletedUsers = await client.query("delete from users where role = 'user'");
   const deletedUnits = await client.query('delete from productive_units');
   console.log(`  ${deletedUsers.rowCount} usuários removidos, ${deletedUnits.rowCount} unidades removidas`);
