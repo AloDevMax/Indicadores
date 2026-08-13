@@ -15,5 +15,5 @@
     "allowImportingTsExtensions": false
   },
   "include": ["server/**/*"],
-  "exclude": ["node_modules", "dist", "src", "**/*css"]
+  "exclude": ["node_modules", "dist", "src", "**/*css", "**/*.test.mjs"]
 }

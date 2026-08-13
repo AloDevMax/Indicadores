@@ -8,8 +8,9 @@ dist/
 # Prisma generated client
 generated/
 
-# Uploads
-uploads/
+# Uploads (root-level only — do NOT use a bare "uploads/" pattern, it also
+# matches server/uploads/, which is source code, not upload storage)
+/uploads/
 public/uploads/
 
 # Logs
@@ -26,6 +27,12 @@ Thumbs.db
 *.swp
 
 business-rules/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+playwright/.auth/
 
 # Claude Code
 .claude/

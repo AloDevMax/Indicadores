@@ -27,6 +27,13 @@ npm run db:diagnose       # Diagnose DB/module issues
 
 # Code quality
 npm run lint              # ESLint
+
+# Testing
+npm test                  # Vitest — unit/component/integration, watch mode
+npm run test:run          # Vitest — single run (CI)
+npm run test:coverage     # Vitest — single run with V8 coverage report
+npm run test:e2e          # Playwright — end-to-end (spins up client :3000 + server :4004)
+npm run test:e2e:ui       # Playwright — E2E in interactive UI mode
 ```
 
 ## Tech Stack
@@ -39,6 +46,7 @@ npm run lint              # ESLint
 | Backend | Express 4 (ESM `.mjs`, no transpiler) |
 | Database | PostgreSQL + Prisma 6 ORM |
 | Validation | Zod |
+| Testing | Vitest + React Testing Library (unit/component/integration), Playwright (E2E) |
 | Deploy | Render.com (`render.yaml`), Docker available |
 
 ## Architecture
