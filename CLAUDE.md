@@ -36,6 +36,16 @@ npm run test:e2e          # Playwright — end-to-end (spins up client :3000 + s
 npm run test:e2e:ui       # Playwright — E2E in interactive UI mode
 ```
 
+## Testing Policy
+
+Every implementation (new feature, bug fix, or behavior-changing refactor) must ship with automated tests covering it, with clearly stated expected results — assert the actual expected value/state/response, not just "it didn't throw."
+
+- Frontend logic/components → Vitest + React Testing Library (`*.test.ts(x)`, colocated with the source file)
+- Backend routes/services → Vitest (`// @vitest-environment node`) + Supertest (`server/**/*.test.mjs`, colocated)
+- Critical user flows (login, submission/approval, award, Excel import) → Playwright (`e2e/*.spec.ts`)
+
+See `vitest.config.ts` / `playwright.config.ts` for setup, and the existing `*.test.*` files for the expected pattern.
+
 ## Tech Stack
 
 | Layer | Technology |
