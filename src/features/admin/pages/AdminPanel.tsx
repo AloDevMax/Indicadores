@@ -11,6 +11,7 @@ import { cn } from '@/shared/lib/cn';
 import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
 import { useAuth } from '@/shared/contexts/AuthContext';
+import { useConfirm } from '@/shared/contexts/ConfirmContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
 import { invalidateCache } from '@/shared/lib/resourceCache';
 
@@ -88,6 +89,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenSolicitation
 }) => {
   const { user: currentUser } = useAuth();
+  const confirm = useConfirm();
   const { data: badges = [], refresh: refreshBadges } = useRouteData('badges', fetchBadgesWithApi, []);
   const { data: users = [], refresh: refreshUsers } = useRouteData('users', fetchUsersWithApi, []);
   const { data: userBadges = [], refresh: refreshUserBadges } = useRouteData('userBadges', fetchUserBadgesWithApi, []);
@@ -119,18 +121,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [selectedAwardTone, setSelectedAwardTone] = useState<BadgeTone>('bronze');
   
   const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
-  const [isDeleteBadgeModalOpen, setIsDeleteBadgeModalOpen] = useState(false);
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
-  const [badgeToDelete, setBadgeToDelete] = useState<Badge | null>(null);
 
   const [isProductiveUnitModalOpen, setIsProductiveUnitModalOpen] = useState(false);
   const [editingProductiveUnit, setEditingProductiveUnit] = useState<ProductiveUnit | null>(null);
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isBulkInviteModalOpen, setIsBulkInviteModalOpen] = useState(false);
-  const [isDeleteUserModalOpen, setIsDeleteUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
-  const [userToDelete, setUserToDelete] = useState<Profile | null>(null);
   const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
@@ -222,6 +220,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const submission = submissions.find(s => s.id === submissionId);
     if (!submission) return;
 
+    const ok = await confirm(
+      status === 'approved'
+        ? {
+            title: 'Validar solicitação?',
+            message: `O selo "${submission.badge_name}" será concedido a ${submission.user_name}.`,
+            confirmLabel: 'Validar & Premiar',
+            variant: 'default',
+          }
+        : {
+            title: 'Recusar solicitação?',
+            message: `A solicitação de ${submission.user_name} para o selo "${submission.badge_name}" será recusada.`,
+            confirmLabel: 'Recusar',
+          },
+    );
+    if (!ok) return;
+
     try {
       await reviewSubmissionWithApi(submissionId, status);
       invalidateCache('submissions');
@@ -265,22 +279,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleDeleteBadge = async () => {
+  const handleDeleteBadge = async (badge: Badge) => {
     if (!canManageGlobalCatalog) {
       toast.error('Somente o desenvolvedor pode remover selos da biblioteca global.');
       return;
     }
-    if (badgeToDelete) {
-      try {
-        await deleteBadgeWithApi(badgeToDelete.id);
-        invalidateCache('badges');
-        await refreshBadges();
-        setIsDeleteBadgeModalOpen(false);
-        setBadgeToDelete(null);
-        toast.success('Selo removido com sucesso.');
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Falha ao remover selo.');
-      }
+    const ok = await confirm({
+      title: 'Excluir Selo?',
+      message: <>O selo <b>{badge.name}</b> será removido permanentemente da biblioteca.</>,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteBadgeWithApi(badge.id);
+      invalidateCache('badges');
+      await refreshBadges();
+      toast.success('Selo removido com sucesso.');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Falha ao remover selo.');
     }
   };
 
@@ -366,6 +382,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const ok = await confirm({
+      title: 'Enviar convites?',
+      message: `${emails.length} colaborador(es) serão convidados/atualizados.`,
+      confirmLabel: 'Enviar Convites',
+      variant: 'default',
+    });
+    if (!ok) return;
+
     const validProductiveUnitId = bulkInviteProductiveUnitId && productiveUnits.some(unit => unit.id === bulkInviteProductiveUnitId)
       ? bulkInviteProductiveUnitId
       : undefined;
@@ -388,23 +412,24 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setBulkInviteProductiveUnitId('');
   };
 
-  const handleDeleteUser = async () => {
-    if (userToDelete) {
-      if (userToDelete.id === adminProfile.id) {
-        toast.error('Você não pode excluir seu próprio perfil administrativo.');
-        setIsDeleteUserModalOpen(false);
-        return;
-      }
-      try {
-        await deleteUserWithApi(userToDelete.id);
-        invalidateCache('users');
-        await refreshUsers();
-        setIsDeleteUserModalOpen(false);
-        setUserToDelete(null);
-        toast.success('Colaborador removido com sucesso.');
-      } catch (error) {
-        toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-      }
+  const handleDeleteUser = async (targetUser: Profile) => {
+    if (targetUser.id === adminProfile.id) {
+      toast.error('Você não pode excluir seu próprio perfil administrativo.');
+      return;
+    }
+    const ok = await confirm({
+      title: 'Excluir Colaborador?',
+      message: <>Esta ação removerá <b>{targetUser.full_name}</b> e todo seu histórico de selos permanentemente.</>,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteUserWithApi(targetUser.id);
+      invalidateCache('users');
+      await refreshUsers();
+      toast.success('Colaborador removido com sucesso.');
+    } catch (error) {
+      toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   };
 
@@ -414,6 +439,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
     const nextIsActive = targetUser.is_active === false;
+    const ok = await confirm({
+      title: nextIsActive ? 'Ativar colaborador?' : 'Desativar colaborador?',
+      message: nextIsActive
+        ? <><b>{targetUser.full_name}</b> voltará a ter acesso ao sistema.</>
+        : <><b>{targetUser.full_name}</b> perderá o acesso ao sistema.</>,
+      confirmLabel: nextIsActive ? 'Ativar' : 'Desativar',
+      variant: nextIsActive ? 'default' : 'danger',
+    });
+    if (!ok) return;
+
     try {
       await saveUserWithApi({ ...targetUser, is_active: nextIsActive });
       invalidateCache('users');
@@ -432,6 +467,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       return;
     }
 
+    const ok = await confirm({
+      title: 'Conceder selos?',
+      message: `O selo "${badge.name}" será concedido a ${selectedUsers.length} colaborador(es).`,
+      confirmLabel: 'Conceder',
+      variant: 'default',
+    });
+    if (!ok) return;
+
     try {
       setIsAwardingBadges(true);
       await awardBadgesWithApi(selectedUsers, selectedAwardBadge, selectedAwardTone);
@@ -449,6 +492,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleAssignBadgeToUser = async (targetUserId: string, badgeId: string, tone: BadgeTone) => {
+    const badge = badges.find(b => b.id === badgeId);
+    const ok = await confirm({
+      title: 'Atribuir selo?',
+      message: `O selo "${badge?.name || badgeId}" (${BADGE_TONE_LABELS[tone]}) será atribuído a este colaborador.`,
+      confirmLabel: 'Atribuir',
+      variant: 'default',
+    });
+    if (!ok) return;
+
     try {
       await awardBadgesWithApi([targetUserId], badgeId, tone);
       invalidateCache('userBadges');
@@ -460,6 +512,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
+    const ok = await confirm({
+      title: 'Remover selo?',
+      message: 'Este selo será removido da cartela do colaborador.',
+    });
+    if (!ok) return;
+
     try {
       await removeUserBadgeWithApi(targetUserId, badgeId);
       invalidateCache('userBadges');
@@ -630,24 +688,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   }, [importMonth, users]);
 
   const handleConfirmImport = async () => {
+    const awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }> = [];
+    importRows.forEach((row, idx) => {
+      const match = userMatches[idx];
+      if (!match.matchedUserId || match.confidence === 'ignored') return;
+      Object.entries(row.indicators).forEach(([badgeId, value]) => {
+        const tone = TONE_FROM_VALUE[value];
+        if (tone) awards.push({ userId: match.matchedUserId!, badgeId, tone });
+      });
+    });
+
+    if (awards.length === 0) {
+      setImportError('Nenhum selo a importar após filtragem.');
+      return;
+    }
+
+    const ok = await confirm({
+      title: 'Confirmar importação?',
+      message: `${awards.length} selo(s) serão importados para ${MONTH_NAMES_PT[importMonth - 1]}/${importYear}.`,
+      confirmLabel: 'Confirmar importação',
+      variant: 'default',
+    });
+    if (!ok) return;
+
     setIsImporting(true);
     setImportError('');
     try {
-      const awards: Array<{ userId: string; badgeId: string; tone: BadgeTone }> = [];
-      importRows.forEach((row, idx) => {
-        const match = userMatches[idx];
-        if (!match.matchedUserId || match.confidence === 'ignored') return;
-        Object.entries(row.indicators).forEach(([badgeId, value]) => {
-          const tone = TONE_FROM_VALUE[value];
-          if (tone) awards.push({ userId: match.matchedUserId!, badgeId, tone });
-        });
-      });
-
-      if (awards.length === 0) {
-        setImportError('Nenhum selo a importar após filtragem.');
-        return;
-      }
-
       const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
       if (result.awardedBadges?.length) {
         invalidateCache('userBadges');
@@ -918,7 +984,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 )}
                               ><Power size={16} /></button>
                               <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
-                              <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                              <button onClick={() => handleDeleteUser(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
@@ -1087,6 +1153,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <button
                       onClick={async () => {
+                        const ok = await confirm({
+                          title: 'Criar/atualizar selos de indicadores?',
+                          message: 'Os selos de indicadores existentes na biblioteca serão sobrescritos com os valores padrão.',
+                          confirmLabel: 'Confirmar',
+                          variant: 'default',
+                        });
+                        if (!ok) return;
+
                         try {
                           await seedIndicatorBadgesWithApi();
                           invalidateCache('badges');
@@ -1257,7 +1331,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="flex gap-1">
                       <button onClick={() => openBadgeModal(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
-                      <button onClick={() => { setBadgeToDelete(badge); setIsDeleteBadgeModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDeleteBadge(badge)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 ))}
@@ -1405,21 +1479,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       )}
 
-      {/* Delete User Confirmation Modal */}
-      {isDeleteUserModalOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 text-center">
-            <div className="text-5xl mb-6">⚠️</div>
-            <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Excluir Colaborador?</h2>
-            <p className="text-slate-500 text-sm mb-8">Esta ação removerá <b>{userToDelete?.full_name}</b> e todo seu histórico de selos permanentemente.</p>
-            <div className="flex gap-4">
-              <button onClick={() => { setIsDeleteUserModalOpen(false); setUserToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-              <button onClick={handleDeleteUser} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-all">Confirmar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Badge Modal */}
       {isBadgeModalOpen && canManageGlobalCatalog && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
@@ -1456,21 +1515,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all">{editingBadge ? 'Atualizar' : 'Salvar'}</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Badge Confirmation Modal */}
-      {isDeleteBadgeModalOpen && canManageGlobalCatalog && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-10 shadow-2xl animate-in zoom-in-95 text-center">
-            <div className="text-5xl mb-6">⚠️</div>
-            <h2 className="text-xl font-black text-slate-900 mb-2 tracking-tight">Excluir Selo?</h2>
-            <p className="text-slate-500 text-sm mb-8">O selo <b>{badgeToDelete?.name}</b> será removido permanentemente da biblioteca.</p>
-            <div className="flex gap-4">
-              <button onClick={() => { setIsDeleteBadgeModalOpen(false); setBadgeToDelete(null); }} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
-              <button onClick={handleDeleteBadge} className="flex-1 py-4 font-black uppercase text-[10px] tracking-widest bg-rose-600 text-white rounded-2xl shadow-xl hover:bg-rose-700 transition-all">Confirmar</button>
-            </div>
           </div>
         </div>
       )}

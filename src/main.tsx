@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from '@/App';
 import ErrorBoundary from '@/shared/components/ErrorBoundary';
 import { AuthProvider } from '@/shared/contexts/AuthContext';
+import { ConfirmProvider } from '@/shared/contexts/ConfirmContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,9 +15,11 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
+      <ConfirmProvider>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </ConfirmProvider>
     </AuthProvider>
   </React.StrictMode>
 );
