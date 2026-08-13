@@ -33,7 +33,7 @@ export const listUsers = async () => {
 
   try {
     const result = await client.query(
-      `select id, email, full_name, role, productive_unit_id, avatar_url, email_verified, created_at
+      `select id, email, full_name, role, productive_unit_id, avatar_url, email_verified, is_active, created_at
        from users
        order by full_name asc`
     );

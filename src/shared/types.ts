@@ -22,6 +22,7 @@ export interface Profile {
   productive_unit_id?: string;
   created_at: string;
   email_verified?: boolean;
+  is_active?: boolean;
   notifications?: Notification[];
 }
 

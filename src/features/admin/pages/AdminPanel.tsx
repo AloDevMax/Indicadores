@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award, ChevronLeft, ChevronRight, Power } from 'lucide-react';
 import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult, DEFAULT_BADGE_LEGENDS } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import { ImageUpload } from '@/shared/components/ImageUpload';
@@ -320,6 +320,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       ? productiveUnitId
       : undefined;
 
+    const nextIsActive = formData.get('is_active') === 'on';
+
+    if (editingUser?.id === adminProfile.id && !nextIsActive) {
+      toast.error('Você não pode desativar seu próprio usuário.');
+      return;
+    }
+
     const userData: Profile = {
       id: editingUser?.id || '',
       email: formData.get('email') as string,
@@ -327,6 +334,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       avatar_url: tempUserAvatarUrl || editingUser?.avatar_url || '',
       role: formData.get('role') as Role,
       productive_unit_id: validProductiveUnitId,
+      is_active: nextIsActive,
       created_at: editingUser?.created_at || new Date().toISOString(),
     };
 
@@ -400,6 +408,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const handleToggleUserActive = async (targetUser: Profile) => {
+    if (targetUser.id === adminProfile.id) {
+      toast.error('Você não pode desativar seu próprio usuário.');
+      return;
+    }
+    const nextIsActive = targetUser.is_active === false;
+    try {
+      await saveUserWithApi({ ...targetUser, is_active: nextIsActive });
+      invalidateCache('users');
+      await refreshUsers();
+      toast.success(nextIsActive ? 'Colaborador ativado com sucesso.' : 'Colaborador desativado com sucesso.');
+    } catch (error) {
+      toast.error('Erro ao atualizar status do colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
+    }
+  };
+
   const handleAwardBadges = async () => {
     if (selectedUsers.length === 0 || !selectedAwardBadge) return;
     const badge = badges.find(b => b.id === selectedAwardBadge);
@@ -455,16 +479,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
   }, [users, userSearch, selectedProductiveUnitFilter, isSupervisor, currentUser.productive_unit_id]);
 
-  const awardTotalPages = Math.max(1, Math.ceil(filteredUsers.length / AWARD_PAGE_SIZE));
+  const activeFilteredUsers = useMemo(
+    () => filteredUsers.filter(u => u.is_active !== false),
+    [filteredUsers],
+  );
+
+  const awardTotalPages = Math.max(1, Math.ceil(activeFilteredUsers.length / AWARD_PAGE_SIZE));
 
   const paginatedAwardUsers = useMemo(() => {
     const start = (awardListPage - 1) * AWARD_PAGE_SIZE;
-    return filteredUsers.slice(start, start + AWARD_PAGE_SIZE);
-  }, [filteredUsers, awardListPage]);
+    return activeFilteredUsers.slice(start, start + AWARD_PAGE_SIZE);
+  }, [activeFilteredUsers, awardListPage]);
 
   useEffect(() => {
     setAwardListPage(1);
-  }, [filteredUsers]);
+  }, [activeFilteredUsers]);
 
   const unitsTotalPages = Math.max(1, Math.ceil(productiveUnits.length / UNITS_PAGE_SIZE));
   const clampedUnitsPage = Math.min(unitsPage, unitsTotalPages);
@@ -837,8 +866,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     {filteredUsers.map(u => {
                       const unit = productiveUnits.find(item => item.id === u.productive_unit_id);
                       const metrics = getUserMonthlyBadgeMetrics(u.id, userBadges);
+                      const isActive = u.is_active !== false;
+                      const isSelf = u.id === adminProfile.id;
                       return (
-                        <tr key={u.id} className="group hover:bg-slate-50/50">
+                        <tr key={u.id} className={cn('group hover:bg-slate-50/50', !isActive && 'opacity-50')}>
                           <td className="px-10 py-6">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -849,7 +880,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 )}
                               </div>
                               <div className="flex-1">
-                                <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="font-bold text-slate-900 text-sm">{u.full_name}</div>
+                                  <span className={cn(
+                                    'px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest',
+                                    isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500',
+                                  )}>
+                                    {isActive ? 'Ativo' : 'Inativo'}
+                                  </span>
+                                </div>
                                 <div className="text-[10px] text-brand-accent font-black uppercase tracking-widest">{unit?.name || 'Sem unidade produtiva'}</div>
                                 <div className="text-[10px] text-slate-400 font-medium truncate max-w-[200px]">{u.email}</div>
                               </div>
@@ -865,6 +904,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           <td className="px-10 py-6 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button onClick={() => setViewingUserBadges(u)} className="text-[10px] font-black text-brand-primary uppercase tracking-widest bg-brand-primary-light hover:bg-brand-primary-light px-4 py-2 rounded-xl">Ver Selos</button>
+                              <button
+                                onClick={() => handleToggleUserActive(u)}
+                                disabled={isSelf}
+                                title={isSelf ? 'Você não pode desativar seu próprio usuário' : (isActive ? 'Desativar colaborador' : 'Ativar colaborador')}
+                                className={cn(
+                                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all',
+                                  isSelf
+                                    ? 'text-slate-200 cursor-not-allowed'
+                                    : isActive
+                                      ? 'text-slate-300 hover:text-amber-600 hover:bg-amber-50'
+                                      : 'text-slate-300 hover:text-emerald-600 hover:bg-emerald-50',
+                                )}
+                              ><Power size={16} /></button>
                               <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
                               <button onClick={() => { setUserToDelete(u); setIsDeleteUserModalOpen(true); }} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                             </div>
@@ -1333,6 +1385,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 uploadEndpoint="user-avatar"
                 fieldName="avatar"
               />
+              <label className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-slate-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="is_active"
+                  defaultChecked={editingUser?.is_active !== false}
+                  className="w-5 h-5 rounded accent-brand-primary"
+                />
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Colaborador ativo{editingUser?.id === adminProfile.id && ' (você não pode desativar seu próprio usuário)'}
+                </span>
+              </label>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={closeUserModal} className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-slate-100 rounded-2xl text-slate-600">Cancelar</button>
                 <button type="submit" className="flex-1 py-5 font-black uppercase text-[10px] tracking-widest bg-brand-primary text-white rounded-2xl shadow-xl hover:bg-brand-primary-dark transition-all">{editingUser ? 'Atualizar' : 'Salvar'}</button>

@@ -317,6 +317,9 @@ app.post('/api/admin/users', asyncRoute(async (req, res) => {
   if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
     return res.status(403).json({ error: 'Gestores só podem cadastrar usuários da própria unidade produtiva.' });
   }
+  if (req.body.id === auth.body.user.id && req.body.is_active === false) {
+    return res.status(400).json({ error: 'Você não pode desativar seu próprio usuário.' });
+  }
 
   const user = await saveUser(req.body, req.body.password);
   res.status(201).json({ user });

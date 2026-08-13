@@ -214,6 +214,7 @@ export const saveUser = async (user, password) => {
       ...user,
       id: user.id || crypto.randomUUID(),
       email_verified: user.email_verified ?? false,
+      is_active: user.is_active ?? true,
       created_at: user.created_at || new Date().toISOString(),
       password: password,
     };
@@ -243,6 +244,11 @@ export const saveUser = async (user, password) => {
         updateValues.push(user.avatar_url);
       }
 
+      if (user.is_active !== undefined) {
+        updateFields.push(`is_active = $${updateValues.length + 1}`);
+        updateValues.push(user.is_active);
+      }
+
       if (password) {
         const passwordHash = await hashPassword(password);
         updateFields.push(`password_hash = $${updateValues.length + 1}`);
@@ -253,7 +259,7 @@ export const saveUser = async (user, password) => {
         `update users
          set ${updateFields.join(', ')}
          where id = $1
-         returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, created_at`,
+         returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, is_active, created_at`,
         updateValues,
       );
 
@@ -274,9 +280,10 @@ export const saveUser = async (user, password) => {
         avatar_url,
         role,
         productive_unit_id,
-        email_verified
-      ) values ($1, $2, $3, $4, $5, $6, $7, false)
-      returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, created_at`,
+        email_verified,
+        is_active
+      ) values ($1, $2, $3, $4, $5, $6, $7, false, $8)
+      returning id, email, full_name, avatar_url, role, productive_unit_id, email_verified, is_active, created_at`,
       [
         userId,
         user.email,
@@ -285,6 +292,7 @@ export const saveUser = async (user, password) => {
         user.avatar_url || null,
         user.role,
         user.productive_unit_id || null,
+        user.is_active ?? true,
       ],
     );
     return result.rows[0];

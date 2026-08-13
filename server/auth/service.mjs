@@ -86,6 +86,13 @@ export const loginUser = async (input) => {
     };
   }
 
+  if (user.is_active === false) {
+    return {
+      status: 403,
+      body: { error: 'Colaborador inativo. Contate o administrador.' },
+    };
+  }
+
   const sessionId = generateSessionId();
   const expiresAt = getExpirationTimestamp();
   await createSession({ sessionId, userId: user.id, expiresAt });

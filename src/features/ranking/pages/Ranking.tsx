@@ -26,6 +26,7 @@ const Ranking: React.FC = () => {
 
   const filteredExplorers = useMemo(() => users.filter(u => {
     if (u.role !== 'user') return false;
+    if (u.is_active === false) return false;
     if (isSupervisor) return u.productive_unit_id === currentUser.productive_unit_id;
     return true;
   }), [users, isSupervisor, currentUser.productive_unit_id]);

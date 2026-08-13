@@ -45,6 +45,7 @@ const seedUsers = async () => {
       role: 'admin',
       productive_unit_id: null,
       email_verified: true,
+      is_active: true,
       created_at: new Date().toISOString(),
       notifications: [],
     },
@@ -56,6 +57,7 @@ const seedUsers = async () => {
       role: 'developer',
       productive_unit_id: null,
       email_verified: true,
+      is_active: true,
       created_at: new Date().toISOString(),
       notifications: [],
     },
@@ -67,6 +69,7 @@ const seedUsers = async () => {
       role: 'user',
       productive_unit_id: 'pu1',
       email_verified: true,
+      is_active: true,
       created_at: '2023-01-01T00:00:00.000Z',
       notifications: [],
     },
@@ -84,6 +87,7 @@ const sanitizeUser = (user) => ({
   productive_unit_id: user.productive_unit_id || undefined,
   created_at: user.created_at,
   email_verified: Boolean(user.email_verified),
+  is_active: user.is_active ?? true,
   notifications: user.notifications || [],
 });
 
@@ -108,6 +112,7 @@ export const findUserByEmail = async (email) => {
         role,
         productive_unit_id,
         email_verified,
+        is_active,
         created_at
       from users
       where lower(email) = lower($1)
@@ -140,6 +145,7 @@ export const findUserById = async (userId) => {
         role,
         productive_unit_id,
         email_verified,
+        is_active,
         created_at
       from users
       where id = $1
@@ -173,6 +179,7 @@ export const ensureBuiltInDeveloper = async () => {
         role,
         productive_unit_id,
         email_verified,
+        is_active,
         created_at
       from users
       where lower(email) = lower($1)
@@ -198,6 +205,7 @@ export const ensureBuiltInDeveloper = async () => {
            role,
            productive_unit_id,
            email_verified,
+           is_active,
            created_at`,
         [
           existingUser.rows[0].id,
@@ -267,6 +275,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
       role: safeRole,
       productive_unit_id: null,
       email_verified: safeRole === 'admin',
+      is_active: true,
       created_at: new Date().toISOString(),
     };
 
@@ -292,6 +301,7 @@ export const createUser = async ({ email, passwordHash, fullName, role = 'user' 
         role,
         productive_unit_id,
         email_verified,
+        is_active,
         created_at`,
       [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin'],
     );
@@ -392,6 +402,7 @@ export const upsertMemoryUser = async (user) => {
     ...rest,
     id: rest.id || crypto.randomUUID(),
     email_verified: rest.email_verified ?? false,
+    is_active: rest.is_active ?? true,
     created_at: rest.created_at || new Date().toISOString(),
   };
 
@@ -435,6 +446,7 @@ export const listUsers = async () => {
         role,
         productive_unit_id,
         email_verified,
+        is_active,
         created_at
       from users
       order by created_at asc`,

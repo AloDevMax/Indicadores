@@ -117,6 +117,7 @@ export const loadBootstrapData = async (currentUser = null) => {
           role,
           productive_unit_id,
           email_verified,
+          is_active,
           created_at
         from users
         order by created_at asc`,
