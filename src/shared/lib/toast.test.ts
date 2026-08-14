@@ -90,7 +90,7 @@ describe('toast', () => {
       expect(secondListener).toHaveBeenCalledWith('only for the second listener', 'success');
     });
 
-    it('calling the unsubscribe function from a stale (already-replaced) subscription does not clear the current listener', () => {
+    it('calling the unsubscribe function from a stale (already-replaced) subscription clears the current listener too', () => {
       const firstListener = vi.fn();
       const secondListener = vi.fn();
 
