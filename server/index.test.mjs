@@ -358,15 +358,14 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     // Chosen deliberately over /api/admin/award-badges or similar: this is
     // the one mutating admin route whose guard is only isAdminOrDeveloper()
     // with no further ensureUsersWithinScope() call, so a plain 'admin' role
-    // (not 'developer') can actually reach 200 here. Several of the other
-    // guarded routes (award-badges, import-monthly-badges, user-badges/remove,
-    // users/delete) call ensureUsersWithinScope(), which — verified against
-    // server/index.mjs's imports — resolves target scope via
-    // server/db/resourceRepository.mjs's listUsers(), the same always-empty
-    // store from the read-route quirk above. For any non-developer role with
-    // at least one target user id, that makes ensureUsersWithinScope() always
-    // return false, so those routes 403 for admin/supervisor regardless of
-    // whether the target is actually in-scope — only 'developer' bypasses it.
+    // (not 'developer') can reach 200 here without needing a productive_unit_id
+    // fixture. Several of the other guarded routes (award-badges,
+    // import-monthly-badges, user-badges/remove, users/delete) call
+    // ensureUsersWithinScope(), which — since the listUsers() wrong-import bug
+    // fix — resolves the caller's allowed user ids via real
+    // productive_unit_id matching against server/auth/repository.mjs's
+    // listUsers(). Using this route instead keeps the test focused on the
+    // guard shape without needing to construct matching-unit fixtures.
     const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/seed-indicator-badges').set('Authorization', header);
@@ -411,13 +410,13 @@ describe('protected routes exercised end-to-end with a valid token', () => {
   });
 
   it('submission review flow: a developer approves a real pending submission end-to-end', async () => {
-    // Only 'developer' is usable here: reviewSubmission's route guard calls
-    // ensureSubmissionWithinScope(), which — verified against
-    // server/index.mjs — looks up the submission's owner via the same
-    // always-empty resourceRepository listUsers() used above, so it always
-    // returns false for any non-developer role (the owning user is never
-    // found), regardless of whether reviewer and submitter share a unit.
-    // isDeveloper() is the only short-circuit that bypasses the lookup.
+    // 'developer' is used here to bypass ensureSubmissionWithinScope()
+    // outright via isDeveloper(): that function (now correctly reading
+    // server/auth/repository.mjs's listUsers() after the listUsers()
+    // wrong-import bug fix) resolves the submission owner's real
+    // productive_unit_id and compares it to the reviewer's — using
+    // 'developer' avoids depending on both accounts sharing a
+    // productive_unit_id for this test to pass.
     const applicant = await authHeaderFor('user');
     const reviewer = await authHeaderFor('developer');
 

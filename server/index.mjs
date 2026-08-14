@@ -8,12 +8,12 @@ import { createPgClient } from './db/client.mjs';
 import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
-import { ensureBuiltInDeveloper } from './auth/repository.mjs';
+import { ensureBuiltInDeveloper, listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { memoryStore } from './data/memoryStore.mjs';
-import { listBadges, listUsers, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { listBadges, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
 
 
 const port = Number(process.env.PORT || 4004);
