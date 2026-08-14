@@ -142,18 +142,42 @@ describe('unauthenticated read routes', () => {
     );
   });
 
-  it('GET /api/users returns an array (in-memory fallback never populates this store)', async () => {
-    // Surprising, verified-real quirk: this route reads
-    // server/data/memoryStore.mjs's `users` field via
-    // server/db/resourceRepository.mjs's listUsers(), which nothing in the
-    // app ever writes to in memory-fallback mode (registerUser/saveUser
-    // write to server/auth/repository.mjs's own separate in-memory `users`
-    // array instead). So this endpoint is always an empty array in this
-    // test environment, regardless of how many users were created via HTTP.
+  it('GET /api/users returns the seeded users in memory-fallback mode', async () => {
+    // Regression coverage for a wrong-import bug: this route must read
+    // listUsers() from server/auth/repository.mjs (the store actually
+    // written by register/login), not server/db/resourceRepository.mjs's
+    // identically named but disconnected listUsers(), which reads
+    // server/data/memoryStore.mjs's `users` field — a key that store never
+    // defines, so it always resolved to []. The three built-in seed users
+    // (admin-1, the built-in developer dev-1, and u1) are always present
+    // here because auth/repository.mjs's listUsers() lazily seeds the store
+    // on first call.
     const response = await request(app).get('/api/users');
 
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ users: [] });
+    expect(response.body.users).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'admin-1', email: 'admin@test.com', role: 'admin' }),
+        expect.objectContaining({ id: 'u1', email: 'joao@acme.com', role: 'user' }),
+      ]),
+    );
+  });
+
+  it('GET /api/users includes a user registered via POST /api/auth/register (regression test for the listUsers wrong-import bug)', async () => {
+    const email = uniqueEmail('users-list-visibility');
+
+    const registerResponse = await request(app)
+      .post('/api/auth/register')
+      .send({ email, password: 'password1', full_name: 'Users List Visibility' });
+
+    expect(registerResponse.status).toBe(201);
+
+    const response = await request(app).get('/api/users');
+
+    expect(response.status).toBe(200);
+    expect(response.body.users).toContainEqual(
+      expect.objectContaining({ email, full_name: 'Users List Visibility', role: 'user' }),
+    );
   });
 
   it('GET /api/user-badges returns an empty array before any badge has been awarded', async () => {
