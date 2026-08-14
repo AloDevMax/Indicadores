@@ -376,6 +376,50 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     expect(response.body.badges).toContainEqual(expect.objectContaining({ id: 'ind-nps', name: 'NPS' }));
   });
 
+  it('ensureUsersWithinScope regression: a supervisor CAN award a badge to a real target user in their own productive unit', async () => {
+    // Direct coverage for server/index.mjs:39-48's real (non-developer)
+    // branch, which the listUsers() wrong-import bug always denied
+    // regardless of actual scope. Both accounts are given the same real
+    // productive_unit_id, and the target user is a genuine entry in
+    // server/auth/repository.mjs's store (via authHeaderFor -> upsertMemoryUser),
+    // the same store ensureUsersWithinScope's listUsers() now reads.
+    const unitId = 'unit-award-same';
+    const { header: supervisorHeader } = await authHeaderFor('supervisor', { productive_unit_id: unitId });
+    const { user: targetUser } = await authHeaderFor('user', { productive_unit_id: unitId });
+
+    const response = await request(app)
+      .post('/api/admin/award-badges')
+      .set('Authorization', supervisorHeader)
+      .send({ user_ids: [targetUser.id], badge_id: '1', tone: 'bronze' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.awardedBadges).toEqual([
+      expect.objectContaining({
+        user_id: targetUser.id,
+        badge_id: '1',
+        tone: 'bronze',
+        productive_unit_id: unitId,
+      }),
+    ]);
+  });
+
+  it('ensureUsersWithinScope regression: a supervisor CANNOT award a badge to a real target user in a different productive unit', async () => {
+    // Same route/mechanism as above, proving the scope check still denies
+    // correctly (i.e. the fix did not make it fail open): the target user is
+    // a real, findable account, just in a different productive_unit_id than
+    // the supervisor's own.
+    const { header: supervisorHeader } = await authHeaderFor('supervisor', { productive_unit_id: 'unit-award-own' });
+    const { user: targetUser } = await authHeaderFor('user', { productive_unit_id: 'unit-award-other' });
+
+    const response = await request(app)
+      .post('/api/admin/award-badges')
+      .set('Authorization', supervisorHeader)
+      .send({ user_ids: [targetUser.id], badge_id: '1', tone: 'bronze' });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Acesso restrito à sua empresa.' });
+  });
+
   it('supervisor-scope restriction: POST /api/admin/users 403s a supervisor creating a user outside their own unit', async () => {
     const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'unit-supervisor-own' });
 
