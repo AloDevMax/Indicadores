@@ -11,7 +11,7 @@
     "db:push": "node --env-file=.env scripts/dbPush.mjs",
     "db:check": "node --env-file=.env scripts/dbCheck.mjs",
     "db:reset:labvw": "node --env-file=.env scripts/resetLabvwFromXlsx.mjs",
-    "build": "node scripts/build.mjs",
+    "build": "prisma generate && vite build && tsc -p tsconfig.json",
     "start": "node dist/server/index.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
