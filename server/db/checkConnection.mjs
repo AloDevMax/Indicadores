@@ -31,11 +31,3 @@ export const checkDatabaseConnection = async (exitOnFailure = false) => {
     return false;
   }
 };
-
-// Execute se rodado diretamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  checkDatabaseConnection(true).catch(err => {
-    console.error('Erro crítico:', err);
-    process.exit(1);
-  });
-}
