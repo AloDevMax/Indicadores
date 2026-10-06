@@ -9,7 +9,7 @@ import reactHooksPlugin from "eslint-plugin-react-hooks";
 
 export default [
   {
-    ignores: ["dist/**", "node_modules/**", "generated/**"],
+    ignores: ["dist/**", "node_modules/**", "generated/**", "coverage/**", ".claude/**"],
   },
   { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"] },
   { languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } } },

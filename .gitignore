@@ -38,3 +38,6 @@ playwright/.auth/
 .claude/
 .specs/
 .agents/
+.superpowers/
+docs/superpowers/
+skills-lock.json
