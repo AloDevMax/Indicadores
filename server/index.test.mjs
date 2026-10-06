@@ -22,7 +22,7 @@ import { createTestUser, seedReferenceData } from './test/fixtures.mjs';
 
 const app = createApp();
 
-// The two users the in-memory store used to seed (as admin-1 and u1).
+// Two users seeded in beforeAll for the read-route tests.
 const SEED_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
 const SEED_USER_ID = '00000000-0000-4000-8000-000000000003';
 
@@ -151,7 +151,7 @@ describe('auth guard matrix', () => {
 describe('unauthenticated read routes', () => {
   // None of these call requireAuthenticatedUser at all — verified directly
   // against server/index.mjs. Run before any fixture-creating tests below so
-  // the in-memory store is still in its pristine, seeded state.
+  // the database still holds only the beforeAll seed.
 
   it('GET /api/badges returns the seeded badge library', async () => {
     const response = await request(app).get('/api/badges');
@@ -163,16 +163,11 @@ describe('unauthenticated read routes', () => {
     );
   });
 
-  it('GET /api/users returns the seeded users in memory-fallback mode', async () => {
+  it('GET /api/users returns the seeded users', async () => {
     // Regression coverage for a wrong-import bug: this route must read
-    // listUsers() from server/auth/repository.mjs (the store actually
-    // written by register/login), not server/db/resourceRepository.mjs's
-    // identically named but disconnected listUsers(), which reads
-    // server/data/memoryStore.mjs's `users` field — a key that store never
-    // defines, so it always resolved to []. The three built-in seed users
-    // (admin-1, the built-in developer dev-1, and u1) are always present
-    // here because auth/repository.mjs's listUsers() lazily seeds the store
-    // on first call.
+    // listUsers() from server/auth/repository.mjs, not the identically named
+    // listUsers() in server/db/resourceRepository.mjs, which used to read a
+    // store that was always empty.
     const response = await request(app).get('/api/users');
 
     expect(response.status).toBe(200);
@@ -408,9 +403,9 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     // Direct coverage for server/index.mjs:39-48's real (non-developer)
     // branch, which the listUsers() wrong-import bug always denied
     // regardless of actual scope. Both accounts are given the same real
-    // productive_unit_id, and the target user is a genuine entry in
-    // server/auth/repository.mjs's store (via authHeaderFor -> upsertMemoryUser),
-    // the same store ensureUsersWithinScope's listUsers() now reads.
+    // productive_unit_id, and the target user is a real row in the users
+    // table (via authHeaderFor -> createTestUser), which
+    // ensureUsersWithinScope's listUsers() reads.
     const unitId = 'unit-award-same';
     const { header: supervisorHeader } = await authHeaderFor('supervisor', { productive_unit_id: unitId });
     const { user: targetUser } = await authHeaderFor('user', { productive_unit_id: unitId });

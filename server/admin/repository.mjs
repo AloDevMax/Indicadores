@@ -1,14 +1,7 @@
 import crypto from 'node:crypto';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from '../auth/crypto.mjs';
-import { seedData } from '../data/seed.mjs';
 import { deleteUploadedFile } from '../uploads/uploadService.mjs';
-
-export const memoryAdminStore = {
-  badges: [...seedData.badges],
-  productiveUnits: [...seedData.productiveUnits],
-  importSources: [...seedData.importSources],
-};
 
 const randomId = () => crypto.randomUUID().slice(0, 8);
 

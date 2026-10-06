@@ -3,11 +3,6 @@ import { env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from './crypto.mjs';
 
-const memory = {
-  users: [],
-  initialized: false,
-};
-
 const BUILT_IN_DEVELOPER = {
   id: 'dev-1',
   email: 'alo.de.castro@hotmail.com',
@@ -26,53 +21,6 @@ const mapUserRow = (user) => ({
   ...user,
   role: normalizeSystemRole(user.email, user.role),
 });
-
-const seedUsers = async () => {
-  if (memory.initialized) {
-    return;
-  }
-
-  memory.users = [
-    {
-      id: 'admin-1',
-      email: 'admin@test.com',
-      password_hash: await hashPassword('admin123'),
-      full_name: 'Gestor Supremo',
-      role: 'admin',
-      productive_unit_id: null,
-      email_verified: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      notifications: [],
-    },
-    {
-      id: 'dev-1',
-      email: 'alo.de.castro@hotmail.com',
-      password_hash: await hashPassword('2665398'),
-      full_name: 'Alo de Castro',
-      role: 'developer',
-      productive_unit_id: null,
-      email_verified: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      notifications: [],
-    },
-    {
-      id: 'u1',
-      email: 'joao@acme.com',
-      password_hash: await hashPassword('joao123'),
-      full_name: 'Joao Silva',
-      role: 'user',
-      productive_unit_id: 'pu1',
-      email_verified: true,
-      is_active: true,
-      created_at: '2023-01-01T00:00:00.000Z',
-      notifications: [],
-    },
-  ];
-
-  memory.initialized = true;
-};
 
 const sanitizeUser = (user) => ({
   id: user.id,
@@ -217,56 +165,7 @@ export const revokeSession = async (sessionId) => {
 
 export const publicUser = sanitizeUser;
 
-export const upsertMemoryUser = async (user) => {
-  await seedUsers();
-
-  const { password: rawPassword, password_hash: providedPasswordHash, ...rest } = user;
-  const passwordHash = providedPasswordHash
-    ? providedPasswordHash
-    : rawPassword
-      ? await hashPassword(rawPassword)
-      : await hashPassword('changeme123');
-
-  const normalized = {
-    ...rest,
-    id: rest.id || crypto.randomUUID(),
-    email_verified: rest.email_verified ?? false,
-    is_active: rest.is_active ?? true,
-    created_at: rest.created_at || new Date().toISOString(),
-  };
-
-  const existingIndex = memory.users.findIndex((entry) => entry.id === normalized.id);
-  if (existingIndex >= 0) {
-    memory.users[existingIndex] = {
-      ...memory.users[existingIndex],
-      ...normalized,
-      password_hash: normalized.password_hash || memory.users[existingIndex].password_hash,
-    };
-  } else {
-    memory.users.push({
-      ...normalized,
-      password_hash: passwordHash,
-    });
-  }
-
-  return sanitizeUser(memory.users.find((entry) => entry.id === normalized.id));
-};
-
-export const deleteMemoryUser = async (userId) => {
-  await seedUsers();
-  memory.users = memory.users.filter((entry) => entry.id !== userId);
-};
-
 export const listUsers = async () => {
   const users = await prisma.user.findMany({ select: USER_SELECT, orderBy: { created_at: 'asc' } });
   return users.map(mapUserRow);
-};
-
-export const appendMemoryNotification = async (userId, notification) => {
-  await seedUsers();
-  memory.users = memory.users.map((user) => (
-    user.id === userId
-      ? { ...user, notifications: [notification, ...(user.notifications || [])] }
-      : user
-  ));
 };

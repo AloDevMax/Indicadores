@@ -2,12 +2,11 @@ import crypto from 'node:crypto';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from '../auth/crypto.mjs';
 import { publicUser } from '../auth/repository.mjs';
-import { seedData } from '../data/seed.mjs';
+import { DEMO_DATA } from '../db/seed.mjs';
 
 /**
- * Database counterpart of the old upsertMemoryUser test helper: same input
- * (password or password_hash, optional id) and the same sanitized return
- * shape, but the user is written to the test database.
+ * Creates (or updates, by id) a user in the test database. Takes a raw
+ * password or a password_hash and returns the sanitized public user.
  */
 export const createTestUser = async ({ password, password_hash: passwordHash, ...user }) => {
   const data = {
@@ -26,18 +25,9 @@ export const createTestUser = async ({ password, password_hash: passwordHash, ..
   return publicUser(created);
 };
 
-/** The reference data the in-memory store used to start with. */
+/** The reference data the app used to start with (now the seed demo data). */
 export const seedReferenceData = async () => {
-  await prisma.productiveUnit.createMany({ data: seedData.productiveUnits });
-  await prisma.badge.createMany({ data: seedData.badges });
-  await prisma.importSource.createMany({
-    data: seedData.importSources.map(({ columns, ...source }) => ({
-      ...source,
-      productive_unit_column: columns.productive_unit,
-      user_column: columns.user,
-      badge_column: columns.badge,
-      tone_column: columns.tone,
-      award_column: columns.award,
-    })),
-  });
+  await prisma.productiveUnit.createMany({ data: DEMO_DATA.productiveUnits });
+  await prisma.badge.createMany({ data: DEMO_DATA.badges });
+  await prisma.importSource.createMany({ data: DEMO_DATA.importSources });
 };

@@ -5,10 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
-import { ensureBuiltInDeveloper, listUsers } from './auth/repository.mjs';
+import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
@@ -58,9 +57,9 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
 
 /**
  * Monta o aplicativo Express completo (middlewares + rotas), sem efeitos
- * colaterais de inicialização: não checa conexão com o banco, não semeia a
- * conta developer e não abre porta. Isso fica no bloco de execução direta no
- * final do arquivo, para que os testes possam importar e montar o app sozinhos.
+ * colaterais de inicialização: não conecta ao banco e não abre porta. Isso
+ * fica no bloco de execução direta no final do arquivo, para que os testes
+ * possam importar e montar o app sozinhos.
  */
 export function createApp() {
   const app = express();
@@ -412,54 +411,26 @@ export function createApp() {
   return app;
 }
 
-const checkConnectionWithRetry = async (maxAttempts = 3) => {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    console.log(`Tentativa ${attempt}/${maxAttempts}...`);
-    const connected = await checkDatabaseConnection(false);
-    if (connected) return true;
-
-    if (attempt < maxAttempts) {
-      console.log(`Aguardando 2 segundos antes de próxima tentativa...\n`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
-  return false;
-};
-
 const startServer = async () => {
-  // Verificar conexão com banco de dados na inicialização
-  console.log('\n========================================');
-  console.log('Verificando conexão com o banco de dados...');
-  console.log('========================================\n');
-
-  const dbConnected = await checkConnectionWithRetry(3);
-
-  if (!dbConnected) {
-    console.error('\n[AVISO CRÍTICO] A aplicação está usando FALLBACK EM MEMÓRIA');
-    console.error('Dados adicionados ao site NÃO serão persistidos após reiniciar!\n');
-    if (env.NODE_ENV === 'production') {
-      console.error('[PRODUÇÃO] Verifique: DATABASE_URL, módulo pg instalado, PostgreSQL acessível');
-    }
-  }
-
-  // Garantir conta developer uma vez na inicialização
-  ensureBuiltInDeveloper().catch(err =>
-    console.error('[STARTUP] ensureBuiltInDeveloper falhou:', err.message),
-  );
-
-  console.log('Caminho atual (CWD):', process.cwd());
   try {
-    const distContent = fs.readdirSync(path.resolve(process.cwd(), 'dist'), { recursive: true });
-    console.log('Arquivos encontrados na dist:', distContent.length, 'arquivos');
-  } catch (e) {
-    console.log('Erro ao ler a pasta dist:', e.message);
+    await prisma.$connect();
+  } catch (error) {
+    console.error('[STARTUP] Não foi possível conectar ao banco de dados:', error.message);
+    process.exit(1);
   }
 
   const server = http.createServer(createApp());
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`Servidor pronto na porta ${port}`);
-    console.log(`Buscando arquivos do site em: ${frontendPath}`);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('[SHUTDOWN] SIGTERM recebido, encerrando...');
+    server.close(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
   });
 
   return server;
