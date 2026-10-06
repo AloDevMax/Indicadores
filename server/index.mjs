@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
+import { env } from './config/env.mjs';
 import { createPgClient } from './db/client.mjs';
 import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
@@ -16,7 +17,7 @@ import { memoryStore } from './data/memoryStore.mjs';
 import { listBadges, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
 
 
-const port = Number(process.env.PORT || 4004);
+const port = env.PORT;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -92,9 +93,7 @@ export function createApp() {
 
   app.use(express.json());
 
-  const allowedOrigins = new Set(
-    (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim()),
-  );
+  const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
 
   app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -475,7 +474,7 @@ const startServer = async () => {
   if (!dbConnected) {
     console.error('\n[AVISO CRÍTICO] A aplicação está usando FALLBACK EM MEMÓRIA');
     console.error('Dados adicionados ao site NÃO serão persistidos após reiniciar!\n');
-    if (process.env.NODE_ENV === 'production') {
+    if (env.NODE_ENV === 'production') {
       console.error('[PRODUÇÃO] Verifique: DATABASE_URL, módulo pg instalado, PostgreSQL acessível');
     }
   }

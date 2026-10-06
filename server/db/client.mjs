@@ -1,3 +1,5 @@
+import { env } from '../config/env.mjs';
+
 // Importação estática para garantir que erro aparece se pg não estiver disponível
 let PgClient = null;
 
@@ -12,7 +14,7 @@ try {
 }
 
 export const createPgClient = async () => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = env.DATABASE_URL;
   
   if (!databaseUrl) {
     console.warn('[DATABASE] DATABASE_URL não definida - usando fallback em memória');
@@ -28,7 +30,7 @@ export const createPgClient = async () => {
   try {
     const client = new PgClient({
       connectionString: databaseUrl,
-      ssl: process.env.DATABASE_SSL === 'false' ? false : { rejectUnauthorized: false },
+      ssl: env.DATABASE_SSL ? { rejectUnauthorized: false } : false,
       // Adiciona timeout para evitar travamentos
       statement_timeout: 30000,
       idle_in_transaction_session_timeout: 30000,
