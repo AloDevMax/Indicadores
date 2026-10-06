@@ -54,7 +54,7 @@ export default defineConfig({
           exclude: [...LEGACY_MEMORY_TESTS, 'node_modules', 'dist', 'e2e'],
           fileParallelism: false,
           globalSetup: ['./server/test/globalSetup.mjs'],
-          env: { DATABASE_URL: TEST_DATABASE_URL, DIRECT_URL: TEST_DATABASE_URL, DATABASE_SSL: 'false' },
+          env: { DATABASE_URL: TEST_DATABASE_URL, DIRECT_URL: TEST_DATABASE_URL, DATABASE_SSL: 'false', TZ: 'UTC' },
         },
       },
       {
@@ -63,7 +63,7 @@ export default defineConfig({
           name: 'server-legacy',
           environment: 'node',
           include: LEGACY_MEMORY_TESTS,
-          env: { DATABASE_URL: UNREACHABLE_DATABASE_URL, DATABASE_SSL: 'false' },
+          env: { DATABASE_URL: UNREACHABLE_DATABASE_URL, DATABASE_SSL: 'false', TZ: 'UTC' },
         },
       },
     ],
