@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import crypto from 'node:crypto';
 import {
   saveBadge,
@@ -10,9 +10,15 @@ import {
   deleteUser,
   saveImportSource,
   bulkInviteUsers,
-  memoryAdminStore,
 } from './repository.mjs';
 import { findUserByEmail } from '../auth/repository.mjs';
+import { prisma } from '../shared/db/prisma.mjs';
+import { resetDatabase } from '../test/db.mjs';
+
+beforeAll(async () => {
+  await resetDatabase();
+  await prisma.productiveUnit.create({ data: { id: 'pu1', name: 'Fábrica Campinas' } });
+});
 
 vi.mock('../uploads/uploadService.mjs', () => ({
   deleteUploadedFile: vi.fn().mockResolvedValue(undefined),
@@ -23,7 +29,7 @@ describe('saveBadge', () => {
     const badge = await saveBadge({ name: 'Novo Selo', description: 'd', category: 'Qualidade', icon_name: '⭐', points: 5 });
 
     expect(badge.id).toBeTruthy();
-    expect(memoryAdminStore.badges.some((b) => b.id === badge.id)).toBe(true);
+    expect(await prisma.badge.findUnique({ where: { id: badge.id } })).toMatchObject({ name: 'Novo Selo', points: 5 });
   });
 
   it('updates an existing badge in place when the id matches', async () => {
@@ -32,8 +38,8 @@ describe('saveBadge', () => {
     const updated = await saveBadge({ ...created, name: 'Atualizado', points: 10 });
 
     expect(updated.id).toBe(created.id);
-    expect(memoryAdminStore.badges.filter((b) => b.id === created.id)).toHaveLength(1);
-    expect(memoryAdminStore.badges.find((b) => b.id === created.id).name).toBe('Atualizado');
+    expect(await prisma.badge.count({ where: { id: created.id } })).toBe(1);
+    expect((await prisma.badge.findUnique({ where: { id: created.id } })).name).toBe('Atualizado');
   });
 });
 
@@ -44,7 +50,7 @@ describe('deleteBadge', () => {
     const result = await deleteBadge(badge.id);
 
     expect(result).toEqual({ success: true });
-    expect(memoryAdminStore.badges.some((b) => b.id === badge.id)).toBe(false);
+    expect(await prisma.badge.findUnique({ where: { id: badge.id } })).toBeNull();
   });
 });
 
@@ -52,13 +58,13 @@ describe('saveProductiveUnit', () => {
   it('creates a productive unit with a generated id', async () => {
     const unit = await saveProductiveUnit({ name: 'Unidade Teste' });
     expect(unit.id).toBeTruthy();
-    expect(memoryAdminStore.productiveUnits.some((u) => u.id === unit.id)).toBe(true);
+    expect(await prisma.productiveUnit.findUnique({ where: { id: unit.id } })).toMatchObject({ name: 'Unidade Teste' });
   });
 });
 
 describe('updateUserProfile', () => {
   it('throws when the user does not exist', async () => {
-    await expect(updateUserProfile('missing-user', { full_name: 'X' }))
+    await expect(updateUserProfile(crypto.randomUUID(), { full_name: 'X' }))
       .rejects.toThrow('Usuário não encontrado.');
   });
 

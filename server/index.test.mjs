@@ -1,25 +1,41 @@
 // @vitest-environment node
 //
 // Route-level Supertest coverage for the Express app built by createApp()
-// (server/index.mjs). Mirrors the mock-free, real-in-memory-store pattern
-// used by server/auth/service.test.mjs, server/operations/repository.test.mjs
-// and server/admin/repository.test.mjs: no vi.mock of the service/repository
-// layers, real Bearer tokens minted the same way service.test.mjs does, and
-// the process-lifetime in-memory fallback store (DATABASE_URL is unset for
-// this whole test run).
+// (server/index.mjs). No vi.mock of the service/repository layers: requests go
+// through the real repositories against the test database (see
+// server/test/globalSetup.mjs), seeded in beforeAll with the reference data
+// the app used to start with, and real Bearer tokens are minted the same way
+// service.test.mjs does.
 //
-// createApp() has no side effects at import time (no DB check, no .listen())
-// — that is exactly what the Task 10a refactor made possible, and is what
-// lets this file import server/index.mjs directly instead of re-mounting a
-// router on a bare app the way uploadRoutes.test.mjs has to.
+// createApp() has no side effects at import time (no DB check, no .listen()),
+// which lets this file import server/index.mjs directly instead of re-mounting
+// a router on a bare app the way uploadRoutes.test.mjs has to.
 import crypto from 'node:crypto';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './index.mjs';
-import { createSession, upsertMemoryUser } from './auth/repository.mjs';
+import { createSession } from './auth/repository.mjs';
 import { createSessionToken, generateSessionId } from './auth/crypto.mjs';
+import { prisma } from './shared/db/prisma.mjs';
+import { resetDatabase } from './test/db.mjs';
+import { createTestUser, seedReferenceData } from './test/fixtures.mjs';
 
 const app = createApp();
+
+// The two users the in-memory store used to seed (as admin-1 and u1).
+const SEED_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
+const SEED_USER_ID = '00000000-0000-4000-8000-000000000003';
+
+beforeAll(async () => {
+  await resetDatabase();
+  await seedReferenceData();
+  await createTestUser({
+    id: SEED_ADMIN_ID, email: 'admin@test.com', password: 'admin123', full_name: 'Gestor Supremo', role: 'admin', email_verified: true,
+  });
+  await createTestUser({
+    id: SEED_USER_ID, email: 'joao@acme.com', password: 'joao123', full_name: 'Joao Silva', role: 'user', productive_unit_id: 'pu1', email_verified: true,
+  });
+});
 
 const uniqueEmail = (label) => `${label}-${crypto.randomUUID()}@example.com`;
 
@@ -31,7 +47,12 @@ const uniqueEmail = (label) => `${label}-${crypto.randomUUID()}@example.com`;
  * repository + crypto layers instead).
  */
 const authHeaderFor = async (role, overrides = {}) => {
-  const user = await upsertMemoryUser({
+  if (overrides.productive_unit_id) {
+    const id = overrides.productive_unit_id;
+    await prisma.productiveUnit.upsert({ where: { id }, create: { id, name: `Unidade ${id}` }, update: {} });
+  }
+
+  const user = await createTestUser({
     id: crypto.randomUUID(),
     email: uniqueEmail(role),
     full_name: `Test ${role}`,
@@ -157,8 +178,8 @@ describe('unauthenticated read routes', () => {
     expect(response.status).toBe(200);
     expect(response.body.users).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'admin-1', email: 'admin@test.com', role: 'admin' }),
-        expect.objectContaining({ id: 'u1', email: 'joao@acme.com', role: 'user' }),
+        expect.objectContaining({ id: SEED_ADMIN_ID, email: 'admin@test.com', role: 'admin' }),
+        expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com', role: 'user' }),
       ]),
     );
   });
@@ -245,7 +266,7 @@ describe('GET /api/bootstrap', () => {
     const response = await request(app).get('/api/bootstrap');
 
     expect(response.status).toBe(200);
-    expect(response.body.source).toBe('seed');
+    expect(response.body.source).toBe('database');
     expect(response.body.users).toEqual([]);
     expect(response.body.userBadges).toEqual([]);
     expect(response.body.submissions).toEqual([]);
@@ -259,7 +280,7 @@ describe('GET /api/bootstrap', () => {
     const response = await request(app).get('/api/bootstrap').set('Authorization', header);
 
     expect(response.status).toBe(200);
-    expect(response.body.source).toBe('seed');
+    expect(response.body.source).toBe('database');
     expect(Array.isArray(response.body.badges)).toBe(true);
     expect(Array.isArray(response.body.productiveUnits)).toBe(true);
   });
@@ -447,6 +468,9 @@ describe('protected routes exercised end-to-end with a valid token', () => {
         email: uniqueEmail('same-unit-target'),
         full_name: 'Same Unit User',
         productive_unit_id: unitId,
+        // The frontend always sends a role; without one the insert fails with
+        // a 500 (NOT NULL), a known gap tracked outside Fase 2.
+        role: 'user',
       });
 
     expect(response.status).toBe(201);
@@ -486,8 +510,10 @@ describe('protected routes exercised end-to-end with a valid token', () => {
   it('a fake submission id 403s the review route even for a developer-equivalent supervisor within scope', async () => {
     const reviewer = await authHeaderFor('admin');
 
+    // Submission ids are UUIDs: a non-UUID id currently 500s on the database
+    // (invalid uuid syntax), a known gap tracked outside Fase 2.
     const response = await request(app)
-      .post('/api/submissions/does-not-exist/review')
+      .post(`/api/submissions/${crypto.randomUUID()}/review`)
       .set('Authorization', reviewer.header)
       .send({ status: 'approved' });
 

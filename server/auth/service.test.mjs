@@ -1,11 +1,17 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { registerUser, loginUser, getAuthenticatedUser, logoutUser } from './service.mjs';
-import { createSession, upsertMemoryUser } from './repository.mjs';
+import { createSession } from './repository.mjs';
 import { createSessionToken, generateSessionId, hashPassword } from './crypto.mjs';
+import { resetDatabase } from '../test/db.mjs';
+import { createTestUser } from '../test/fixtures.mjs';
 
 const uniqueEmail = () => `user-${crypto.randomUUID()}@example.com`;
+
+beforeAll(async () => {
+  await resetDatabase();
+});
 
 describe('registerUser', () => {
   it('returns 400 for an invalid email', async () => {
@@ -65,7 +71,7 @@ describe('loginUser', () => {
   it('returns 403 when the user is inactive', async () => {
     const email = uniqueEmail();
     const passwordHash = await hashPassword('correct-password');
-    await upsertMemoryUser({
+    await createTestUser({
       id: crypto.randomUUID(),
       email,
       password_hash: passwordHash,
@@ -116,9 +122,12 @@ describe('getAuthenticatedUser', () => {
   });
 
   it('returns 404 when the session is valid but the user no longer exists', async () => {
+    // The session belongs to a real user (the foreign key requires it), but
+    // the token names a user id that does not exist.
+    const owner = await createTestUser({ email: uniqueEmail(), full_name: 'Session Owner', role: 'user' });
     const sessionId = generateSessionId();
     const userId = crypto.randomUUID();
-    await createSession({ sessionId, userId, expiresAt: Date.now() + 60_000 });
+    await createSession({ sessionId, userId: owner.id, expiresAt: Date.now() + 60_000 });
     const token = createSessionToken({ sessionId, userId, role: 'user' });
 
     const result = await getAuthenticatedUser(`Bearer ${token}`);

@@ -6,19 +6,8 @@ import { TEST_DATABASE_URL } from './server/test/globalSetup.mjs';
 
 // Two projects: the frontend runs in jsdom, in parallel; the backend runs in
 // node against a dedicated Postgres database (see server/test/globalSetup.mjs),
-// one file at a time because that database is shared.
-
-// Temporary (Fase 2): these files still build their fixtures through the
-// in-memory fallback store. They run against an unreachable database so the
-// pg repositories fall back to memory, exactly as before. Each file leaves this
-// list when its repository moves to Prisma; the list is gone by the end of Fase 2.
-const LEGACY_MEMORY_TESTS = [
-  'server/index.test.mjs',
-  'server/auth/service.test.mjs',
-  'server/admin/repository.test.mjs',
-  'server/operations/repository.test.mjs',
-];
-const UNREACHABLE_DATABASE_URL = 'postgresql://legacy:legacy@127.0.0.1:1/memory_fallback';
+// one file at a time because that database is shared. TZ=UTC matches the
+// production container (timestamp columns have no time zone).
 
 export default defineConfig({
   plugins: [react()],
@@ -51,19 +40,9 @@ export default defineConfig({
           name: 'server',
           environment: 'node',
           include: ['server/**/*.test.mjs', 'scripts/**/*.test.mjs'],
-          exclude: [...LEGACY_MEMORY_TESTS, 'node_modules', 'dist', 'e2e'],
           fileParallelism: false,
           globalSetup: ['./server/test/globalSetup.mjs'],
           env: { DATABASE_URL: TEST_DATABASE_URL, DIRECT_URL: TEST_DATABASE_URL, DATABASE_SSL: 'false', TZ: 'UTC' },
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: 'server-legacy',
-          environment: 'node',
-          include: LEGACY_MEMORY_TESTS,
-          env: { DATABASE_URL: UNREACHABLE_DATABASE_URL, DATABASE_SSL: 'false', TZ: 'UTC' },
         },
       },
     ],
