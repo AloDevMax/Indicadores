@@ -17,13 +17,13 @@ npm run dev:client        # Frontend only (Vite, port 3000)
 npm run dev:server        # Backend only (port 4004) — requires prior build
 
 # Build & production
-npm run build             # install → db:diagnose → db:push → prisma generate → vite build → tsc
+npm run build             # prisma generate → vite build → tsc
 npm start                 # Production Express server
 
 # Database
 npm run db:push           # Sync Prisma schema to PostgreSQL
-npm run db:check          # Verify DB connection
-npm run db:diagnose       # Diagnose DB/module issues
+npm run db:check          # Verify DB connection (version + tables)
+npm run db:seed:badges    # Seed indicator badges (requires prior build)
 
 # Code quality
 npm run lint              # ESLint
@@ -57,7 +57,7 @@ See `vitest.config.ts` / `playwright.config.ts` for setup, and the existing `*.t
 | Database | PostgreSQL + Prisma 6 ORM |
 | Validation | Zod |
 | Testing | Vitest + React Testing Library (unit/component/integration), Playwright (E2E) |
-| Deploy | Render.com (`render.yaml`), Docker available |
+| Deploy | VPS via Docker Compose (GitHub Actions → SSH) |
 
 ## Architecture
 
@@ -129,7 +129,7 @@ server/
 
 ## Troubleshooting
 
-- [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing the in-memory fallback in production and fixing `DATABASE_URL` issues on Render
+- [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing database connection issues in production
 
 ## Specs & Plans
 
