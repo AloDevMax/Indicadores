@@ -144,11 +144,7 @@ describe('persistImportRun', () => {
       .rejects.toThrow('Apenas administradores e supervisores podem processar importações.');
   });
 
-  // Skipped until Fase 2 Task 7: the pg insert into import_run_rows omits id,
-  // and its uuid default exists only in Prisma, so every run with rows fails
-  // with a NOT NULL violation (no page calls this route today). Moving the
-  // insert to Prisma, which fills the default, makes this pass.
-  it.skip('records the run summary and awards badges for valid rows only', async () => {
+  it('records the run summary and awards badges for valid rows only', async () => {
     const reviewer = await makeUser({ role: 'admin' });
     const badge = await makeBadge();
     const validUser = await makeUser();

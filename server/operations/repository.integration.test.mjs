@@ -272,8 +272,7 @@ describe('persistImportRun', () => {
     });
   });
 
-  // Fails on the pg implementation: its import_run_rows insert omits id (NOT NULL).
-  it.skip('records every row and awards valid rows, replacing this month award', async () => {
+  it('records every row and awards valid rows, replacing this month award', async () => {
     await prisma.importSource.create({ data: SOURCE });
     await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'bronze' } });
 
