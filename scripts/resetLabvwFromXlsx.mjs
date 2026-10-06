@@ -1,6 +1,4 @@
 import crypto from 'node:crypto';
-import { config } from 'dotenv';
-config();
 import { createPgClient } from '../dist/server/db/client.mjs';
 
 const hashPassword = async (password) => {
