@@ -75,12 +75,8 @@ The application includes error boundaries and graceful fallbacks for better deve
 
 ## PostgreSQL
 
-The initial schema is in [`server/db/schema.sql`](server/db/schema.sql).
+The schema lives in [`prisma/schema.prisma`](prisma/schema.prisma) (migrations in `prisma/migrations/`).
 
-Recommended next step:
-
-1. Create the PostgreSQL instance on Render
-2. Run the schema
-3. Set `DATABASE_URL` in the API service
-4. Set `AUTH_SECRET` in the API service
-5. Set `VITE_API_BASE_URL` in the frontend service
+- Local database and production stack: see [`docs/docker.md`](docs/docker.md)
+- Check the connection: `npm run db:check`
+- Required in production (see `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD` — the server refuses to start without them

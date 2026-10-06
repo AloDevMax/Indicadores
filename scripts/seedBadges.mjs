@@ -1,5 +1,3 @@
-import { config } from 'dotenv';
-config();
 import { seedIndicatorBadges } from '../dist/server/admin/repository.mjs';
 
 const results = await seedIndicatorBadges();

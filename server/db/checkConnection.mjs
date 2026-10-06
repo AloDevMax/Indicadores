@@ -1,7 +1,8 @@
+import { env } from '../config/env.mjs';
 import { createPgClient } from './client.mjs';
 
 export const checkDatabaseConnection = async (exitOnFailure = false) => {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = env.DATABASE_URL;
   
   if (!databaseUrl) {
     console.error('❌ [DATABASE] DATABASE_URL não está definida');
@@ -30,11 +31,3 @@ export const checkDatabaseConnection = async (exitOnFailure = false) => {
     return false;
   }
 };
-
-// Execute se rodado diretamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  checkDatabaseConnection(true).catch(err => {
-    console.error('Erro crítico:', err);
-    process.exit(1);
-  });
-}

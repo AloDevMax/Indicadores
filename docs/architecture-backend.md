@@ -67,4 +67,4 @@ For the full inventory and request/response shapes, see `docs/architecture-api-r
 
 ## Memory fallback
 
-When `createPgClient()` returns `null` (no `pg`, no `DATABASE_URL`, or connection refused), repository functions read/write `server/data/memoryStore.mjs` instead. This keeps the app usable for local development without Postgres, but **data does not persist across restarts** — the startup banner shouts about this, and `/api/health` reports `database.connected = false`. See `docs/DATABASE_PERSISTENCE.md` for the production gotcha on Render.
+When `createPgClient()` returns `null` (no `pg`, no `DATABASE_URL`, or connection refused), repository functions read/write `server/data/memoryStore.mjs` instead. This keeps the app usable for local development without Postgres, but **data does not persist across restarts** — the startup banner shouts about this, and `/api/health` reports `database.connected = false`. See `docs/DATABASE_PERSISTENCE.md` for production troubleshooting.
