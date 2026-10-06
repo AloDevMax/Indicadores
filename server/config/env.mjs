@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-// Defaults só valem fora de produção; em produção as variáveis são obrigatórias.
+// DATABASE_URL é sempre obrigatória. Os demais defaults só valem fora de produção.
 const DEV_AUTH_SECRET = 'dev-only-auth-secret-change-me';
 const DEV_DEVELOPER_PASSWORD = '2665398';
-const PRODUCTION_REQUIRED = ['DATABASE_URL', 'AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'];
+const PRODUCTION_REQUIRED = ['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'];
 
 const optionalString = z.preprocess(
   (value) => (value === '' ? undefined : value),
@@ -14,7 +14,10 @@ const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().positive().default(4004),
-    DATABASE_URL: optionalString,
+    DATABASE_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string({ required_error: 'obrigatória' }),
+    ),
     DATABASE_SSL: optionalString.transform((value) => value !== 'false'),
     AUTH_SECRET: optionalString,
     DEVELOPER_INITIAL_PASSWORD: optionalString,

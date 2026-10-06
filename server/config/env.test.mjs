@@ -2,6 +2,8 @@
 import { describe, it, expect } from 'vitest';
 import { parseEnv } from './env.mjs';
 
+const DEV_BASE = { DATABASE_URL: 'postgresql://u:p@localhost:5432/labquest' };
+
 const PROD_BASE = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://u:p@db:5432/labquest',
@@ -10,11 +12,15 @@ const PROD_BASE = {
 };
 
 describe('parseEnv', () => {
-  it('aplica os defaults de desenvolvimento quando nada é definido', () => {
-    const env = parseEnv({});
+  it('falha sem DATABASE_URL, em qualquer ambiente', () => {
+    expect(() => parseEnv({})).toThrow('DATABASE_URL: obrigatória');
+  });
+
+  it('aplica os defaults de desenvolvimento quando só DATABASE_URL é definida', () => {
+    const env = parseEnv(DEV_BASE);
     expect(env.NODE_ENV).toBe('development');
     expect(env.PORT).toBe(4004);
-    expect(env.DATABASE_URL).toBeUndefined();
+    expect(env.DATABASE_URL).toBe('postgresql://u:p@localhost:5432/labquest');
     expect(env.DATABASE_SSL).toBe(true);
     expect(env.ALLOWED_ORIGINS).toEqual(['http://localhost:3000']);
     expect(env.AUTH_SECRET).toBe('dev-only-auth-secret-change-me');
@@ -22,19 +28,19 @@ describe('parseEnv', () => {
   });
 
   it('converte PORT para número e separa ALLOWED_ORIGINS por vírgula', () => {
-    const env = parseEnv({ PORT: '8080', ALLOWED_ORIGINS: 'https://a.com, https://b.com ,' });
+    const env = parseEnv({ ...DEV_BASE, PORT: '8080', ALLOWED_ORIGINS: 'https://a.com, https://b.com ,' });
     expect(env.PORT).toBe(8080);
     expect(env.ALLOWED_ORIGINS).toEqual(['https://a.com', 'https://b.com']);
   });
 
   it('mantém a semântica atual de DATABASE_SSL: só "false" desliga', () => {
-    expect(parseEnv({ DATABASE_SSL: 'false' }).DATABASE_SSL).toBe(false);
-    expect(parseEnv({ DATABASE_SSL: 'true' }).DATABASE_SSL).toBe(true);
-    expect(parseEnv({ DATABASE_SSL: 'qualquer' }).DATABASE_SSL).toBe(true);
+    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'false' }).DATABASE_SSL).toBe(false);
+    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'true' }).DATABASE_SSL).toBe(true);
+    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'qualquer' }).DATABASE_SSL).toBe(true);
   });
 
   it('trata string vazia como variável ausente', () => {
-    expect(parseEnv({ DATABASE_URL: '' }).DATABASE_URL).toBeUndefined();
+    expect(() => parseEnv({ DATABASE_URL: '' })).toThrow('DATABASE_URL: obrigatória');
   });
 
   it('aceita uma configuração de produção completa sem aplicar defaults de dev', () => {
@@ -43,7 +49,7 @@ describe('parseEnv', () => {
     expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte');
   });
 
-  it.each(['DATABASE_URL', 'AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'])(
+  it.each(['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'])(
     'falha em produção quando %s está ausente',
     (key) => {
       const source = { ...PROD_BASE, [key]: undefined };
@@ -52,14 +58,14 @@ describe('parseEnv', () => {
   );
 
   it('rejeita PORT inválida com mensagem nomeando a variável', () => {
-    expect(() => parseEnv({ PORT: 'abc' })).toThrow(/Variáveis de ambiente inválidas:[\s\S]*PORT/);
+    expect(() => parseEnv({ ...DEV_BASE, PORT: 'abc' })).toThrow(/Variáveis de ambiente inválidas:[\s\S]*PORT/);
   });
 
   it('rejeita NODE_ENV desconhecido', () => {
-    expect(() => parseEnv({ NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
+    expect(() => parseEnv({ ...DEV_BASE, NODE_ENV: 'staging' })).toThrow(/NODE_ENV/);
   });
 
   it('retorna um objeto congelado', () => {
-    expect(Object.isFrozen(parseEnv({}))).toBe(true);
+    expect(Object.isFrozen(parseEnv(DEV_BASE))).toBe(true);
   });
 });
