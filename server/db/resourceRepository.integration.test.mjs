@@ -6,6 +6,7 @@ import {
   getBadgeLegends,
   listBadges,
   listImportSources,
+  listProductiveUnits,
   listSubmissions,
   listUserBadges,
   listUsers,
@@ -169,5 +170,13 @@ describe('listImportSources', () => {
         badge_column: 'Selo', tone_column: 'marcacao', award_column: 'premio',
       },
     ]);
+  });
+});
+
+describe('listProductiveUnits', () => {
+  it('lists units by name with id and name only', async () => {
+    await prisma.productiveUnit.create({ data: { id: 'pu0', name: 'Alfa' } });
+
+    expect(await listProductiveUnits()).toEqual([{ id: 'pu0', name: 'Alfa' }, { id: 'pu1', name: 'Unidade 1' }]);
   });
 });

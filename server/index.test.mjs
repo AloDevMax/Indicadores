@@ -12,7 +12,7 @@
 // a router on a bare app the way uploadRoutes.test.mjs has to.
 import crypto from 'node:crypto';
 import request from 'supertest';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from './index.mjs';
 import { createSession } from './auth/repository.mjs';
 import { createSessionToken, generateSessionId } from './auth/crypto.mjs';
@@ -250,14 +250,21 @@ describe('unauthenticated read routes', () => {
 });
 
 describe('GET /api/health', () => {
-  it('returns { status: "ok" } when DATABASE_URL is unset (createPgClient() resolves null)', async () => {
-    // Verified against server/db/client.mjs: with no DATABASE_URL,
-    // createPgClient() returns null before ever attempting a connection, so
-    // the route's try block short-circuits straight to the "ok" response.
+  it('returns 200 { status: "ok" } when the database answers', async () => {
     const response = await request(app).get('/api/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
+  });
+
+  it('returns 503 { status: "unavailable" } when the database query fails', async () => {
+    const spy = vi.spyOn(prisma, '$queryRaw').mockRejectedValueOnce(new Error('down'));
+
+    const response = await request(app).get('/api/health');
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({ status: 'unavailable' });
+    spy.mockRestore();
   });
 });
 

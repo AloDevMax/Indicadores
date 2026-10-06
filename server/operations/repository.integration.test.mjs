@@ -5,6 +5,7 @@ import { resetDatabase } from '../test/db.mjs';
 import {
   awardBadges,
   createSubmission,
+  findSubmissionOwnerUnit,
   importMonthlyBadges,
   persistImportRun,
   removeUserBadge,
@@ -330,5 +331,23 @@ describe('persistImportRun', () => {
     expect(await prisma.importRun.count()).toBe(0);
     expect(await prisma.importRunRow.count()).toBe(0);
     expect(await prisma.userBadge.count()).toBe(0);
+  });
+});
+
+describe('findSubmissionOwnerUnit', () => {
+  it("returns the submission owner's productive unit", async () => {
+    const { id } = await createSubmission({ userId: ANA_ID, badgeId: 'b1', description: 'x' });
+
+    expect(await findSubmissionOwnerUnit(id)).toEqual({ productive_unit_id: 'pu1' });
+  });
+
+  it('returns a null unit when the owner has none', async () => {
+    const { id } = await createSubmission({ userId: BIA_ID, badgeId: 'b1', description: 'x' });
+
+    expect(await findSubmissionOwnerUnit(id)).toEqual({ productive_unit_id: null });
+  });
+
+  it('returns null for an unknown submission', async () => {
+    expect(await findSubmissionOwnerUnit(crypto.randomUUID())).toBeNull();
   });
 });

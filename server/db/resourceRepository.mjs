@@ -17,6 +17,11 @@ export const listBadges = async () => prisma.badge.findMany({
   orderBy: { name: 'asc' },
 });
 
+export const listProductiveUnits = async () => prisma.productiveUnit.findMany({
+  select: { id: true, name: true },
+  orderBy: { name: 'asc' },
+});
+
 export const listUsers = async () => prisma.user.findMany({
   select: {
     id: true,

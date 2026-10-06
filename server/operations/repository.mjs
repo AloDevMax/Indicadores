@@ -100,6 +100,16 @@ const persistAwardNotifications = async (tx, { userIds, badgeName, tone }) => {
   }
 };
 
+// Unidade produtiva do dono da submissão, ou null se a submissão não existe.
+export const findSubmissionOwnerUnit = async (submissionId) => {
+  const submission = await prisma.badgeSubmission.findUnique({
+    where: { id: submissionId },
+    select: { user: { select: { productive_unit_id: true } } },
+  });
+
+  return submission ? { productive_unit_id: submission.user.productive_unit_id } : null;
+};
+
 export const createSubmission = async ({ userId, badgeId, description, proofUrl }) => {
   const user = await findUserById(userId);
   if (!user) {

@@ -5,16 +5,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { createPgClient } from './db/client.mjs';
 import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { ensureBuiltInDeveloper, listUsers } from './auth/repository.mjs';
-import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
-import { memoryStore } from './data/memoryStore.mjs';
-import { listBadges, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { prisma } from './shared/db/prisma.mjs';
 
 
 const port = env.PORT;
@@ -51,35 +50,10 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
 const ensureSubmissionWithinScope = async (user, submissionId) => {
   if (isDeveloper(user)) return true;
 
-  const client = await createPgClient();
+  const owner = await findSubmissionOwnerUnit(submissionId);
+  if (!owner) return false;
 
-  if (!client) {
-    const submission = memoryStore.submissions.find((entry) => entry.id === submissionId);
-    if (!submission) return false;
-
-    const users = await listUsers();
-    const submissionUser = users.find((entry) => entry.id === submission.user_id);
-    if (!submissionUser) return false;
-
-    return submissionUser.productive_unit_id === user.productive_unit_id;
-  }
-
-  try {
-    const result = await client.query(
-      `select u.productive_unit_id
-       from badge_submissions s
-       inner join users u on u.id = s.user_id
-       where s.id = $1
-       limit 1`,
-      [submissionId],
-    );
-
-    if (!result.rows[0]) return false;
-
-    return result.rows[0].productive_unit_id === user.productive_unit_id;
-  } finally {
-    await client.end();
-  }
+  return owner.productive_unit_id === user.productive_unit_id;
 };
 
 /**
@@ -151,14 +125,10 @@ export function createApp() {
 
   app.get('/api/health', asyncRoute(async (_req, res) => {
     try {
-      const client = await createPgClient();
-      if (client) {
-        await client.query('SELECT 1');
-        await client.end();
-      }
+      await prisma.$queryRaw`select 1`;
       res.json({ status: 'ok' });
     } catch {
-      res.json({ status: 'degraded' });
+      res.status(503).json({ status: 'unavailable' });
     }
   }));
 
@@ -392,15 +362,8 @@ export function createApp() {
   }));
 
   app.get('/api/productive-units', asyncRoute(async (_req, res) => {
-    const client = await createPgClient();
-
-    if (!client) {
-      return res.json({ productiveUnits: memoryAdminStore.productiveUnits });
-    }
-
-    const result = await client.query('select id, name from productive_units order by name asc');
-    await client.end();
-    res.json({ productiveUnits: result.rows });
+    const productiveUnits = await listProductiveUnits();
+    res.json({ productiveUnits });
   }));
 
   app.get('/api/badges', asyncRoute(async (_req, res) => {
