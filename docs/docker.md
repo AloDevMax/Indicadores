@@ -39,6 +39,10 @@ Com `STORAGE_DRIVER=local`, os uploads vão para `public/uploads/` e são servid
 Os testes de backend rodam contra um banco separado, `labquest_test`, no mesmo container. Crie-o uma vez com
 `npm run test:db:create`; o `npm run test:run` aplica as migrations nele automaticamente.
 
+Os testes E2E (Playwright) usam outro banco, `labquest_e2e`, também no mesmo container. Crie-o uma vez com
+`npm run test:e2e:db:create`. A cada `npm run test:e2e`, o backend iniciado pelo Playwright aplica as migrations e o
+seed `--demo` nele antes de subir. Para apontar para outro banco, defina `E2E_DATABASE_URL`.
+
 ## Comandos úteis
 
 ```bash

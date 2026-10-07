@@ -13,20 +13,19 @@ import * as XLSX from 'xlsx';
 // smaller pieces. These specs assert CURRENT behavior; if AdminPanel.tsx's
 // UI changes shape during the refactor, these tests are the tripwire.
 //
-// No live Postgres is required — the backend falls back to its in-memory
-// store on startup (see server/db/checkConnection.mjs), which pre-seeds a
-// built-in developer account (server/auth/repository.mjs) and a badge
-// catalog (server/data/seed.mjs) that these tests rely on directly instead
-// of creating their own fixtures.
+// Runs against the dedicated e2e database (see playwright.config.ts), which
+// the backend migrates and seeds with `--demo` on startup: the built-in
+// developer account plus the demo badge catalog (server/db/seed.mjs) that
+// these tests rely on directly instead of creating their own fixtures.
 
 const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
-// Mirrors server/auth/repository.mjs:18 — env var wins if set, otherwise the
-// same hardcoded fallback the backend itself uses in memory-fallback mode.
+// Mirrors server/config/env.mjs — env var wins if set, otherwise the same
+// dev-only default the seed uses outside production.
 // eslint-disable-next-line no-undef -- process.env is a Node global in a Playwright spec, not a browser one
 const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
 const TEST_PASSWORD = 'Senha123!';
 
-// Real badges pre-seeded in memory-fallback mode (server/data/seed.mjs) — used
+// Real badges from the demo seed (server/db/seed.mjs) — used
 // so tests don't need to create a badge before exercising submission/award
 // flows against a real one.
 const BADGE_PROCESSOS = 'Mestre de Processos';
@@ -66,7 +65,7 @@ async function logout(page) {
 
 /**
  * Registers a brand-new plain user through the UI (unique email per call so
- * repeat runs against the same long-lived in-memory backend don't collide —
+ * repeat runs against the same long-lived e2e database don't collide —
  * mirrors the crypto.randomUUID() discipline used in server/auth/service.test.mjs).
  *
  * NOTE on selectors: Register.tsx's inputs have <label> text but no

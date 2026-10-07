@@ -105,7 +105,7 @@ describe('listUserBadges', () => {
 });
 
 describe('listSubmissions', () => {
-  it('lists submissions newest first with the badge name', async () => {
+  it('lists submissions newest first with the badge and submitter names', async () => {
     const older = crypto.randomUUID();
     const newer = crypto.randomUUID();
     await prisma.badgeSubmission.createMany({
@@ -119,11 +119,11 @@ describe('listSubmissions', () => {
 
     expect(submissions).toEqual([
       {
-        id: newer, user_id: BIA_ID, badge_id: 'b2', badge_name: 'Zelo', description: null, status: 'approved',
+        id: newer, user_id: BIA_ID, user_name: 'Bia', badge_id: 'b2', badge_name: 'Zelo', description: null, status: 'approved',
         submitted_at: expect.any(Date), proof_url: null,
       },
       {
-        id: older, user_id: ANA_ID, badge_id: 'b1', badge_name: 'Agilidade', description: 'evidência', status: 'pending',
+        id: older, user_id: ANA_ID, user_name: 'Ana', badge_id: 'b1', badge_name: 'Agilidade', description: 'evidência', status: 'pending',
         submitted_at: expect.any(Date), proof_url: '/uploads/p.pdf',
       },
     ]);

@@ -34,6 +34,7 @@ npm test                  # Vitest — unit/component/integration, watch mode
 npm run test:run          # Vitest — single run (CI)
 npm run test:coverage     # Vitest — single run with V8 coverage report
 npm run test:db:create    # Create the labquest_test database (once) in the docker-compose.dev.yml Postgres
+npm run test:e2e:db:create # Create the labquest_e2e database (once); E2E migrates and demo-seeds it on each run
 npm run test:e2e          # Playwright — end-to-end (spins up client :3000 + server :4004)
 npm run test:e2e:ui       # Playwright — E2E in interactive UI mode
 ```

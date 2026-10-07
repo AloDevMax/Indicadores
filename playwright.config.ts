@@ -3,6 +3,12 @@ import { defineConfig, devices } from '@playwright/test';
 // eslint-disable-next-line no-undef -- CI is a Node env var, not a browser global; see eslint.config.js
 const isCI = !!process.env.CI;
 
+// E2E runs against its own database so it never touches the dev data. The
+// backend entry migrates it and writes the demo seed (badges, units, import
+// source) before listening; specs rely on those demo badges.
+// eslint-disable-next-line no-undef -- process.env is a Node global; see eslint.config.js
+const E2E_DATABASE_URL = process.env.E2E_DATABASE_URL || 'postgresql://labquest:labquest@localhost:5432/labquest_e2e';
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -24,7 +30,8 @@ export default defineConfig({
   // at a backend that wasn't listening yet.
   webServer: [
     {
-      command: 'node --env-file=.env server/index.mjs',
+      command: 'npx prisma migrate deploy && node server/db/seed.mjs --demo && node server/index.mjs',
+      env: { DATABASE_URL: E2E_DATABASE_URL, DIRECT_URL: E2E_DATABASE_URL, STORAGE_DRIVER: 'local', PORT: '4004' },
       port: 4004,
       reuseExistingServer: !isCI,
       timeout: 120 * 1000,
