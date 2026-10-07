@@ -59,7 +59,7 @@ See `vitest.config.ts` / `playwright.config.ts` for setup, and the existing `*.t
 | Database | PostgreSQL + Prisma 6 ORM |
 | Validation | Zod |
 | Testing | Vitest + React Testing Library (unit/component/integration), Playwright (E2E) |
-| Deploy | VPS via Docker Compose (GitHub Actions → SSH) |
+| Deploy | Hostinger Business (Node.js via GitHub, branch `production`) + Supabase (Postgres and Storage) |
 
 ## Architecture
 
@@ -126,13 +126,14 @@ server/
 - [Excel Import System](docs/architecture-excel-import.md) — bulk badge assignment flow
 - [Key API Routes](docs/architecture-api-routes.md) — auth, submissions, admin endpoints
 
-## Docker
+## Deploy & local database
 
-- [Docker](docs/docker.md) — desenvolvimento local com banco em container, deploy na VPS com stack completo (app + postgres + nginx)
+- [Deploy](docs/deploy.md) — Hostinger Business + Supabase, env vars, `main` → CI (migrate) → `production` flow, rollback
+- [Banco local](docs/docker.md) — PostgreSQL de desenvolvimento e testes via `docker-compose.dev.yml`
 
 ## Troubleshooting
 
-- [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing database connection issues in production
+- [Database Persistence](docs/DATABASE_PERSISTENCE.md) — diagnosing database connection issues in production (Supabase pooler, `pgbouncer=true`, `connection_limit`)
 
 ## Specs & Plans
 

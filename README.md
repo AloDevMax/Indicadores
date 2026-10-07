@@ -91,6 +91,6 @@ The application includes error boundaries and graceful fallbacks for better deve
 
 The schema lives in [`prisma/schema.prisma`](prisma/schema.prisma) (migrations in `prisma/migrations/`).
 
-- Local database and production stack: see [`docs/docker.md`](docs/docker.md)
+- Local database: see [`docs/docker.md`](docs/docker.md). Production deploy: see [`docs/deploy.md`](docs/deploy.md)
 - Check the connection: `npm run db:check`
 - Required in production (see `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD` — the server refuses to start without them
