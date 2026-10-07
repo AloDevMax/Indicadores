@@ -21,7 +21,6 @@ describe('parseEnv', () => {
     expect(env.NODE_ENV).toBe('development');
     expect(env.PORT).toBe(4004);
     expect(env.DATABASE_URL).toBe('postgresql://u:p@localhost:5432/labquest');
-    expect(env.DATABASE_SSL).toBe(true);
     expect(env.ALLOWED_ORIGINS).toEqual(['http://localhost:3000']);
     expect(env.AUTH_SECRET).toBe('dev-only-auth-secret-change-me');
     expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('2665398');
@@ -33,10 +32,8 @@ describe('parseEnv', () => {
     expect(env.ALLOWED_ORIGINS).toEqual(['https://a.com', 'https://b.com']);
   });
 
-  it('mantém a semântica atual de DATABASE_SSL: só "false" desliga', () => {
-    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'false' }).DATABASE_SSL).toBe(false);
-    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'true' }).DATABASE_SSL).toBe(true);
-    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'qualquer' }).DATABASE_SSL).toBe(true);
+  it('não expõe DATABASE_SSL: o SSL do banco vem do sslmode da DATABASE_URL', () => {
+    expect(parseEnv({ ...DEV_BASE, DATABASE_SSL: 'false' })).not.toHaveProperty('DATABASE_SSL');
   });
 
   it('trata string vazia como variável ausente', () => {

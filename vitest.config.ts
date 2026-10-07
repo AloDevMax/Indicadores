@@ -42,7 +42,7 @@ export default defineConfig({
           include: ['server/**/*.test.mjs', 'scripts/**/*.test.mjs'],
           fileParallelism: false,
           globalSetup: ['./server/test/globalSetup.mjs'],
-          env: { DATABASE_URL: TEST_DATABASE_URL, DIRECT_URL: TEST_DATABASE_URL, DATABASE_SSL: 'false', TZ: 'UTC' },
+          env: { DATABASE_URL: TEST_DATABASE_URL, DIRECT_URL: TEST_DATABASE_URL, TZ: 'UTC' },
         },
       },
     ],

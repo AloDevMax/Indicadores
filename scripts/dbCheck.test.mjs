@@ -4,23 +4,24 @@ import { maskDatabaseUrl, runDbCheck } from './dbCheck.mjs';
 
 const makeFakeClient = ({ connectError, tables = ['users', 'badges'] } = {}) => {
   const instances = [];
-  class FakeClient {
-    constructor(config) {
-      this.config = config;
-      this.end = vi.fn().mockResolvedValue(undefined);
-      instances.push(this);
-    }
-    async connect() {
-      if (connectError) throw connectError;
-    }
-    async query(sql) {
-      if (sql.includes('information_schema')) {
-        return { rows: tables.map((table_name) => ({ table_name })) };
-      }
-      return { rows: [{ now: new Date('2026-10-06T12:00:00Z'), version: 'PostgreSQL 16.4, compiled by gcc' }] };
-    }
-  }
-  return { FakeClient, instances };
+  const createClient = (databaseUrl) => {
+    const client = {
+      databaseUrl,
+      $connect: vi.fn(async () => {
+        if (connectError) throw connectError;
+      }),
+      $queryRaw: vi.fn(async (strings) => {
+        if (strings.join('').includes('information_schema')) {
+          return tables.map((table_name) => ({ table_name }));
+        }
+        return [{ now: new Date('2026-10-06T12:00:00Z'), version: 'PostgreSQL 16.4, compiled by gcc' }];
+      }),
+      $disconnect: vi.fn().mockResolvedValue(undefined),
+    };
+    instances.push(client);
+    return client;
+  };
+  return { createClient, instances };
 };
 
 describe('maskDatabaseUrl', () => {
@@ -32,29 +33,24 @@ describe('maskDatabaseUrl', () => {
 
 describe('runDbCheck', () => {
   it('retorna falha sem tentar conectar quando DATABASE_URL está ausente', async () => {
-    const { FakeClient, instances } = makeFakeClient();
-    const result = await runDbCheck({ databaseUrl: undefined, ssl: true, Client: FakeClient });
+    const { createClient, instances } = makeFakeClient();
+    const result = await runDbCheck({ databaseUrl: undefined, createClient });
     expect(result).toEqual({ ok: false, error: 'DATABASE_URL não está definida' });
     expect(instances).toHaveLength(0);
   });
 
   it('retorna versão e tabelas e fecha a conexão em caso de sucesso', async () => {
-    const { FakeClient, instances } = makeFakeClient();
-    const result = await runDbCheck({ databaseUrl: 'postgresql://u:p@h:5432/d', ssl: false, Client: FakeClient });
+    const { createClient, instances } = makeFakeClient();
+    const result = await runDbCheck({ databaseUrl: 'postgresql://u:p@h:5432/d', createClient });
     expect(result).toEqual({ ok: true, version: 'PostgreSQL 16.4', tables: ['users', 'badges'] });
-    expect(instances[0].config).toMatchObject({ connectionString: 'postgresql://u:p@h:5432/d', ssl: false });
-    expect(instances[0].end).toHaveBeenCalledTimes(1);
+    expect(instances[0].databaseUrl).toBe('postgresql://u:p@h:5432/d');
+    expect(instances[0].$disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('passa ssl com rejectUnauthorized=false quando ssl está ligado', async () => {
-    const { FakeClient, instances } = makeFakeClient();
-    await runDbCheck({ databaseUrl: 'postgresql://u:p@h:5432/d', ssl: true, Client: FakeClient });
-    expect(instances[0].config.ssl).toEqual({ rejectUnauthorized: false });
-  });
-
-  it('retorna a mensagem de erro quando a conexão falha', async () => {
-    const { FakeClient } = makeFakeClient({ connectError: new Error('ECONNREFUSED') });
-    const result = await runDbCheck({ databaseUrl: 'postgresql://u:p@h:5432/d', ssl: true, Client: FakeClient });
+  it('retorna a mensagem de erro quando a conexão falha, e fecha o client', async () => {
+    const { createClient, instances } = makeFakeClient({ connectError: new Error('ECONNREFUSED') });
+    const result = await runDbCheck({ databaseUrl: 'postgresql://u:p@h:5432/d', createClient });
     expect(result).toEqual({ ok: false, error: 'ECONNREFUSED' });
+    expect(instances[0].$disconnect).toHaveBeenCalledTimes(1);
   });
 });

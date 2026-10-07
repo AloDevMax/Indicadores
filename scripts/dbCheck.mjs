@@ -4,31 +4,21 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CONNECT_TIMEOUT_MS = 5000;
-
 export const maskDatabaseUrl = (url) => url.replace(/:[^:@/]*@/, ':****@');
 
-export const runDbCheck = async ({ databaseUrl, ssl, Client }) => {
+// createClient(databaseUrl) devolve um client com a interface do PrismaClient
+// ($connect, $queryRaw, $disconnect); os testes injetam um fake.
+export const runDbCheck = async ({ databaseUrl, createClient }) => {
   if (!databaseUrl) return { ok: false, error: 'DATABASE_URL não está definida' };
 
-  const client = new Client({
-    connectionString: databaseUrl,
-    ssl: ssl ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
-  });
+  const client = createClient(databaseUrl);
 
   try {
-    await client.connect();
-  } catch (error) {
-    return { ok: false, error: error.message };
-  }
-
-  try {
-    const { rows: [info] } = await client.query('select now() as now, version() as version');
-    const { rows: tableRows } = await client.query(
-      `select table_name from information_schema.tables
-       where table_schema = 'public' order by table_name`,
-    );
+    await client.$connect();
+    const [info] = await client.$queryRaw`select now() as now, version() as version`;
+    const tableRows = await client.$queryRaw`
+      select table_name from information_schema.tables
+      where table_schema = 'public' order by table_name`;
     return {
       ok: true,
       version: info.version.split(',')[0],
@@ -37,20 +27,19 @@ export const runDbCheck = async ({ databaseUrl, ssl, Client }) => {
   } catch (error) {
     return { ok: false, error: error.message };
   } finally {
-    await client.end();
+    await client.$disconnect();
   }
 };
 
 const main = async () => {
-  const { Client } = await import('pg');
+  const { PrismaClient } = await import('@prisma/client');
   const databaseUrl = process.env.DATABASE_URL;
 
   if (databaseUrl) console.log(`Conectando em ${maskDatabaseUrl(databaseUrl)}...`);
 
   const result = await runDbCheck({
     databaseUrl,
-    ssl: process.env.DATABASE_SSL !== 'false',
-    Client,
+    createClient: (datasourceUrl) => new PrismaClient({ datasourceUrl }),
   });
 
   if (!result.ok) {

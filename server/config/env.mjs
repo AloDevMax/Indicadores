@@ -18,7 +18,6 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.string({ required_error: 'obrigatória' }),
     ),
-    DATABASE_SSL: optionalString.transform((value) => value !== 'false'),
     AUTH_SECRET: optionalString,
     DEVELOPER_INITIAL_PASSWORD: optionalString,
     ALLOWED_ORIGINS: z
