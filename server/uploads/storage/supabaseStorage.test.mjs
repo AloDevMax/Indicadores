@@ -10,6 +10,7 @@ const createFakeClient = ({ uploadError = null } = {}) => {
     upload: vi.fn(async () => (uploadError ? { data: null, error: uploadError } : { data: { path: 'a.png' }, error: null })),
     getPublicUrl: vi.fn((name) => ({ data: { publicUrl: `${SUPABASE_URL}/storage/v1/object/public/uploads/${name}` } })),
     remove: vi.fn(async () => ({ data: [], error: null })),
+    exists: vi.fn(async (name) => (name === 'existe.png' ? { data: true, error: null } : { data: false, error: { status: 404 } })),
   };
   return { bucket, client: { storage: { from: vi.fn(() => bucket) } } };
 };
@@ -57,5 +58,18 @@ describe('createSupabaseStorage', () => {
     const { bucket, storage } = build();
     await storage.remove(url);
     expect(bucket.remove).not.toHaveBeenCalled();
+  });
+
+  it('exists consulta o bucket e retorna true só quando o objeto existe', async () => {
+    const { bucket, storage } = build();
+    expect(await storage.exists('existe.png')).toBe(true);
+    expect(await storage.exists('nao.png')).toBe(false);
+    expect(bucket.exists).toHaveBeenCalledWith('existe.png');
+  });
+
+  it('urlFor retorna a URL pública do objeto sem enviar nada', () => {
+    const { bucket, storage } = build();
+    expect(storage.urlFor('a.png')).toBe(PUBLIC_URL);
+    expect(bucket.upload).not.toHaveBeenCalled();
   });
 });

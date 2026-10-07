@@ -3,8 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
   const publicPrefix = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/`;
   const objects = () => client.storage.from(bucket);
+  const urlFor = (name) => objects().getPublicUrl(name).data.publicUrl;
 
   return {
+    urlFor,
+
+    async exists(name) {
+      const { data } = await objects().exists(name);
+      return data === true;
+    },
+
     async put(name, buffer, mimeType) {
       const { error } = await objects().upload(name, buffer, { contentType: mimeType, upsert: false });
       if (error) {
@@ -12,7 +20,7 @@ export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
         console.error('Falha no upload para o Supabase Storage:', error.statusCode ?? error.name ?? 'erro');
         throw new Error('Falha ao enviar arquivo para o storage');
       }
-      return objects().getPublicUrl(name).data.publicUrl;
+      return urlFor(name);
     },
 
     async remove(url) {
