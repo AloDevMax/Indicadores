@@ -6,7 +6,7 @@ para os arquivos enviados (Storage). O app não guarda estado em disco.
 ## Fluxo
 
 ```
-push na main → CI: validate (lint, testes, build)
+push na main → CI: validate (lint, testes, build) e e2e (Playwright), em paralelo
              → release (environment "production"): prisma migrate deploy + seed no Supabase,
                depois git push HEAD:refs/heads/production (só fast-forward)
              → Hostinger detecta o push em "production" → build + deploy

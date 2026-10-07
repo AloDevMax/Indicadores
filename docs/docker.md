@@ -41,7 +41,8 @@ Os testes de backend rodam contra um banco separado, `labquest_test`, no mesmo c
 
 Os testes E2E (Playwright) usam outro banco, `labquest_e2e`, também no mesmo container. Crie-o uma vez com
 `npm run test:e2e:db:create`. A cada `npm run test:e2e`, o backend iniciado pelo Playwright aplica as migrations e o
-seed `--demo` nele antes de subir. Para apontar para outro banco, defina `E2E_DATABASE_URL`.
+seed `--demo` nele antes de subir. Para apontar para outro banco, defina `E2E_DATABASE_URL`. No CI, o job `e2e`
+do `.github/workflows/deploy.yml` faz o mesmo com um Postgres de serviço próprio.
 
 ## Comandos úteis
 
