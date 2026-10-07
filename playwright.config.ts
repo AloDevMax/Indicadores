@@ -18,10 +18,10 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   // Two separate entries (not `npm run dev:full`) so Playwright waits for each
-  // service's own port — the backend runs its own DB-connection retry loop
-  // (up to ~6s) before it starts listening, independent of Vite being ready.
-  // A single readiness check on :3000 let tests start firing requests at a
-  // backend that wasn't listening yet.
+  // service's own port — the backend connects to the database before it
+  // starts listening (and exits if it can't), independent of Vite being
+  // ready. A single readiness check on :3000 let tests start firing requests
+  // at a backend that wasn't listening yet.
   webServer: [
     {
       command: 'node --env-file=.env server/index.mjs',
