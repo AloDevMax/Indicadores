@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import ConfirmDialog, { ConfirmVariant } from '@/shared/components/ConfirmDialog';
 
-export interface ConfirmOptions {
+interface ConfirmOptions {
   title: string;
   message: React.ReactNode;
   confirmLabel?: string;

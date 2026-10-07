@@ -8,7 +8,6 @@ import {
   updateUserProfile,
   saveUser,
   deleteUser,
-  saveImportSource,
   bulkInviteUsers,
 } from './repository.mjs';
 import { findUserByEmail } from '../auth/repository.mjs';
@@ -99,19 +98,6 @@ describe('deleteUser', () => {
 
     expect(result).toEqual({ success: true });
     expect(await findUserByEmail(email)).toBeNull();
-  });
-});
-
-describe('saveImportSource', () => {
-  it('creates an import source with mapped column config', async () => {
-    const source = await saveImportSource({
-      name: 'Planilha RH',
-      description: 'desc',
-      columns: { productive_unit: 'Unidade', user: 'Nome', badge: 'Selo', tone: 'Cor', award: 'Pontos' },
-    });
-
-    expect(source.id).toBeTruthy();
-    expect(source.columns).toEqual({ productive_unit: 'Unidade', user: 'Nome', badge: 'Selo', tone: 'Cor', award: 'Pontos' });
   });
 });
 

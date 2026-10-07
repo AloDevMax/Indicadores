@@ -7,5 +7,5 @@
 - **No fallback**: `DATABASE_URL` is required. If the database is unreachable at boot, the server exits with code 1; `/api/health` answers 503 when a query fails.
 - **Timestamps**: columns are `timestamp(6)` without time zone and hold UTC wall-clock values; Prisma reads them as UTC.
 - **Schema changes**: versioned migrations in `prisma/migrations`. Locally, `npm run db:migrate` (`prisma migrate dev`) creates and applies them; deploys run `prisma migrate deploy`. `DIRECT_URL` is the direct connection Prisma Migrate uses (same as `DATABASE_URL` when there is a single database).
-- **Seed**: `server/db/seed.mjs` (`npm run db:seed`) is idempotent and runs on every deploy. It ensures the built-in developer account; `npm run db:seed -- --demo` also writes demo badges, units and an import source for local use.
-- **Key models**: `User`, `AuthSession`, `ProductiveUnit`, `Badge`, `UserBadge` (earned badges with tone: bronze/silver/gold/loss_1/loss_2), `BadgeSubmission`, `Notification`, `BadgeLegendSetting`, `ImportSource`, `ImportRun`, `ImportRunRow`.
+- **Seed**: `server/db/seed.mjs` (`npm run db:seed`) is idempotent and runs on every deploy. It ensures the built-in developer account; `npm run db:seed -- --demo` also writes demo badges and units for local use.
+- **Key models**: `User`, `AuthSession`, `ProductiveUnit`, `Badge`, `UserBadge` (earned badges with tone: bronze/silver/gold/loss_1/loss_2), `BadgeSubmission`, `Notification`, `BadgeLegendSetting`. `ImportSource`, `ImportRun` and `ImportRunRow` are legacy tables nothing uses.

@@ -22,11 +22,10 @@ server/
 │   ├── repository.mjs          # users + sessions, the built-in developer account
 │   └── crypto.mjs              # password hashing, session token signing
 ├── admin/
-│   └── repository.mjs          # CRUD for badges, units, users, import sources; bulk invite
+│   └── repository.mjs          # CRUD for badges, units, users; bulk invite
 ├── operations/
 │   └── repository.mjs          # badge awards, submissions (create/review), imports
 ├── db/
-│   ├── bootstrapRepository.mjs # /api/bootstrap loader (scoped to current user)
 │   ├── resourceRepository.mjs  # per-route listings (badges, units, legends, ...)
 │   └── seed.mjs                # idempotent seed (developer account; --demo data)
 ├── test/                       # test-only helpers: globalSetup, resetDatabase, fixtures
@@ -39,7 +38,7 @@ server/
 
 ## Request flow
 
-1. **Auth gate** — every protected route starts with `requireAuthenticatedUser(req.headers.authorization)` (or `getAuthenticatedUser` when auth is optional, e.g. `/api/bootstrap`). The session token is a signed string in the `Authorization` header.
+1. **Auth gate** — every protected route starts with `requireAuthenticatedUser(req.headers.authorization)` (or `getAuthenticatedUser` when auth is optional, e.g. `/api/auth/me`). The session token is a signed string in the `Authorization` header.
 2. **Role check** — helpers in `index.mjs` (`isAdminOrDeveloper`, `isDeveloper`, `isManager`, `isSupervisor`, `canManageUnit`) gate by role.
 3. **Scope check** — for routes that touch users/submissions, `ensureUsersWithinScope` and `ensureSubmissionWithinScope` confirm the actor's company/unit covers the target. See `docs/architecture-authorization.md` for the role + scoping rules.
 4. **Repository call** — the relevant repository runs the query through Prisma.
@@ -50,9 +49,8 @@ server/
 All API routes are declared inline in `server/index.mjs` — there is no route module yet. Major groups:
 
 - `/api/auth/*` — login, register, logout, me
-- `/api/bootstrap` — hydrates the client (scoped by current user)
 - `/api/health` — DB connectivity report
-- `/api/admin/*` — badges, companies, productive-units, users, bulk-invite, import-sources, import-runs, seed-indicator-badges, import-monthly-badges, award-badges, user-badges/remove
+- `/api/admin/*` — badges, companies, productive-units, users, bulk-invite, seed-indicator-badges, import-monthly-badges, award-badges, user-badges/remove
 - `/api/submissions`, `/api/submissions/:id/review`
 - `/api/user/profile`
 - `/api/companies/:companyId/productive-units`

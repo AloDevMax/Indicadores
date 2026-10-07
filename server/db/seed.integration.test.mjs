@@ -28,26 +28,17 @@ describe('runSeed', () => {
     });
   });
 
-  it('also upserts the demo data with demo: true, and can run twice', async () => {
+  it('also upserts the demo badges and units (no import sources) with demo: true, and can run twice', async () => {
     await runSeed({ demo: true });
     await runSeed({ demo: true });
 
-    expect(await counts()).toEqual({ users: 1, developers: 1, badges: 4, productiveUnits: 3, importSources: 1 });
+    expect(await counts()).toEqual({ users: 1, developers: 1, badges: 4, productiveUnits: 3, importSources: 0 });
     expect(await prisma.badge.findUnique({ where: { id: '1' } })).toMatchObject({ name: 'Mestre de Processos', points: 50 });
     expect(await prisma.productiveUnit.findUnique({ where: { id: 'pu1' } })).toMatchObject({ name: 'Fábrica Campinas' });
-    expect(await prisma.importSource.findUnique({ where: { id: 'source-default' } })).toMatchObject({
-      name: 'Planilha Operacional',
-      productive_unit_column: 'unidade_produtiva',
-      user_column: 'colaborador',
-      badge_column: 'selo',
-      tone_column: 'marcacao',
-      award_column: 'premio',
-    });
   });
 
   it('exposes the demo data it writes', () => {
     expect(DEMO_DATA.badges.map((badge) => badge.id)).toEqual(['1', '2', '3', '4']);
     expect(DEMO_DATA.productiveUnits.map((unit) => unit.id)).toEqual(['pu1', 'pu2', 'pu3']);
-    expect(DEMO_DATA.importSources.map((source) => source.id)).toEqual(['source-default']);
   });
 });

@@ -68,7 +68,7 @@ Full-stack monolith: Express serves both the REST API and the static React bundl
 
 **Data access:** PostgreSQL through a single Prisma Client (`server/shared/db/prisma.mjs`); there is no in-memory fallback. `DATABASE_URL` is required, and the server exits at boot if the database is unreachable. The schema changes only through migrations in `prisma/migrations` (`prisma migrate deploy` on deploy).
 
-**State management:** `App.tsx` owns all global state (no Redux/Zustand/Context). Everything is loaded once via `GET /api/bootstrap` and passed down as props.
+**State management:** no Redux/Zustand. The session lives in `AuthContext`; each page loads its own data through `useRouteData` (cached per key) calling the `fetch*WithApi` helpers in `src/shared/api.ts`.
 
 ### Roles
 
@@ -108,11 +108,11 @@ src/
     └── lib/             # Shared utilities
 
 server/
-├── index.mjs            # Express entry: routes, middleware, bootstrap
+├── index.mjs            # Express entry: routes, middleware
 ├── auth/                # Login/register/session service + repository + crypto
-├── admin/               # CRUD for badges, users, units, import sources
-├── operations/          # awardBadges, reviewSubmission, persistImportRun
-├── db/                  # bootstrap loader, resource listings, seed
+├── admin/               # CRUD for badges, users, units
+├── operations/          # awardBadges, reviewSubmission, importMonthlyBadges
+├── db/                  # resource listings, seed
 ├── shared/db/           # prisma.mjs — the single PrismaClient
 ├── test/                # test-only helpers (globalSetup, resetDatabase, fixtures)
 └── uploads/             # File upload routes (badge images, avatars)

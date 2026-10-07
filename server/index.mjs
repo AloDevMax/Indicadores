@@ -5,15 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
-import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
-import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
 
 
@@ -39,7 +38,7 @@ const hideEmailFrom = (viewer, user) => {
   return rest;
 };
 
-// Mesmo escopo do /api/bootstrap: supervisor vê a própria unidade e usuário comum só as próprias solicitações.
+// Supervisor vê a própria unidade e usuário comum só as próprias solicitações.
 const scopeSubmissions = (viewer, submissions, users) => {
   if (isAdminOrDeveloper(viewer)) return submissions;
   if (isSupervisor(viewer) && viewer.productive_unit_id) {
@@ -144,13 +143,6 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   app.get('/api/auth/me', asyncRoute(async (req, res) => {
     const result = await getAuthenticatedUser(req.headers.authorization);
     res.status(result.status).json(result.body);
-  }));
-
-  app.get('/api/bootstrap', asyncRoute(async (req, res) => {
-    const auth = await getAuthenticatedUser(req.headers.authorization);
-    const currentUser = auth.status === 200 ? auth.body.user : null;
-    const data = await loadBootstrapData(currentUser);
-    res.json(data);
   }));
 
   app.get('/api/health', asyncRoute(async (_req, res) => {
@@ -293,16 +285,6 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     res.status(201).json({ user });
   }));
 
-  app.post('/api/admin/import-sources', asyncRoute(async (req, res) => {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
-      return res.status(403).json({ error: 'Somente o desenvolvedor pode manter fontes globais de importação.' });
-    }
-
-    const importSource = await saveImportSource(req.body);
-    res.status(201).json({ importSource });
-  }));
-
   app.post('/api/admin/badges', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
@@ -318,32 +300,6 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
       return res.status(403).json({ error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' });
     }
     const result = await deleteBadge(req.body.id);
-    res.status(200).json(result);
-  }));
-
-  app.post('/api/admin/import-runs', asyncRoute(async (req, res) => {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
-      return res.status(403).json({ error: 'Acesso restrito.' });
-    }
-
-    const rows = Array.isArray(req.body.rows) ? req.body.rows : [];
-    const scopedUserIds = rows
-      .filter((row) => row?.status === 'valid' && row?.user_id)
-      .map((row) => row.user_id);
-
-    if (!(await ensureUsersWithinScope(auth.body.user, scopedUserIds))) {
-      return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
-    }
-
-    const result = await persistImportRun({
-      reviewerId: auth.body.user.id,
-      sourceId: req.body.source_id,
-      sourceName: req.body.source_name,
-      matchedColumns: req.body.matched_columns || {},
-      rows,
-    });
-
     res.status(200).json(result);
   }));
 
@@ -433,15 +389,6 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   app.get('/api/badge-legends', asyncRoute(async (_req, res) => {
     const badgeLegends = await getBadgeLegends();
     res.json({ badgeLegends });
-  }));
-
-  app.get('/api/import-sources', asyncRoute(async (req, res) => {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
-    if (!canManageUnit(auth.body.user)) return res.status(403).json({ error: 'Acesso restrito.' });
-
-    const importSources = await listImportSources();
-    res.json({ importSources });
   }));
 
   app.use((err, _req, res, _next) => {

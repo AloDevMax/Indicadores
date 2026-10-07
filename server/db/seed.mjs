@@ -17,18 +17,6 @@ export const DEMO_DATA = Object.freeze({
     { id: 'pu2', name: 'Centro de Distribuição SP' },
     { id: 'pu3', name: 'Obra Matriz' },
   ],
-  importSources: [
-    {
-      id: 'source-default',
-      name: 'Planilha Operacional',
-      description: 'Modelo base para importar unidade, colaborador e selo.',
-      productive_unit_column: 'unidade_produtiva',
-      user_column: 'colaborador',
-      badge_column: 'selo',
-      tone_column: 'marcacao',
-      award_column: 'premio',
-    },
-  ],
 });
 
 const upsertAll = async (delegate, rows) => {
@@ -40,7 +28,6 @@ const upsertAll = async (delegate, rows) => {
 const seedDemoData = async () => {
   await upsertAll(prisma.productiveUnit, DEMO_DATA.productiveUnits);
   await upsertAll(prisma.badge, DEMO_DATA.badges);
-  await upsertAll(prisma.importSource, DEMO_DATA.importSources);
 };
 
 /** Idempotente: pode rodar a cada deploy. */
