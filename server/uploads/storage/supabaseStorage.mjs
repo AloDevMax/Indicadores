@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { nameFromUrl } from './localStorage.mjs';
 
 export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
   const publicPrefix = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/`;
@@ -7,6 +8,8 @@ export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
 
   return {
     urlFor,
+
+    ownsUrl: (url) => nameFromUrl(url, publicPrefix) !== null,
 
     async exists(name) {
       const { data } = await objects().exists(name);
@@ -24,9 +27,9 @@ export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
     },
 
     async remove(url) {
-      if (!url || !url.startsWith(publicPrefix)) return;
-      const objectPath = decodeURIComponent(url.slice(publicPrefix.length));
-      const { error } = await objects().remove([objectPath]);
+      const name = nameFromUrl(url, publicPrefix);
+      if (!name) return;
+      const { error } = await objects().remove([name]);
       if (error) {
         console.error('Falha ao remover arquivo do Supabase Storage:', error.statusCode ?? error.name ?? 'erro');
       }

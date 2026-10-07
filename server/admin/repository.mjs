@@ -75,7 +75,7 @@ export const seedIndicatorBadges = async () => {
   return results;
 };
 
-// Uma URL de upload pode estar em mais de uma linha (avatar_url aceita qualquer valor no perfil).
+// Uma URL de upload pode estar em mais de uma linha (por exemplo, dados antigos ou dois badges com a mesma imagem).
 // Só apaga o arquivo quando a última referência some, para não remover o arquivo de outra pessoa.
 const deleteUploadIfUnreferenced = async (url) => {
   if (!url) return;
@@ -166,6 +166,12 @@ export const saveUser = async (user, password) => {
     },
     select: USER_SELECT,
   });
+};
+
+export const findUserAvatarUrl = async (userId) => {
+  if (!userId) return null;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { avatar_url: true } });
+  return user?.avatar_url ?? null;
 };
 
 export const deleteUser = async (userId) => {

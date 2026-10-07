@@ -56,4 +56,16 @@ describe('createLocalStorage', () => {
 
     expect(fs.existsSync(path.join(nested, 'a.png'))).toBe(true);
   });
+
+  it.each([
+    ['/uploads/a.png', true],
+    ['/uploads/', false],
+    ['/uploads/../a.png', false],
+    ['/uploads/sub/a.png', false],
+    ['https://evil.example/uploads/a.png', false],
+    ['', false],
+    [null, false],
+  ])('ownsUrl(%s) → %s', (url, expected) => {
+    expect(createLocalStorage({ dir }).ownsUrl(url)).toBe(expected);
+  });
 });

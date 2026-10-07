@@ -72,4 +72,16 @@ describe('createSupabaseStorage', () => {
     expect(storage.urlFor('a.png')).toBe(PUBLIC_URL);
     expect(bucket.upload).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [PUBLIC_URL, true],
+    [`${SUPABASE_URL}/storage/v1/object/public/uploads/`, false],
+    [`${SUPABASE_URL}/storage/v1/object/public/uploads/../outro/a.png`, false],
+    [`${SUPABASE_URL}/storage/v1/object/public/outro-bucket/a.png`, false],
+    ['https://evil.example/storage/v1/object/public/uploads/a.png', false],
+    ['/uploads/a.png', false],
+    [null, false],
+  ])('ownsUrl(%s) → %s', (url, expected) => {
+    expect(build().storage.ownsUrl(url)).toBe(expected);
+  });
 });

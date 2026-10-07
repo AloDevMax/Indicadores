@@ -25,6 +25,9 @@ export const saveUploadedFile = async (buffer, mimeType, _filename) => {
   return getStorage().put(uniqueName, buffer, mimeType);
 };
 
+// true só para URLs que o storage atual emitiu (ex.: /uploads/<nome> ou a URL pública do bucket).
+export const isStoredUploadUrl = (url) => getStorage().ownsUrl(url);
+
 export const deleteUploadedFile = async (fileUrl) => {
   try {
     await getStorage().remove(fileUrl);

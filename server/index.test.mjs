@@ -569,3 +569,55 @@ describe('/uploads conforme o driver de storage', () => {
     }
   });
 });
+
+describe('POST /api/admin/users só aceita avatar do storage', () => {
+  const send = async (body) => {
+    const { header } = await authHeaderFor('admin');
+    return request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email: uniqueEmail('avatar'), full_name: 'Avatar User', role: 'user', ...body });
+  };
+
+  it('recusa um avatar_url de fora do storage', async () => {
+    const response = await send({ avatar_url: 'https://evil.example/pixel.png' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Avatar inválido: envie a imagem pelo upload.' });
+  });
+
+  it('recusa um caminho que tenta sair de /uploads', async () => {
+    const response = await send({ avatar_url: '/uploads/../index.html' });
+    expect(response.status).toBe(400);
+  });
+
+  it('aceita um avatar_url emitido pelo storage', async () => {
+    const response = await send({ avatar_url: '/uploads/abc123-1.png' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.user.avatar_url).toBe('/uploads/abc123-1.png');
+  });
+
+  it('aceita avatar_url vazio (sem avatar)', async () => {
+    const response = await send({ avatar_url: '' });
+    expect(response.status).toBe(201);
+  });
+
+  it('aceita reenviar o avatar que o usuário já tinha, mesmo de fora do storage', async () => {
+    const existing = await createTestUser({
+      email: uniqueEmail('legado'), full_name: 'Legado', role: 'user', avatar_url: 'https://antigo.example/a.png',
+    });
+
+    const response = await send({ id: existing.id, email: existing.email, full_name: 'Legado 2', avatar_url: 'https://antigo.example/a.png' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.user).toMatchObject({ full_name: 'Legado 2', avatar_url: 'https://antigo.example/a.png' });
+  });
+
+  it('recusa trocar o avatar de um usuário existente por uma URL de fora', async () => {
+    const existing = await createTestUser({ email: uniqueEmail('troca'), full_name: 'Troca', role: 'user', avatar_url: '/uploads/meu.png' });
+
+    const response = await send({ id: existing.id, email: existing.email, avatar_url: 'https://evil.example/x.png' });
+
+    expect(response.status).toBe(400);
+    expect((await prisma.user.findUnique({ where: { id: existing.id } })).avatar_url).toBe('/uploads/meu.png');
+  });
+});
