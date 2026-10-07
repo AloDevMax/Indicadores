@@ -7,8 +7,8 @@ para os arquivos enviados (Storage). O app não guarda estado em disco.
 
 ```
 push na main → CI: validate (lint, testes, build)
-             → migrate (prisma migrate deploy + seed no Supabase; environment "production")
-             → release (git push HEAD:production, só fast-forward)
+             → release (environment "production"): prisma migrate deploy + seed no Supabase,
+               depois git push HEAD:refs/heads/production (só fast-forward)
              → Hostinger detecta o push em "production" → build + deploy
 ```
 
@@ -16,7 +16,7 @@ O Hostinger observa a branch `production`, e só o CI a avança. Assim o schema 
 sobe. Ninguém faz push manual em `production`.
 
 O workflow é `.github/workflows/deploy.yml`. Os Secrets (environment `production` no GitHub) estão listados no
-README: `PROD_DATABASE_URL`, `PROD_DIRECT_URL` e `PROD_DEVELOPER_INITIAL_PASSWORD`. O job `migrate` falha se algum
+README: `PROD_DATABASE_URL`, `PROD_DIRECT_URL` e `PROD_DEVELOPER_INITIAL_PASSWORD`. O job `release` falha se algum
 estiver vazio. No environment dá para exigir aprovação manual antes da migration.
 
 ## Hostinger (hPanel → Node.js)

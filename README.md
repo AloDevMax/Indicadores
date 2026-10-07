@@ -38,7 +38,7 @@ This will start:
 
 Produção: app Node.js no Hostinger Business + Supabase (Postgres e Storage). O passo a passo está em [docs/deploy.md](docs/deploy.md).
 
-O workflow `.github/workflows/deploy.yml` valida (lint, testes, build) todo push e PR. Em push na `main`, o job `migrate` aplica `prisma migrate deploy` e o seed no Supabase, e o job `release` avança a branch `production`, que o Hostinger observa.
+O workflow `.github/workflows/deploy.yml` valida (lint, testes, build) todo push e PR. Em push na `main`, o job `release` aplica `prisma migrate deploy` e o seed no Supabase e, em seguida, avança a branch `production`, que o Hostinger observa.
 
 Secrets do GitHub (environment `production`):
 
