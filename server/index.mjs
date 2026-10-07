@@ -11,6 +11,7 @@ import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
+import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
 import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
 
@@ -87,11 +88,11 @@ export function createApp() {
     },
   }));
 
-  const uploadsPath = path.join(__dirname, '..', 'public', 'uploads');
-  if (!fs.existsSync(uploadsPath)) {
-    fs.mkdirSync(uploadsPath, { recursive: true });
+  // Com o driver supabase, os arquivos são servidos pelo Storage e /uploads não existe.
+  if (env.STORAGE_DRIVER === 'local') {
+    fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+    app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
   }
-  app.use('/uploads', express.static(uploadsPath));
 
   app.use('/api/upload', uploadRouter);
 

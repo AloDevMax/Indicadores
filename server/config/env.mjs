@@ -4,6 +4,7 @@ import { z } from 'zod';
 const DEV_AUTH_SECRET = 'dev-only-auth-secret-change-me';
 const DEV_DEVELOPER_PASSWORD = '2665398';
 const PRODUCTION_REQUIRED = ['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'];
+const SUPABASE_REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 
 const optionalString = z.preprocess(
   (value) => (value === '' ? undefined : value),
@@ -20,13 +21,34 @@ const envSchema = z
     ),
     AUTH_SECRET: optionalString,
     DEVELOPER_INITIAL_PASSWORD: optionalString,
+    STORAGE_DRIVER: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.enum(['local', 'supabase']).default('local'),
+    ),
+    SUPABASE_URL: optionalString,
+    SUPABASE_SERVICE_ROLE_KEY: optionalString,
+    SUPABASE_STORAGE_BUCKET: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().default('uploads'),
+    ),
     ALLOWED_ORIGINS: z
       .string()
       .default('http://localhost:3000')
       .transform((value) => value.split(',').map((origin) => origin.trim()).filter(Boolean)),
   })
   .superRefine((env, ctx) => {
+    if (env.STORAGE_DRIVER === 'supabase') {
+      for (const key of SUPABASE_REQUIRED) {
+        if (!env[key]) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'obrigatória com STORAGE_DRIVER=supabase' });
+        }
+      }
+    }
+
     if (env.NODE_ENV !== 'production') return;
+    if (env.STORAGE_DRIVER !== 'supabase') {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['STORAGE_DRIVER'], message: 'deve ser "supabase" em produção' });
+    }
     for (const key of PRODUCTION_REQUIRED) {
       if (!env[key]) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: 'obrigatória em produção' });

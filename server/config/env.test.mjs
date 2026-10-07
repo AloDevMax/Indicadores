@@ -9,6 +9,9 @@ const PROD_BASE = {
   DATABASE_URL: 'postgresql://u:p@db:5432/labquest',
   AUTH_SECRET: 'segredo-de-producao',
   DEVELOPER_INITIAL_PASSWORD: 'senha-forte',
+  STORAGE_DRIVER: 'supabase',
+  SUPABASE_URL: 'https://ref.supabase.co',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
 };
 
 describe('parseEnv', () => {
@@ -24,6 +27,8 @@ describe('parseEnv', () => {
     expect(env.ALLOWED_ORIGINS).toEqual(['http://localhost:3000']);
     expect(env.AUTH_SECRET).toBe('dev-only-auth-secret-change-me');
     expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('2665398');
+    expect(env.STORAGE_DRIVER).toBe('local');
+    expect(env.SUPABASE_STORAGE_BUCKET).toBe('uploads');
   });
 
   it('converte PORT para número e separa ALLOWED_ORIGINS por vírgula', () => {
@@ -53,6 +58,37 @@ describe('parseEnv', () => {
       expect(() => parseEnv(source)).toThrow(`${key}: obrigatória em produção`);
     },
   );
+
+  it('falha em produção quando STORAGE_DRIVER não é supabase', () => {
+    expect(() => parseEnv({ ...PROD_BASE, STORAGE_DRIVER: 'local' })).toThrow(
+      'STORAGE_DRIVER: deve ser "supabase" em produção',
+    );
+  });
+
+  it('falha em produção quando STORAGE_DRIVER fica no default local', () => {
+    expect(() => parseEnv({ ...PROD_BASE, STORAGE_DRIVER: undefined })).toThrow(
+      'STORAGE_DRIVER: deve ser "supabase" em produção',
+    );
+  });
+
+  it.each(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'])(
+    'falha com STORAGE_DRIVER=supabase quando %s está ausente',
+    (key) => {
+      const source = { ...DEV_BASE, STORAGE_DRIVER: 'supabase', SUPABASE_URL: 'https://ref.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'k', [key]: '' };
+      expect(() => parseEnv(source)).toThrow(`${key}: obrigatória com STORAGE_DRIVER=supabase`);
+    },
+  );
+
+  it('aceita o driver supabase completo e o bucket customizado', () => {
+    const env = parseEnv({ ...PROD_BASE, SUPABASE_STORAGE_BUCKET: 'midia' });
+    expect(env.STORAGE_DRIVER).toBe('supabase');
+    expect(env.SUPABASE_URL).toBe('https://ref.supabase.co');
+    expect(env.SUPABASE_STORAGE_BUCKET).toBe('midia');
+  });
+
+  it('rejeita STORAGE_DRIVER desconhecido', () => {
+    expect(() => parseEnv({ ...DEV_BASE, STORAGE_DRIVER: 's3' })).toThrow(/STORAGE_DRIVER/);
+  });
 
   it('rejeita PORT inválida com mensagem nomeando a variável', () => {
     expect(() => parseEnv({ ...DEV_BASE, PORT: 'abc' })).toThrow(/Variáveis de ambiente inválidas:[\s\S]*PORT/);
