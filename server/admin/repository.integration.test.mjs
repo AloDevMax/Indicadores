@@ -123,6 +123,25 @@ describe('deleteBadge', () => {
     expect(await deleteBadge('nao-existe')).toEqual({ success: true });
     expect(deleteUploadedFile).not.toHaveBeenCalled();
   });
+
+  it('keeps the image file when another badge still uses it', async () => {
+    await saveBadge({ ...BADGE_INPUT, id: 'b1', image_url: '/uploads/a.png' });
+    await saveBadge({ ...BADGE_INPUT, id: 'b2', name: 'Selo B', image_url: '/uploads/a.png' });
+
+    expect(await deleteBadge('b1')).toEqual({ success: true });
+
+    expect(await prisma.badge.findUnique({ where: { id: 'b1' } })).toBeNull();
+    expect(deleteUploadedFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the image file when a user avatar points to it', async () => {
+    await saveBadge({ ...BADGE_INPUT, id: 'b1', image_url: '/uploads/a.png' });
+    await insertUser({ avatar_url: '/uploads/a.png' });
+
+    await deleteBadge('b1');
+
+    expect(deleteUploadedFile).not.toHaveBeenCalled();
+  });
 });
 
 describe('saveProductiveUnit', () => {
@@ -263,6 +282,30 @@ describe('deleteUser', () => {
 
     expect(await prisma.user.findUnique({ where: { id: ana.id } })).toBeNull();
     expect(deleteUploadedFile).toHaveBeenCalledWith('/uploads/ana.png');
+  });
+
+  it("keeps the avatar file when another user's avatar points to it", async () => {
+    const victim = await insertUser({ email: 'vitima@example.com', avatar_url: '/uploads/vitima.png' });
+    const copycat = await insertUser({ email: 'copia@example.com', avatar_url: '/uploads/vitima.png' });
+
+    expect(await deleteUser(copycat.id)).toEqual({ success: true });
+
+    expect(await prisma.user.findUnique({ where: { id: copycat.id } })).toBeNull();
+    expect((await prisma.user.findUnique({ where: { id: victim.id } })).avatar_url).toBe('/uploads/vitima.png');
+    expect(deleteUploadedFile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the avatar file when a submission proof or badge image points to it', async () => {
+    const ana = await insertUser({ avatar_url: '/uploads/shared.png' });
+    const bia = await insertUser({ email: 'bia@example.com' });
+    await saveBadge({ ...BADGE_INPUT, id: 'b1' });
+    await prisma.badgeSubmission.create({
+      data: { id: crypto.randomUUID(), user_id: bia.id, badge_id: 'b1', proof_url: '/uploads/shared.png' },
+    });
+
+    await deleteUser(ana.id);
+
+    expect(deleteUploadedFile).not.toHaveBeenCalled();
   });
 
   it('succeeds for an unknown user without touching files', async () => {

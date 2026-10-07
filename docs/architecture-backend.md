@@ -3,7 +3,7 @@
 - **Entry**: `server/index.mjs` — Express app on `PORT` env var (default 4004). In production runs from `dist/server/index.mjs` (built by `tsc` in `npm run build`).
 - **Module system**: ES modules (`.mjs`) throughout the server. No bundler — Node executes the files directly.
 - **TypeScript**: `tsconfig.json` covers only `server/` (`allowJs: true`, output to `dist/server`). The frontend has its own `tsconfig.app.json`.
-- **Static serving**: Serves the built frontend from the repo root (`frontendPath = ..`) and `/uploads` from `public/uploads/`. SPA fallback (`app.get('*')`) returns `index.html`.
+- **Static serving**: Serves the built frontend from the repo root (`frontendPath = ..`). With `STORAGE_DRIVER=local`, `/uploads` is served from `public/uploads/`; with `supabase`, files live in Supabase Storage and `/uploads/*` returns 404. SPA fallback (`app.get('*')`) returns `index.html`.
 - **Persistence**: PostgreSQL via Prisma Client (`server/shared/db/prisma.mjs`). On startup the server runs `prisma.$connect()` and exits with code 1 if the database is unreachable; `SIGTERM` closes the server and disconnects. `/api/health` runs `select 1` and answers 200 `{ status: 'ok' }` or 503 `{ status: 'unavailable' }`. See `docs/architecture-database.md`.
 - **Validation**: Zod schemas in `auth/service.mjs`. A global error handler converts `ZodError` to `400 { error, details }`.
 - **CORS**: Wide-open (`Access-Control-Allow-Origin: *`) on all routes.
@@ -32,7 +32,8 @@ server/
 ├── test/                       # test-only helpers: globalSetup, resetDatabase, fixtures
 └── uploads/
     ├── uploadRoutes.mjs        # /api/upload router (multipart receive)
-    ├── uploadService.mjs       # write to public/uploads/, return URL
+    ├── uploadService.mjs       # validate image, name it, hand it to the storage driver
+    ├── storage/                # driver by STORAGE_DRIVER: localStorage (public/uploads) | supabaseStorage (bucket)
     └── multipartParser.mjs     # Busboy wrapper
 ```
 

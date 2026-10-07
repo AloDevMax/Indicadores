@@ -9,8 +9,10 @@ import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
+import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
 import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
 
@@ -61,7 +63,15 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
  * fica no bloco de execução direta no final do arquivo, para que os testes
  * possam importar e montar o app sozinhos.
  */
-export function createApp() {
+// O avatar precisa ter vindo do upload (URL do storage). Vazio remove o avatar, e reenviar o valor
+// que o usuário já tem é aceito, para não travar a edição de quem ficou com uma URL antiga.
+const isAcceptableAvatarUrl = async ({ id, avatar_url: avatarUrl }) => {
+  if (avatarUrl === undefined || avatarUrl === null || avatarUrl === '') return true;
+  if (isStoredUploadUrl(avatarUrl)) return true;
+  return avatarUrl === await findUserAvatarUrl(id);
+};
+
+export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   const app = express();
 
   app.use(express.json());
@@ -87,11 +97,14 @@ export function createApp() {
     },
   }));
 
-  const uploadsPath = path.join(__dirname, '..', 'public', 'uploads');
-  if (!fs.existsSync(uploadsPath)) {
-    fs.mkdirSync(uploadsPath, { recursive: true });
+  // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
+  // no banco responde 404, em vez de cair no index.html da SPA.
+  if (storageDriver === 'local') {
+    fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+    app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
+  } else {
+    app.use('/uploads', (_req, res) => res.status(404).end());
   }
-  app.use('/uploads', express.static(uploadsPath));
 
   app.use('/api/upload', uploadRouter);
 
@@ -252,6 +265,10 @@ export function createApp() {
     }
     if (req.body.id === auth.body.user.id && req.body.is_active === false) {
       return res.status(400).json({ error: 'Você não pode desativar seu próprio usuário.' });
+    }
+
+    if (!(await isAcceptableAvatarUrl(req.body))) {
+      return res.status(400).json({ error: 'Avatar inválido: envie a imagem pelo upload.' });
     }
 
     const user = await saveUser(req.body, req.body.password);

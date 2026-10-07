@@ -1,15 +1,5 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'url';
 import crypto from 'node:crypto';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, '../../public/uploads');
-
-// Criar diretório de uploads se não existir
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+import { getStorage } from './storage/index.mjs';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -32,25 +22,15 @@ export const saveUploadedFile = async (buffer, mimeType, _filename) => {
   if (!ext) throw new Error('Tipo de arquivo não suportado.');
 
   const uniqueName = `${crypto.randomBytes(8).toString('hex')}-${Date.now()}.${ext}`;
-  const filePath = path.join(uploadsDir, uniqueName);
-  
-  await fs.promises.writeFile(filePath, buffer);
-  
-  return `/uploads/${uniqueName}`;
+  return getStorage().put(uniqueName, buffer, mimeType);
 };
 
+// true só para URLs que o storage atual emitiu (ex.: /uploads/<nome> ou a URL pública do bucket).
+export const isStoredUploadUrl = (url) => getStorage().ownsUrl(url);
+
 export const deleteUploadedFile = async (fileUrl) => {
-  if (!fileUrl || !fileUrl.startsWith('/uploads/')) {
-    return;
-  }
-  
   try {
-    const filename = path.basename(fileUrl);
-    const filePath = path.join(uploadsDir, filename);
-    
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
-    }
+    await getStorage().remove(fileUrl);
   } catch (error) {
     console.error('Erro ao deletar arquivo:', error);
   }
