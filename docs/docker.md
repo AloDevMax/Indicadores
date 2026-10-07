@@ -30,9 +30,20 @@ O banco fica disponível em `localhost:5432` com as credenciais padrão `labques
 
 ```env
 DATABASE_URL=postgresql://labquest:labquest@localhost:5432/labquest?sslmode=disable
+DIRECT_URL=postgresql://labquest:labquest@localhost:5432/labquest?sslmode=disable
+```
+
+Na primeira vez, aplique as migrations e o seed (`--demo` grava badges, unidades e uma fonte de importação de exemplo):
+
+```bash
+npm run db:migrate
+npm run db:seed -- --demo
 ```
 
 Os dados persistem no volume `postgres_dev_data` entre reinicializações.
+
+Os testes de backend rodam contra um banco separado, `labquest_test`, no mesmo container. Crie-o uma vez com
+`npm run test:db:create`; o `npm run test:run` aplica as migrations nele automaticamente.
 
 ## Produção (VPS)
 
@@ -56,10 +67,13 @@ Acesso via `http://<IP-da-VPS>:8081` (portas 80 e 8080 reservadas para outras ap
 ### Fluxo de inicialização
 
 ```
-postgres (healthcheck) → app (db:push + node) → nginx (porta 80)
+postgres (healthcheck) → app (migrate deploy + seed + node) → nginx (porta 8081)
 ```
 
-O container `app` aguarda o healthcheck do postgres antes de iniciar. No startup, roda `npm run db:push` para sincronizar o schema Prisma, depois inicia o servidor Express.
+O container `app` aguarda o healthcheck do postgres antes de iniciar. No startup, roda
+`npx prisma migrate deploy && node dist/server/db/seed.mjs && node dist/server/index.mjs`: aplica as migrations
+pendentes, garante a conta developer e inicia o servidor Express. Se qualquer passo falhar, o container sai e o
+compose o reinicia.
 
 ## Variáveis de ambiente
 
@@ -72,17 +86,18 @@ O arquivo `.env` na raiz configura o stack. Copie `.env.example` como ponto de p
 | `POSTGRES_DB` | postgres, app | Nome do banco |
 | `PORT` | app | Porta interna do Express (padrão: 4004) |
 | `AUTH_SECRET` | app | Segredo para assinar tokens de sessão |
+| `DEVELOPER_INITIAL_PASSWORD` | app | Senha da conta developer embutida (o seed a aplica a cada deploy) |
 
-Em produção, use senhas fortes para `POSTGRES_PASSWORD` e `AUTH_SECRET`. O `DATABASE_URL` é **gerado automaticamente** pelo compose a partir das variáveis acima — não precisa defini-lo no `.env` para o stack Docker.
+Em produção, use senhas fortes para `POSTGRES_PASSWORD`, `AUTH_SECRET` e `DEVELOPER_INITIAL_PASSWORD`. O `DATABASE_URL` (e o `DIRECT_URL`) é **gerado automaticamente** pelo compose a partir das variáveis acima — não precisa defini-lo no `.env` para o stack Docker.
 
 ## Dockerfile
 
 Build multi-stage com duas etapas:
 
-- **`builder`** — Node 20 Alpine. Instala todas as dependências (`npm ci`), compila frontend (Vite) e backend (tsc) via `npm run build`. O `db:push` durante o build é ignorado graciosamente sem banco disponível.
+- **`builder`** — Node 20 Alpine. Instala todas as dependências (`npm ci`), gera o Prisma Client e compila frontend (Vite) e backend (tsc) via `npm run build`. O build não acessa o banco.
 - **`production`** — Node 20 Alpine. Copia apenas os artefatos compilados (`dist/`, `prisma/`, `scripts/`, `node_modules/`). Roda como usuário não-root `labquest`. Expõe a porta 4004.
 
-O `node_modules` inteiro é copiado do builder (incluindo devDependencies) para garantir que o `prisma` CLI esteja disponível no comando de startup (`npm run db:push`).
+O `node_modules` inteiro é copiado do builder (incluindo devDependencies) para garantir que o `prisma` CLI esteja disponível no comando de startup (`npx prisma migrate deploy`).
 
 ## Uploads
 

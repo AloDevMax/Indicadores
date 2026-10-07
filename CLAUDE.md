@@ -14,14 +14,15 @@ npm run dev:full          # Frontend :3000 + Backend :4004
 
 # Individual services
 npm run dev:client        # Frontend only (Vite, port 3000)
-npm run dev:server        # Backend only (port 4004) — requires prior build
+npm run dev:server        # Backend only (port 4004) — requires the database (DATABASE_URL)
 
 # Build & production
 npm run build             # prisma generate → vite build → tsc
 npm start                 # Production Express server
 
 # Database
-npm run db:push           # Sync Prisma schema to PostgreSQL
+npm run db:migrate        # prisma migrate dev — create/apply migrations on the local database
+npm run db:seed           # Idempotent seed: built-in developer account (add -- --demo for demo data)
 npm run db:check          # Verify DB connection (version + tables)
 npm run db:seed:badges    # Seed indicator badges (requires prior build)
 
@@ -32,6 +33,7 @@ npm run lint              # ESLint
 npm test                  # Vitest — unit/component/integration, watch mode
 npm run test:run          # Vitest — single run (CI)
 npm run test:coverage     # Vitest — single run with V8 coverage report
+npm run test:db:create    # Create the labquest_test database (once) in the docker-compose.dev.yml Postgres
 npm run test:e2e          # Playwright — end-to-end (spins up client :3000 + server :4004)
 npm run test:e2e:ui       # Playwright — E2E in interactive UI mode
 ```
@@ -41,7 +43,7 @@ npm run test:e2e:ui       # Playwright — E2E in interactive UI mode
 Every implementation (new feature, bug fix, or behavior-changing refactor) must ship with automated tests covering it, with clearly stated expected results — assert the actual expected value/state/response, not just "it didn't throw."
 
 - Frontend logic/components → Vitest + React Testing Library (`*.test.ts(x)`, colocated with the source file)
-- Backend routes/services → Vitest (`// @vitest-environment node`) + Supertest (`server/**/*.test.mjs`, colocated)
+- Backend routes/services → Vitest (`// @vitest-environment node`) + Supertest (`server/**/*.test.mjs`, colocated). Backend tests run against the real Postgres test database `labquest_test` (dev compose up + `npm run test:db:create` once); repositories have `*.integration.test.mjs` files, and `server/test/` holds `resetDatabase` and fixtures
 - Critical user flows (login, submission/approval, award, Excel import) → Playwright (`e2e/*.spec.ts`)
 
 See `vitest.config.ts` / `playwright.config.ts` for setup, and the existing `*.test.*` files for the expected pattern.
@@ -63,7 +65,7 @@ See `vitest.config.ts` / `playwright.config.ts` for setup, and the existing `*.t
 
 Full-stack monolith: Express serves both the REST API and the static React bundle (in production). In development, Vite runs at `:3000` and Express at `:4004`.
 
-**Dual data mode:** on startup the server tries to connect to PostgreSQL. If it fails, it falls back to an in-memory store (`server/data/memoryStore.mjs`) — useful for offline dev but **data does not persist** across restarts in that mode.
+**Data access:** PostgreSQL through a single Prisma Client (`server/shared/db/prisma.mjs`); there is no in-memory fallback. `DATABASE_URL` is required, and the server exits at boot if the database is unreachable. The schema changes only through migrations in `prisma/migrations` (`prisma migrate deploy` on deploy).
 
 **State management:** `App.tsx` owns all global state (no Redux/Zustand/Context). Everything is loaded once via `GET /api/bootstrap` and passed down as props.
 
@@ -109,8 +111,9 @@ server/
 ├── auth/                # Login/register/session service + repository + crypto
 ├── admin/               # CRUD for badges, users, units, import sources
 ├── operations/          # awardBadges, reviewSubmission, persistImportRun
-├── db/                  # Prisma client, bootstrap loader, connection check
-├── data/                # memoryStore.mjs (in-memory fallback)
+├── db/                  # bootstrap loader, resource listings, seed
+├── shared/db/           # prisma.mjs — the single PrismaClient
+├── test/                # test-only helpers (globalSetup, resetDatabase, fixtures)
 └── uploads/             # File upload routes (badge images, avatars)
 ```
 
@@ -118,7 +121,7 @@ server/
 
 - [Frontend](docs/architecture-frontend.md) — entry point, state, routing, auth, pages
 - [Backend](docs/architecture-backend.md) — Express server, module layout, layers
-- [Database](docs/architecture-database.md) — Prisma ORM, fallback store, key models
+- [Database](docs/architecture-database.md) — Prisma ORM, migrations, seed, key models
 - [Authorization](docs/architecture-authorization.md) — roles, scoping, developer account
 - [Excel Import System](docs/architecture-excel-import.md) — bulk badge assignment flow
 - [Key API Routes](docs/architecture-api-routes.md) — auth, submissions, admin endpoints
