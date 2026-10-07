@@ -75,13 +75,24 @@ export const seedIndicatorBadges = async () => {
   return results;
 };
 
+// Uma URL de upload pode estar em mais de uma linha (avatar_url aceita qualquer valor no perfil).
+// Só apaga o arquivo quando a última referência some, para não remover o arquivo de outra pessoa.
+const deleteUploadIfUnreferenced = async (url) => {
+  if (!url) return;
+  const references = await Promise.all([
+    prisma.user.count({ where: { avatar_url: url } }),
+    prisma.badge.count({ where: { image_url: url } }),
+    prisma.badgeSubmission.count({ where: { proof_url: url } }),
+  ]);
+  if (references.some((count) => count > 0)) return;
+  await deleteUploadedFile(url);
+};
+
 export const deleteBadge = async (badgeId) => {
   const badge = await prisma.badge.findUnique({ where: { id: badgeId }, select: { image_url: true } });
   await prisma.badge.deleteMany({ where: { id: badgeId } });
 
-  if (badge?.image_url) {
-    await deleteUploadedFile(badge.image_url);
-  }
+  await deleteUploadIfUnreferenced(badge?.image_url);
 
   return { success: true };
 };
@@ -161,9 +172,7 @@ export const deleteUser = async (userId) => {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { avatar_url: true } });
   await prisma.user.deleteMany({ where: { id: userId } });
 
-  if (user?.avatar_url) {
-    await deleteUploadedFile(user.avatar_url);
-  }
+  await deleteUploadIfUnreferenced(user?.avatar_url);
 
   return { success: true };
 };
