@@ -32,6 +32,24 @@ const isDeveloper = (user) => user.role === 'developer';
 const isSupervisor = (user) => user.role === 'supervisor';
 const canManageUnit = (user) => isAdminOrDeveloper(user) || isSupervisor(user);
 
+// Usuário comum vê o próprio e-mail, não o dos colegas.
+const hideEmailFrom = (viewer, user) => {
+  if (canManageUnit(viewer) || user.id === viewer.id) return user;
+  const { email: _email, ...rest } = user;
+  return rest;
+};
+
+// Mesmo escopo do /api/bootstrap: supervisor vê a própria unidade e usuário comum só as próprias solicitações.
+const scopeSubmissions = (viewer, submissions, users) => {
+  if (isAdminOrDeveloper(viewer)) return submissions;
+  if (isSupervisor(viewer) && viewer.productive_unit_id) {
+    const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
+    return submissions.filter((s) => unitUserIds.has(s.user_id));
+  }
+  if (isSupervisor(viewer)) return submissions;
+  return submissions.filter((s) => s.user_id === viewer.id);
+};
+
 const ensureManagerUnitScope = (user, unitId) => {
   if (isSupervisor(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
   return true;
@@ -387,19 +405,29 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     res.json({ badges });
   }));
 
-  app.get('/api/users', asyncRoute(async (_req, res) => {
+  app.get('/api/users', asyncRoute(async (req, res) => {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
     const users = await listUsers();
-    res.json({ users });
+    res.json({ users: users.map((user) => hideEmailFrom(auth.body.user, user)) });
   }));
 
-  app.get('/api/user-badges', asyncRoute(async (_req, res) => {
+  // Sem filtro por papel: o ranking de qualquer usuário precisa das concessões de todos.
+  app.get('/api/user-badges', asyncRoute(async (req, res) => {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
     const userBadges = await listUserBadges();
     res.json({ userBadges });
   }));
 
-  app.get('/api/submissions', asyncRoute(async (_req, res) => {
-    const submissions = await listSubmissions();
-    res.json({ submissions });
+  app.get('/api/submissions', asyncRoute(async (req, res) => {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
+    const [submissions, users] = await Promise.all([listSubmissions(), listUsers()]);
+    res.json({ submissions: scopeSubmissions(auth.body.user, submissions, users) });
   }));
 
   app.get('/api/badge-legends', asyncRoute(async (_req, res) => {
@@ -407,7 +435,11 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     res.json({ badgeLegends });
   }));
 
-  app.get('/api/import-sources', asyncRoute(async (_req, res) => {
+  app.get('/api/import-sources', asyncRoute(async (req, res) => {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+    if (!canManageUnit(auth.body.user)) return res.status(403).json({ error: 'Acesso restrito.' });
+
     const importSources = await listImportSources();
     res.json({ importSources });
   }));
