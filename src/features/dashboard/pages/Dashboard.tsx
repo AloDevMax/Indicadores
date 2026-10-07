@@ -292,7 +292,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                       <div className="flex items-start justify-between gap-4">
                         <div>
                           <h6 className="text-lg font-bold font-heading text-slate-900">{collaborator.full_name}</h6>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>
+                          {collaborator.email && <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">{collaborator.email}</p>}
                         </div>
                         <div className="text-right">
                           <div className="text-xl font-black text-slate-900">{collaboratorMetrics.monthlyScore}</div>

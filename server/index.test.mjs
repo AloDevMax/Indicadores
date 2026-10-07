@@ -149,9 +149,7 @@ describe('auth guard matrix', () => {
 });
 
 describe('unauthenticated read routes', () => {
-  // None of these call requireAuthenticatedUser at all — verified directly
-  // against server/index.mjs. Run before any fixture-creating tests below so
-  // the database still holds only the beforeAll seed.
+  // The public catalog: the same data the anonymous /api/bootstrap returns.
 
   it('GET /api/badges returns the seeded badge library', async () => {
     const response = await request(app).get('/api/badges');
@@ -161,53 +159,6 @@ describe('unauthenticated read routes', () => {
     expect(response.body.badges).toContainEqual(
       expect.objectContaining({ id: '1', name: 'Mestre de Processos' }),
     );
-  });
-
-  it('GET /api/users returns the seeded users', async () => {
-    // Regression coverage for a wrong-import bug: this route must read
-    // listUsers() from server/auth/repository.mjs, not the identically named
-    // listUsers() in server/db/resourceRepository.mjs, which used to read a
-    // store that was always empty.
-    const response = await request(app).get('/api/users');
-
-    expect(response.status).toBe(200);
-    expect(response.body.users).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: SEED_ADMIN_ID, email: 'admin@test.com', role: 'admin' }),
-        expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com', role: 'user' }),
-      ]),
-    );
-  });
-
-  it('GET /api/users includes a user registered via POST /api/auth/register (regression test for the listUsers wrong-import bug)', async () => {
-    const email = uniqueEmail('users-list-visibility');
-
-    const registerResponse = await request(app)
-      .post('/api/auth/register')
-      .send({ email, password: 'password1', full_name: 'Users List Visibility' });
-
-    expect(registerResponse.status).toBe(201);
-
-    const response = await request(app).get('/api/users');
-
-    expect(response.status).toBe(200);
-    expect(response.body.users).toContainEqual(
-      expect.objectContaining({ email, full_name: 'Users List Visibility', role: 'user' }),
-    );
-  });
-
-  it('GET /api/user-badges returns an empty array before any badge has been awarded', async () => {
-    const response = await request(app).get('/api/user-badges');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ userBadges: [] });
-  });
-
-  it('GET /api/submissions returns an empty array before any submission has been created', async () => {
-    const response = await request(app).get('/api/submissions');
-
-    expect(response.status).toBe(200);
-    expect(response.body).toEqual({ submissions: [] });
   });
 
   it('GET /api/badge-legends returns the default legend copy', async () => {
@@ -225,21 +176,161 @@ describe('unauthenticated read routes', () => {
     });
   });
 
-  it('GET /api/import-sources returns the seeded import source', async () => {
-    const response = await request(app).get('/api/import-sources');
-
-    expect(response.status).toBe(200);
-    expect(response.body.importSources).toContainEqual(
-      expect.objectContaining({ id: 'source-default', name: 'Planilha Operacional' }),
-    );
-  });
-
   it('GET /api/productive-units returns the seeded productive units', async () => {
     const response = await request(app).get('/api/productive-units');
 
     expect(response.status).toBe(200);
     expect(response.body.productiveUnits).toEqual(
       expect.arrayContaining([{ id: 'pu1', name: 'Fábrica Campinas' }]),
+    );
+  });
+});
+
+describe('read routes that require a session', () => {
+  describe.each(['/api/users', '/api/user-badges', '/api/submissions', '/api/import-sources'])('GET %s', (path) => {
+    it('returns 401 with the session-error body when the Authorization header is missing', async () => {
+      const response = await request(app).get(path);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual(SESSION_ERROR_BODY);
+    });
+
+    it('returns 401 with the session-error body on a malformed bearer token', async () => {
+      const response = await request(app).get(path).set('Authorization', MALFORMED_HEADER);
+
+      expect(response.status).toBe(401);
+      expect(response.body).toEqual(SESSION_ERROR_BODY);
+    });
+  });
+
+  it('GET /api/users returns every user with emails to an admin', async () => {
+    // Regression coverage for a wrong-import bug: this route must read
+    // listUsers() from server/auth/repository.mjs, not the identically named
+    // listUsers() in server/db/resourceRepository.mjs, which used to read a
+    // store that was always empty.
+    const { header } = await authHeaderFor('admin');
+
+    const response = await request(app).get('/api/users').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    expect(response.body.users).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: SEED_ADMIN_ID, email: 'admin@test.com', role: 'admin' }),
+        expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com', role: 'user' }),
+      ]),
+    );
+  });
+
+  it('GET /api/users includes a user registered via POST /api/auth/register (regression test for the listUsers wrong-import bug)', async () => {
+    const email = uniqueEmail('users-list-visibility');
+    const registerResponse = await request(app)
+      .post('/api/auth/register')
+      .send({ email, password: 'password1', full_name: 'Users List Visibility' });
+    expect(registerResponse.status).toBe(201);
+    const { header } = await authHeaderFor('admin');
+
+    const response = await request(app).get('/api/users').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    expect(response.body.users).toContainEqual(
+      expect.objectContaining({ email, full_name: 'Users List Visibility', role: 'user' }),
+    );
+  });
+
+  it('GET /api/users hides other users\' emails from a plain user but keeps their own', async () => {
+    const { header, user } = await authHeaderFor('user', { productive_unit_id: 'pu1' });
+
+    const response = await request(app).get('/api/users').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    const joao = response.body.users.find((u) => u.id === SEED_USER_ID);
+    expect(joao).toMatchObject({ full_name: 'Joao Silva', role: 'user' });
+    expect(joao).not.toHaveProperty('email');
+    expect(response.body.users.find((u) => u.id === user.id)).toMatchObject({ email: user.email });
+  });
+
+  it('GET /api/users keeps emails for a supervisor', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'pu1' });
+
+    const response = await request(app).get('/api/users').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    expect(response.body.users).toContainEqual(expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com' }));
+  });
+
+  it('GET /api/user-badges returns the awards to any signed-in user (the ranking needs them)', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await request(app).get('/api/user-badges').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(response.body.userBadges)).toBe(true);
+  });
+
+  describe('GET /api/submissions scope', () => {
+    const createSubmissionFor = async (userId, unitLabel) => {
+      const id = crypto.randomUUID();
+      await prisma.badgeSubmission.create({ data: { id, user_id: userId, badge_id: '1', description: `scope ${unitLabel}` } });
+      return id;
+    };
+
+    it('returns only the caller\'s own submissions to a plain user', async () => {
+      const me = await authHeaderFor('user', { productive_unit_id: 'pu1' });
+      const mine = await createSubmissionFor(me.user.id, 'mine');
+      const theirs = await createSubmissionFor(SEED_USER_ID, 'theirs');
+
+      const response = await request(app).get('/api/submissions').set('Authorization', me.header);
+
+      expect(response.status).toBe(200);
+      const ids = response.body.submissions.map((s) => s.id);
+      expect(ids).toEqual([mine]);
+      expect(ids).not.toContain(theirs);
+    });
+
+    it('returns only submissions from the supervisor\'s own unit', async () => {
+      const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-scope-a' });
+      const inUnit = await authHeaderFor('user', { productive_unit_id: 'pu-scope-a' });
+      const outOfUnit = await authHeaderFor('user', { productive_unit_id: 'pu-scope-b' });
+      const visible = await createSubmissionFor(inUnit.user.id, 'in unit');
+      const hidden = await createSubmissionFor(outOfUnit.user.id, 'out of unit');
+
+      const response = await request(app).get('/api/submissions').set('Authorization', supervisor.header);
+
+      expect(response.status).toBe(200);
+      const ids = response.body.submissions.map((s) => s.id);
+      expect(ids).toContain(visible);
+      expect(ids).not.toContain(hidden);
+    });
+
+    it('returns every submission to an admin', async () => {
+      const someone = await authHeaderFor('user', { productive_unit_id: 'pu-scope-c' });
+      const id = await createSubmissionFor(someone.user.id, 'admin sees');
+      const { header } = await authHeaderFor('admin');
+
+      const response = await request(app).get('/api/submissions').set('Authorization', header);
+
+      expect(response.status).toBe(200);
+      expect(response.body.submissions.map((s) => s.id)).toContain(id);
+    });
+  });
+
+  it('GET /api/import-sources returns 403 to a plain user', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await request(app).get('/api/import-sources').set('Authorization', header);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Acesso restrito.' });
+  });
+
+  it('GET /api/import-sources returns the seeded import source to an admin', async () => {
+    const { header } = await authHeaderFor('admin');
+
+    const response = await request(app).get('/api/import-sources').set('Authorization', header);
+
+    expect(response.status).toBe(200);
+    expect(response.body.importSources).toContainEqual(
+      expect.objectContaining({ id: 'source-default', name: 'Planilha Operacional' }),
     );
   });
 });
