@@ -43,8 +43,9 @@ export const listUserBadges = async () => prisma.userBadge.findMany({
 });
 
 export const listSubmissions = async () => prisma.$queryRaw`
-  select s.id, s.user_id, s.badge_id, b.name as badge_name, s.description, s.status::text as status, s.submitted_at, s.proof_url
+  select s.id, s.user_id, u.full_name as user_name, s.badge_id, b.name as badge_name, s.description, s.status::text as status, s.submitted_at, s.proof_url
   from badge_submissions s
+  left join users u on u.id = s.user_id
   left join badges b on b.id = s.badge_id
   order by s.submitted_at desc`;
 
