@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { AppBootstrapPayload, Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ImportBindingSnapshot, ImportSourceConfig, ImportSourceField, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
+import { Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -37,21 +37,6 @@ const postJson = async <T>(path: string, body: unknown, token?: string): Promise
   }
 
   return response.json() as Promise<T>;
-};
-
-export const fetchBootstrapData = async (): Promise<AppBootstrapPayload | null> => {
-  const apiBaseUrl = getApiBaseUrl();
-  const token = getStoredAuthToken();
-
-  const response = await fetch(`${apiBaseUrl}/api/bootstrap`, {
-    headers: token ? createJsonHeaders(token) : undefined,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Bootstrap request failed with status ${response.status}`);
-  }
-
-  return response.json() as Promise<AppBootstrapPayload>;
 };
 
 export const storeAuthToken = (token: string) => {
@@ -216,15 +201,6 @@ export const deleteUserWithApi = async (id: string) => {
   await postJson('/api/admin/users/delete', { id }, requireAuthToken());
 };
 
-export const saveImportSourceWithApi = async (importSource: ImportSourceConfig) => {
-  const payload = await postJson<{ importSource: ImportSourceConfig }>(
-    '/api/admin/import-sources',
-    importSource,
-    requireAuthToken(),
-  );
-  return payload.importSource;
-};
-
 export const awardBadgesWithApi = async (userIds: string[], badgeId: string, tone: BadgeTone) => {
   const payload = await postJson<{ awardedBadges: UserBadge[] }>(
     '/api/admin/award-badges',
@@ -257,51 +233,6 @@ export const importMonthlyBadgesWithApi = async (
     { awards, month, year },
     requireAuthToken(),
   );
-};
-
-interface ImportRowPayload {
-  row: Record<string, string>;
-  user_id?: string;
-  badge_id?: string;
-  tone: BadgeTone;
-  status: 'valid' | 'invalid';
-  reason?: string;
-}
-
-export const persistImportRunWithApi = async (
-  sourceId: string,
-  sourceName: string,
-  matchedColumns: Partial<Record<ImportSourceField, string>>,
-  rows: ImportRowPayload[],
-) => {
-  const payload = await postJson<{
-    importRun: { imported_at?: string; importedAt?: string };
-    awardedBadges: UserBadge[];
-    summary: { valid: number };
-  }>(
-    '/api/admin/import-runs',
-    {
-      source_id: sourceId,
-      source_name: sourceName,
-      matched_columns: matchedColumns,
-      rows,
-    },
-    requireAuthToken(),
-  );
-
-  const importedAt = payload.importRun.imported_at || payload.importRun.importedAt || new Date().toISOString();
-  const bindingSnapshot: ImportBindingSnapshot = {
-    sourceId,
-    sourceName,
-    matchedColumns,
-    importedAt,
-  };
-
-  return {
-    awardedBadges: payload.awardedBadges,
-    summary: payload.summary,
-    bindingSnapshot,
-  };
 };
 
 // Per-route fetch functions for data loading
@@ -378,19 +309,4 @@ export const fetchBadgeLegendsWithApi = async () => {
 
   const data = (await response.json()) as { badgeLegends: BadgeLegendSettings };
   return data.badgeLegends;
-};
-
-export const fetchImportSourcesWithApi = async (): Promise<ImportSourceConfig[]> => {
-  const apiBaseUrl = getApiBaseUrl();
-  const token = getStoredAuthToken();
-  const response = await fetch(`${apiBaseUrl}/api/import-sources`, {
-    headers: token ? createJsonHeaders(token) : undefined,
-  });
-
-  if (!response.ok) {
-    throw new Error(`Falha ao buscar fontes de importação com status ${response.status}`);
-  }
-
-  const data = (await response.json()) as { importSources: ImportSourceConfig[] };
-  return data.importSources;
 };

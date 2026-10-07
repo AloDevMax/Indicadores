@@ -101,13 +101,11 @@ describe('auth guard matrix', () => {
   });
 
   // Group B: guard fails with an explicit res.status(403).json({error}) and
-  // an exact Portuguese message (5 routes).
+  // an exact Portuguese message (3 routes).
   describe.each([
     { method: 'post', path: '/api/admin/users', error: 'Acesso restrito.' },
-    { method: 'post', path: '/api/admin/import-sources', error: 'Somente o desenvolvedor pode manter fontes globais de importação.' },
     { method: 'post', path: '/api/admin/badges', error: 'Somente o desenvolvedor pode manter a biblioteca global de selos.' },
     { method: 'post', path: '/api/admin/badges/delete', error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' },
-    { method: 'post', path: '/api/admin/import-runs', error: 'Acesso restrito.' },
   ])('$method $path', ({ method, path, error }) => {
     it('returns 403 with the exact Portuguese error message when the Authorization header is missing', async () => {
       const response = await request(app)[method](path);
@@ -149,8 +147,6 @@ describe('auth guard matrix', () => {
 });
 
 describe('unauthenticated read routes', () => {
-  // The public catalog: the same data the anonymous /api/bootstrap returns.
-
   it('GET /api/badges returns the seeded badge library', async () => {
     const response = await request(app).get('/api/badges');
 
@@ -187,7 +183,7 @@ describe('unauthenticated read routes', () => {
 });
 
 describe('read routes that require a session', () => {
-  describe.each(['/api/users', '/api/user-badges', '/api/submissions', '/api/import-sources'])('GET %s', (path) => {
+  describe.each(['/api/users', '/api/user-badges', '/api/submissions'])('GET %s', (path) => {
     it('returns 401 with the session-error body when the Authorization header is missing', async () => {
       const response = await request(app).get(path);
 
@@ -314,25 +310,6 @@ describe('read routes that require a session', () => {
     });
   });
 
-  it('GET /api/import-sources returns 403 to a plain user', async () => {
-    const { header } = await authHeaderFor('user');
-
-    const response = await request(app).get('/api/import-sources').set('Authorization', header);
-
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'Acesso restrito.' });
-  });
-
-  it('GET /api/import-sources returns the seeded import source to an admin', async () => {
-    const { header } = await authHeaderFor('admin');
-
-    const response = await request(app).get('/api/import-sources').set('Authorization', header);
-
-    expect(response.status).toBe(200);
-    expect(response.body.importSources).toContainEqual(
-      expect.objectContaining({ id: 'source-default', name: 'Planilha Operacional' }),
-    );
-  });
 });
 
 describe('GET /api/health', () => {
@@ -354,28 +331,13 @@ describe('GET /api/health', () => {
   });
 });
 
-describe('GET /api/bootstrap', () => {
-  it('returns the seed payload filtered for an anonymous caller when unauthenticated', async () => {
-    const response = await request(app).get('/api/bootstrap');
-
-    expect(response.status).toBe(200);
-    expect(response.body.source).toBe('database');
-    expect(response.body.users).toEqual([]);
-    expect(response.body.userBadges).toEqual([]);
-    expect(response.body.submissions).toEqual([]);
-    expect(response.body.importSources).toEqual([]);
-    expect(Array.isArray(response.body.badges)).toBe(true);
-  });
-
-  it('returns the full unfiltered payload for an authenticated developer', async () => {
+describe('removed import-source and import-run routes', () => {
+  it.each(['/api/admin/import-sources', '/api/admin/import-runs'])('POST %s returns 404', async (path) => {
     const { header } = await authHeaderFor('developer');
 
-    const response = await request(app).get('/api/bootstrap').set('Authorization', header);
+    const response = await request(app).post(path).set('Authorization', header).send({});
 
-    expect(response.status).toBe(200);
-    expect(response.body.source).toBe('database');
-    expect(Array.isArray(response.body.badges)).toBe(true);
-    expect(Array.isArray(response.body.productiveUnits)).toBe(true);
+    expect(response.status).toBe(404);
   });
 });
 

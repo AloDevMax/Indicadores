@@ -7,7 +7,6 @@ import {
   createSubmission,
   findSubmissionOwnerUnit,
   importMonthlyBadges,
-  persistImportRun,
   removeUserBadge,
   reviewSubmission,
 } from './repository.mjs';
@@ -270,93 +269,6 @@ describe('importMonthlyBadges', () => {
       year: 2026,
     })).rejects.toThrow();
 
-    expect(await prisma.userBadge.count()).toBe(0);
-  });
-});
-
-describe('persistImportRun', () => {
-  const SOURCE = { id: 'src-1', name: 'Planilha X', productive_unit_column: 'u', user_column: 'c', badge_column: 's' };
-
-  it('records a run with no rows', async () => {
-    await prisma.importSource.create({ data: SOURCE });
-
-    const result = await persistImportRun({
-      reviewerId: ADMIN_ID, sourceId: 'src-1', sourceName: 'Planilha X', matchedColumns: { user: 'Nome' }, rows: [],
-    });
-
-    expect(result).toEqual({
-      importRun: {
-        id: expect.stringMatching(UUID),
-        source_id: 'src-1',
-        source_name: 'Planilha X',
-        imported_by: ADMIN_ID,
-        imported_at: expect.any(Date),
-        status: 'completed',
-        matched_columns: { user: 'Nome' },
-        summary: { total: 0, valid: 0, invalid: 0 },
-      },
-      awardedBadges: [],
-      summary: { total: 0, valid: 0, invalid: 0 },
-    });
-  });
-
-  it('records every row and awards valid rows, replacing this month award', async () => {
-    await prisma.importSource.create({ data: SOURCE });
-    await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'bronze' } });
-
-    const result = await persistImportRun({
-      reviewerId: ADMIN_ID,
-      sourceId: 'src-1',
-      sourceName: 'Planilha X',
-      matchedColumns: { user: 'Nome' },
-      rows: [
-        { row: { Nome: 'Ana' }, user_id: ANA_ID, badge_id: 'b1', tone: 'gold', status: 'valid' },
-        { row: { Nome: 'Ninguém' }, status: 'invalid', reason: 'Usuário não encontrado' },
-      ],
-    });
-
-    expect(result.summary).toEqual({ total: 2, valid: 1, invalid: 1 });
-    expect(result.awardedBadges).toEqual([
-      expect.objectContaining({ user_id: ANA_ID, badge_id: 'b1', tone: 'gold', awarded_by: ADMIN_ID, productive_unit_id: 'pu1' }),
-    ]);
-    expect(await userBadgesOf(ANA_ID)).toEqual([expect.objectContaining({ id: result.awardedBadges[0].id, tone: 'gold' })]);
-
-    const rows = await prisma.importRunRow.findMany({ orderBy: { row_number: 'asc' } });
-    expect(rows).toEqual([
-      {
-        id: expect.stringMatching(UUID),
-        import_run_id: result.importRun.id,
-        row_number: 1,
-        raw_payload: { Nome: 'Ana' },
-        normalized_payload: { user_id: ANA_ID, badge_id: 'b1', tone: 'gold' },
-        status: 'imported',
-        reason: null,
-      },
-      {
-        id: expect.stringMatching(UUID),
-        import_run_id: result.importRun.id,
-        row_number: 2,
-        raw_payload: { Nome: 'Ninguém' },
-        normalized_payload: { user_id: null, badge_id: null, tone: null },
-        status: 'invalid',
-        reason: 'Usuário não encontrado',
-      },
-    ]);
-  });
-
-  it('writes nothing when a valid row points to a missing badge', async () => {
-    await prisma.importSource.create({ data: SOURCE });
-
-    await expect(persistImportRun({
-      reviewerId: ADMIN_ID,
-      sourceId: 'src-1',
-      sourceName: 'Planilha X',
-      matchedColumns: {},
-      rows: [{ row: {}, user_id: ANA_ID, badge_id: 'nao-existe', tone: 'gold', status: 'valid' }],
-    })).rejects.toThrow();
-
-    expect(await prisma.importRun.count()).toBe(0);
-    expect(await prisma.importRunRow.count()).toBe(0);
     expect(await prisma.userBadge.count()).toBe(0);
   });
 });

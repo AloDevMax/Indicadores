@@ -16,7 +16,7 @@ export const BADGE_TONE_LABELS: Record<BadgeTone, string> = {
   loss_2: 'Perda 2',
 };
 
-export const isSameMonth = (dateIso: string, reference = new Date()) => {
+const isSameMonth = (dateIso: string, reference = new Date()) => {
   const date = new Date(dateIso);
   return date.getUTCFullYear() === reference.getUTCFullYear() && date.getUTCMonth() === reference.getUTCMonth();
 };

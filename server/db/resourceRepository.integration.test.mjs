@@ -5,7 +5,6 @@ import { resetDatabase } from '../test/db.mjs';
 import {
   getBadgeLegends,
   listBadges,
-  listImportSources,
   listProductiveUnits,
   listSubmissions,
   listUserBadges,
@@ -146,30 +145,6 @@ describe('getBadgeLegends', () => {
     });
 
     expect(await getBadgeLegends()).toEqual(legends('nova'));
-  });
-});
-
-describe('listImportSources', () => {
-  it('lists active sources oldest first with their raw column names', async () => {
-    const columns = { productive_unit_column: 'Unidade', user_column: 'Nome', badge_column: 'Selo' };
-    await prisma.importSource.createMany({
-      data: [
-        { id: 's2', name: 'Segunda', ...columns, created_at: new Date('2024-02-01T00:00:00.000Z') },
-        { id: 's1', name: 'Primeira', description: 'desc', ...columns, tone_column: 'Cor', award_column: 'Pontos', created_at: new Date('2024-01-01T00:00:00.000Z') },
-        { id: 's3', name: 'Arquivada', ...columns, archived_at: new Date('2024-03-01T00:00:00.000Z') },
-      ],
-    });
-
-    expect(await listImportSources()).toEqual([
-      {
-        id: 's1', name: 'Primeira', description: 'desc', productive_unit_column: 'Unidade', user_column: 'Nome',
-        badge_column: 'Selo', tone_column: 'Cor', award_column: 'Pontos',
-      },
-      {
-        id: 's2', name: 'Segunda', description: null, productive_unit_column: 'Unidade', user_column: 'Nome',
-        badge_column: 'Selo', tone_column: 'marcacao', award_column: 'premio',
-      },
-    ]);
   });
 });
 

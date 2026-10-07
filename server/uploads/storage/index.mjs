@@ -2,7 +2,7 @@ import { env } from '../../config/env.mjs';
 import { createLocalStorage } from './localStorage.mjs';
 import { createSupabaseStorageFromEnv } from './supabaseStorage.mjs';
 
-export const createStorage = (config) =>
+const createStorage = (config) =>
   config.STORAGE_DRIVER === 'supabase' ? createSupabaseStorageFromEnv(config) : createLocalStorage();
 
 let storage;

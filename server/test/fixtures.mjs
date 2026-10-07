@@ -29,5 +29,4 @@ export const createTestUser = async ({ password, password_hash: passwordHash, ..
 export const seedReferenceData = async () => {
   await prisma.productiveUnit.createMany({ data: DEMO_DATA.productiveUnits });
   await prisma.badge.createMany({ data: DEMO_DATA.badges });
-  await prisma.importSource.createMany({ data: DEMO_DATA.importSources });
 };

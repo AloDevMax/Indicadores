@@ -183,38 +183,6 @@ export const deleteUser = async (userId) => {
   return { success: true };
 };
 
-export const saveImportSource = async (importSource) => {
-  const id = importSource.id || randomId();
-  const fields = {
-    name: importSource.name,
-    description: importSource.description || null,
-    productive_unit_column: importSource.columns.productive_unit,
-    user_column: importSource.columns.user,
-    badge_column: importSource.columns.badge,
-    tone_column: importSource.columns.tone,
-    award_column: importSource.columns.award,
-  };
-
-  const row = await prisma.importSource.upsert({
-    where: { id },
-    create: { id, ...fields },
-    update: fields,
-  });
-
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description || undefined,
-    columns: {
-      productive_unit: row.productive_unit_column,
-      user: row.user_column,
-      badge: row.badge_column,
-      tone: row.tone_column,
-      award: row.award_column,
-    },
-  };
-};
-
 export const bulkInviteUsers = async ({ emails, productiveUnitId }) => {
   const normalizedEmails = [...new Set(
     emails

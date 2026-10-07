@@ -9,7 +9,6 @@ import {
   deleteBadge,
   deleteUser,
   saveBadge,
-  saveImportSource,
   saveProductiveUnit,
   saveUser,
   seedIndicatorBadges,
@@ -311,28 +310,6 @@ describe('deleteUser', () => {
   it('succeeds for an unknown user without touching files', async () => {
     expect(await deleteUser(crypto.randomUUID())).toEqual({ success: true });
     expect(deleteUploadedFile).not.toHaveBeenCalled();
-  });
-});
-
-describe('saveImportSource', () => {
-  const COLUMNS = { productive_unit: 'Unidade', user: 'Nome', badge: 'Selo', tone: 'Cor', award: 'Pontos' };
-
-  it('creates a source with a short id and maps the columns back', async () => {
-    const source = await saveImportSource({ name: 'Planilha RH', description: 'desc', columns: COLUMNS });
-
-    expect(source).toEqual({ id: expect.stringMatching(SHORT_ID), name: 'Planilha RH', description: 'desc', columns: COLUMNS });
-    expect(await prisma.importSource.findUnique({ where: { id: source.id } })).toMatchObject({
-      productive_unit_column: 'Unidade', user_column: 'Nome', badge_column: 'Selo', tone_column: 'Cor', award_column: 'Pontos',
-    });
-  });
-
-  it('returns description as undefined when it is empty, and updates by id', async () => {
-    await saveImportSource({ id: 'src', name: 'Antiga', description: 'x', columns: COLUMNS });
-
-    const source = await saveImportSource({ id: 'src', name: 'Nova', columns: { ...COLUMNS, tone: 'Tom' } });
-
-    expect(source).toEqual({ id: 'src', name: 'Nova', description: undefined, columns: { ...COLUMNS, tone: 'Tom' } });
-    expect(await prisma.importSource.count()).toBe(1);
   });
 });
 

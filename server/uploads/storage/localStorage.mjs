@@ -9,7 +9,7 @@ export const LOCAL_UPLOADS_DIR = path.join(__dirname, '../../../public/uploads')
 
 const URL_PREFIX = '/uploads/';
 // Nomes gerados pelo uploadService: sem barras e nunca só pontos (evita path traversal).
-export const OBJECT_NAME = /^(?!\.+$)[\w.-]+$/;
+const OBJECT_NAME = /^(?!\.+$)[\w.-]+$/;
 
 export const nameFromUrl = (url, prefix) =>
   typeof url === 'string' && url.startsWith(prefix) && OBJECT_NAME.test(url.slice(prefix.length))

@@ -2,8 +2,6 @@
 export type Role = 'admin' | 'user' | 'developer' | 'supervisor';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
-export type BadgeCategory = 'Qualidade' | 'Segurança' | 'Eficiência' | 'Processos' | 'Serviço';
-export type ImportSourceField = 'productive_unit' | 'user' | 'badge' | 'tone' | 'award';
 
 export interface Notification {
   id: string;
@@ -70,31 +68,6 @@ export const DEFAULT_BADGE_LEGENDS: BadgeLegendSettings = {
   loss_2: 'Perda 2 - Falha grave',
 };
 
-export interface ImportSourceConfig {
-  id: string;
-  name: string;
-  description?: string;
-  columns: Record<ImportSourceField, string>;
-}
-
-export interface ImportBindingSnapshot {
-  sourceId: string;
-  sourceName: string;
-  matchedColumns: Partial<Record<ImportSourceField, string>>;
-  importedAt: string;
-}
-
-export interface AppBootstrapPayload {
-  source: 'seed' | 'database';
-  badges: Badge[];
-  productiveUnits: ProductiveUnit[];
-  badgeLegends: BadgeLegendSettings;
-  importSources: ImportSourceConfig[];
-  users: Profile[];
-  userBadges: UserBadge[];
-  submissions: BadgeSubmission[];
-}
-
 export interface IndicatorRow {
   excelName: string;
   indicators: Record<string, number>; // badgeId → value (-2 to 3)
@@ -105,13 +78,6 @@ export interface UserMatchResult {
   matchedUserId: string | null;
   matchedUserName: string | null;
   confidence: 'auto' | 'manual' | 'ignored';
-}
-
-export interface MonthlyImportPreview {
-  month: number;
-  year: number;
-  rows: IndicatorRow[];
-  userMatches: UserMatchResult[];
 }
 
 export interface BadgeSubmission {

@@ -57,18 +57,3 @@ export const getBadgeLegends = async () => {
 
   return legends || DEFAULT_BADGE_LEGENDS;
 };
-
-export const listImportSources = async () => prisma.importSource.findMany({
-  select: {
-    id: true,
-    name: true,
-    description: true,
-    productive_unit_column: true,
-    user_column: true,
-    badge_column: true,
-    tone_column: true,
-    award_column: true,
-  },
-  where: { archived_at: null },
-  orderBy: { created_at: 'asc' },
-});

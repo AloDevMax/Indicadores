@@ -6,11 +6,9 @@ import {
   reviewSubmission,
   awardBadges,
   removeUserBadge,
-  persistImportRun,
   importMonthlyBadges,
 } from './repository.mjs';
 import { saveBadge } from '../admin/repository.mjs';
-import { prisma } from '../shared/db/prisma.mjs';
 import { resetDatabase } from '../test/db.mjs';
 import { createTestUser } from '../test/fixtures.mjs';
 
@@ -134,39 +132,6 @@ describe('removeUserBadge', () => {
     const result = await removeUserBadge({ reviewerId: reviewer.id, userId: recipient.id, badgeId: badge.id });
 
     expect(result).toEqual({ success: true });
-  });
-});
-
-describe('persistImportRun', () => {
-  it('throws when the reviewer lacks permission', async () => {
-    const requester = await makeUser({ role: 'user' });
-    await expect(persistImportRun({ reviewerId: requester.id, sourceId: 's1', sourceName: 'Src', matchedColumns: {}, rows: [] }))
-      .rejects.toThrow('Apenas administradores e supervisores podem processar importações.');
-  });
-
-  it('records the run summary and awards badges for valid rows only', async () => {
-    const reviewer = await makeUser({ role: 'admin' });
-    const badge = await makeBadge();
-    const validUser = await makeUser();
-    await prisma.importSource.create({
-      data: { id: 'src-1', name: 'Planilha X', productive_unit_column: 'u', user_column: 'c', badge_column: 's' },
-    });
-
-    const { importRun, awardedBadges, summary } = await persistImportRun({
-      reviewerId: reviewer.id,
-      sourceId: 'src-1',
-      sourceName: 'Planilha X',
-      matchedColumns: { user: 'Nome' },
-      rows: [
-        { row: {}, user_id: validUser.id, badge_id: badge.id, tone: 'bronze', status: 'valid' },
-        { row: {}, status: 'invalid', reason: 'Usuário não encontrado' },
-      ],
-    });
-
-    expect(summary).toEqual({ total: 2, valid: 1, invalid: 1 });
-    expect(importRun.source_name).toBe('Planilha X');
-    expect(awardedBadges).toHaveLength(1);
-    expect(awardedBadges[0].user_id).toBe(validUser.id);
   });
 });
 
