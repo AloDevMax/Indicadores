@@ -21,6 +21,10 @@ const USER_BADGE_SELECT = { id: true, user_id: true, badge_id: true, awarded_at:
 
 const isRecordNotFound = (error) => error?.code === 'P2025';
 
+// O padrão do Prisma (5s) é curto para lotes grandes, ainda mais com a
+// latência de um banco gerenciado.
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 60_000 };
+
 const ensureReviewer = async (reviewerId, message) => {
   const reviewer = await findUserById(reviewerId);
   if (!reviewer || !REVIEWER_ROLES.includes(reviewer.role)) {
@@ -147,7 +151,7 @@ export const reviewSubmission = async ({ submissionId, reviewerId, status }) => 
       : null;
 
     return { submission: reviewed, awardedBadge: award };
-  });
+  }, TRANSACTION_OPTIONS);
 
   const user = await findUserById(submission.user_id);
   return {
@@ -174,7 +178,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
     }
 
     return results;
-  });
+  }, TRANSACTION_OPTIONS);
 };
 
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
@@ -273,34 +277,44 @@ export const persistImportRun = async ({
     }
 
     return { importRun, awardedBadges, summary };
-  });
+  }, TRANSACTION_OPTIONS);
 };
 
 // awards: [{ userId, badgeId, tone }] — only non-zero values
 export const importMonthlyBadges = async ({ reviewerId, awards, month, year }) => {
   await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem importar badges mensais.');
 
-  // Pares (usuário, selo) importados, para apagar os registros anteriores deste mês.
+  // Um par (usuário, selo) por linha; se repetido, vale o último.
   const uniquePairs = [...new Map(awards.map((a) => [`${a.userId}:${a.badgeId}`, a])).values()];
+  if (uniquePairs.length === 0) return { awardedCount: 0, awardedBadges: [] };
 
-  return prisma.$transaction(async (tx) => {
-    for (const { userId, badgeId } of uniquePairs) {
-      await tx.$executeRaw`
-        delete from user_badges
-        where user_id = ${userId}::uuid
-          and badge_id = ${badgeId}
-          and date_trunc('month', awarded_at) = date_trunc('month', make_date(${year}::int, ${month}::int, 1)::timestamp)`;
-    }
+  const userIds = uniquePairs.map((pair) => pair.userId);
+  const badgeIds = uniquePairs.map((pair) => pair.badgeId);
+  const tones = uniquePairs.map((pair) => pair.tone);
 
-    const inserted = [];
-    for (const { userId, badgeId, tone } of uniquePairs) {
-      const rows = await tx.$queryRaw`
-        insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
-        values (gen_random_uuid(), ${userId}::uuid, ${badgeId}, ${reviewerId}::uuid, ${tone}::"BadgeTone", make_date(${year}::int, ${month}::int, 1)::timestamp)
-        returning id, user_id, badge_id, awarded_at, awarded_by, tone::text as tone`;
-      inserted.push(rows[0]);
-    }
+  // Duas queries no total, qualquer que seja o tamanho da planilha: em loop,
+  // uma importação mensal grande estoura o timeout da transação.
+  const inserted = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      delete from user_badges ub
+      using unnest(${userIds}::uuid[], ${badgeIds}::text[]) as pair(user_id, badge_id)
+      where ub.user_id = pair.user_id
+        and ub.badge_id = pair.badge_id
+        and date_trunc('month', ub.awarded_at) = date_trunc('month', make_date(${year}::int, ${month}::int, 1)::timestamp)`;
 
-    return { awardedCount: inserted.length, awardedBadges: inserted };
-  });
+    return tx.$queryRaw`
+      insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
+      select gen_random_uuid(), pair.user_id, pair.badge_id, ${reviewerId}::uuid, pair.tone::"BadgeTone",
+             make_date(${year}::int, ${month}::int, 1)::timestamp
+      from unnest(${userIds}::uuid[], ${badgeIds}::text[], ${tones}::text[]) as pair(user_id, badge_id, tone)
+      returning id, user_id, badge_id, awarded_at, awarded_by, tone::text as tone`;
+  }, TRANSACTION_OPTIONS);
+
+  // returning não garante ordem: devolve na ordem da planilha.
+  const position = new Map(uniquePairs.map((pair, index) => [`${pair.userId}:${pair.badgeId}`, index]));
+  const awardedBadges = [...inserted].sort(
+    (left, right) => position.get(`${left.user_id}:${left.badge_id}`) - position.get(`${right.user_id}:${right.badge_id}`),
+  );
+
+  return { awardedCount: awardedBadges.length, awardedBadges };
 };

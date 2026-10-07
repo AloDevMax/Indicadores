@@ -228,5 +228,5 @@ export const bulkInviteUsers = async ({ emails, productiveUnitId }) => {
     }
 
     return { createdUsers, skippedEmails };
-  });
+  }, { maxWait: 10_000, timeout: 60_000 });
 };

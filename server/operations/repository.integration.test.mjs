@@ -18,6 +18,7 @@ const BIA_ID = '00000000-0000-4000-8000-0000000000b1';
 const UUID = /^[0-9a-f-]{36}$/;
 
 const iso = (date) => date.toISOString();
+const id4 = (index) => `00000000-0000-4000-9000-${String(index).padStart(12, '0')}`;
 const userBadgesOf = (userId) => prisma.userBadge.findMany({ where: { user_id: userId }, orderBy: { awarded_at: 'asc' } });
 
 beforeEach(async () => {
@@ -225,6 +226,32 @@ describe('importMonthlyBadges', () => {
       ['2026-02-10T00:00:00.000Z', 'silver'],
       ['2026-03-01T00:00:00.000Z', 'gold'],
     ]);
+  });
+
+  it('imports a full spreadsheet (300 users x 13 badges) in one go', async () => {
+    const userIds = Array.from({ length: 300 }, (_, index) => id4(index));
+    const badgeIds = Array.from({ length: 13 }, (_, index) => `ind-${index}`);
+    await prisma.user.createMany({
+      data: userIds.map((userId, index) => ({
+        id: userId, email: `bulk${index}@example.com`, password_hash: 'h', full_name: `Bulk ${index}`, role: 'user',
+      })),
+    });
+    await prisma.badge.createMany({
+      data: badgeIds.map((badgeId) => ({ id: badgeId, name: badgeId, description: 'd', category: 'Qualidade', icon_name: '⭐' })),
+    });
+    const awards = userIds.flatMap((userId) => badgeIds.map((badgeId) => ({ userId, badgeId, tone: 'gold' })));
+
+    const result = await importMonthlyBadges({ reviewerId: ADMIN_ID, awards, month: 3, year: 2026 });
+
+    expect(result.awardedCount).toBe(3900);
+    expect(result.awardedBadges[0]).toMatchObject({ user_id: userIds[0], badge_id: 'ind-0', tone: 'gold' });
+    expect(result.awardedBadges[3899]).toMatchObject({ user_id: userIds[299], badge_id: 'ind-12' });
+    expect(await prisma.userBadge.count()).toBe(3900);
+  }, 30_000);
+
+  it('returns an empty result for an empty batch', async () => {
+    expect(await importMonthlyBadges({ reviewerId: ADMIN_ID, awards: [], month: 3, year: 2026 }))
+      .toEqual({ awardedCount: 0, awardedBadges: [] });
   });
 
   it('accepts month and year as strings', async () => {
