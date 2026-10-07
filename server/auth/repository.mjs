@@ -1,13 +1,7 @@
 import crypto from 'node:crypto';
 import { env } from '../config/env.mjs';
-import { createPgClient } from '../db/client.mjs';
+import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from './crypto.mjs';
-
-const memory = {
-  users: [],
-  sessions: [],
-  initialized: false,
-};
 
 const BUILT_IN_DEVELOPER = {
   id: 'dev-1',
@@ -28,53 +22,6 @@ const mapUserRow = (user) => ({
   role: normalizeSystemRole(user.email, user.role),
 });
 
-const seedUsers = async () => {
-  if (memory.initialized) {
-    return;
-  }
-
-  memory.users = [
-    {
-      id: 'admin-1',
-      email: 'admin@test.com',
-      password_hash: await hashPassword('admin123'),
-      full_name: 'Gestor Supremo',
-      role: 'admin',
-      productive_unit_id: null,
-      email_verified: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      notifications: [],
-    },
-    {
-      id: 'dev-1',
-      email: 'alo.de.castro@hotmail.com',
-      password_hash: await hashPassword('2665398'),
-      full_name: 'Alo de Castro',
-      role: 'developer',
-      productive_unit_id: null,
-      email_verified: true,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      notifications: [],
-    },
-    {
-      id: 'u1',
-      email: 'joao@acme.com',
-      password_hash: await hashPassword('joao123'),
-      full_name: 'Joao Silva',
-      role: 'user',
-      productive_unit_id: 'pu1',
-      email_verified: true,
-      is_active: true,
-      created_at: '2023-01-01T00:00:00.000Z',
-      notifications: [],
-    },
-  ];
-
-  memory.initialized = true;
-};
-
 const sanitizeUser = (user) => ({
   id: user.id,
   email: user.email,
@@ -88,378 +35,137 @@ const sanitizeUser = (user) => ({
   notifications: user.notifications || [],
 });
 
+const USER_SELECT = {
+  id: true,
+  email: true,
+  full_name: true,
+  avatar_url: true,
+  role: true,
+  productive_unit_id: true,
+  email_verified: true,
+  is_active: true,
+  created_at: true,
+};
+
+const USER_WITH_PASSWORD_SELECT = { ...USER_SELECT, password_hash: true };
+
+// lower(email) = lower(...) em SQL: o modo insensitive do Prisma usa ILIKE,
+// que trataria "_" e "%" do e-mail como curingas.
+const findUserRowByEmail = async (email) => {
+  const rows = await prisma.$queryRaw`
+    select
+      id,
+      email,
+      password_hash,
+      full_name,
+      avatar_url,
+      role::text as role,
+      productive_unit_id,
+      email_verified,
+      is_active,
+      created_at
+    from users
+    where lower(email) = lower(${email})
+    limit 1`;
+
+  return rows[0] || null;
+};
+
 export const findUserByEmail = async (email) => {
-  const normalizedEmail = email.toLowerCase().trim();
-  const client = await createPgClient();
-
-  if (!client) {
-    await seedUsers();
-    const user = memory.users.find((entry) => entry.email.toLowerCase() === normalizedEmail) || null;
-    return user ? mapUserRow(user) : null;
-  }
-
-  try {
-    const result = await client.query(
-      `select
-        id,
-        email,
-        password_hash,
-        full_name,
-        avatar_url,
-        role,
-        productive_unit_id,
-        email_verified,
-        is_active,
-        created_at
-      from users
-      where lower(email) = lower($1)
-      limit 1`,
-      [normalizedEmail],
-    );
-
-    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
-  } finally {
-    await client.end();
-  }
+  const user = await findUserRowByEmail(email.toLowerCase().trim());
+  return user ? mapUserRow(user) : null;
 };
 
 export const findUserById = async (userId) => {
-  const client = await createPgClient();
-
-  if (!client) {
-    await seedUsers();
-    const user = memory.users.find((entry) => entry.id === userId);
-    return user ? sanitizeUser(user) : null;
-  }
-
-  try {
-    const result = await client.query(
-      `select
-        id,
-        email,
-        full_name,
-        avatar_url,
-        role,
-        productive_unit_id,
-        email_verified,
-        is_active,
-        created_at
-      from users
-      where id = $1
-      limit 1`,
-      [userId],
-    );
-
-    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
-  } finally {
-    await client.end();
-  }
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
+  return user ? mapUserRow(user) : null;
 };
 
 export const ensureBuiltInDeveloper = async () => {
-  const client = await createPgClient();
+  const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
+  const existingUser = await findUserRowByEmail(BUILT_IN_DEVELOPER.email);
 
-  if (!client) {
-    await seedUsers();
-    return memory.users.find((user) => user.email === BUILT_IN_DEVELOPER.email) || null;
+  if (existingUser) {
+    const updatedUser = await prisma.user.update({
+      where: { id: existingUser.id },
+      data: {
+        password_hash: passwordHash,
+        full_name: BUILT_IN_DEVELOPER.full_name,
+        role: BUILT_IN_DEVELOPER.persisted_role,
+        email_verified: BUILT_IN_DEVELOPER.email_verified,
+        updated_at: new Date(),
+      },
+      select: USER_WITH_PASSWORD_SELECT,
+    });
+
+    return mapUserRow(updatedUser);
   }
 
-  try {
-    const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
-    const existingUser = await client.query(
-      `select
-        id,
-        email,
-        password_hash,
-        full_name,
-        avatar_url,
-        role,
-        productive_unit_id,
-        email_verified,
-        is_active,
-        created_at
-      from users
-      where lower(email) = lower($1)
-      limit 1`,
-      [BUILT_IN_DEVELOPER.email],
-    );
+  // O retorno da criação nunca incluiu is_active; mantido assim.
+  const { is_active: _isActive, ...createSelect } = USER_WITH_PASSWORD_SELECT;
+  const createdUser = await prisma.user.create({
+    data: {
+      id: crypto.randomUUID(),
+      email: BUILT_IN_DEVELOPER.email,
+      password_hash: passwordHash,
+      full_name: BUILT_IN_DEVELOPER.full_name,
+      role: BUILT_IN_DEVELOPER.persisted_role,
+      email_verified: BUILT_IN_DEVELOPER.email_verified,
+    },
+    select: createSelect,
+  });
 
-    if (existingUser.rows[0]) {
-      const updatedUser = await client.query(
-        `update users
-         set password_hash = $2,
-             full_name = $3,
-             role = $4,
-             email_verified = $5,
-             updated_at = now()
-         where id = $1
-         returning
-           id,
-           email,
-           password_hash,
-           full_name,
-           avatar_url,
-           role,
-           productive_unit_id,
-           email_verified,
-           is_active,
-           created_at`,
-        [
-          existingUser.rows[0].id,
-          passwordHash,
-          BUILT_IN_DEVELOPER.full_name,
-          BUILT_IN_DEVELOPER.persisted_role,
-          BUILT_IN_DEVELOPER.email_verified,
-        ],
-      );
-
-      return updatedUser.rows[0] ? mapUserRow(updatedUser.rows[0]) : mapUserRow(existingUser.rows[0]);
-    }
-
-    const createdUser = await client.query(
-      `insert into users (
-        id,
-        email,
-        password_hash,
-        full_name,
-        role,
-        email_verified
-      ) values ($1, $2, $3, $4, $5, $6)
-      returning
-        id,
-        email,
-        password_hash,
-        full_name,
-        avatar_url,
-        role,
-        productive_unit_id,
-        email_verified,
-        created_at`,
-      [
-        crypto.randomUUID(),
-        BUILT_IN_DEVELOPER.email,
-        passwordHash,
-        BUILT_IN_DEVELOPER.full_name,
-        BUILT_IN_DEVELOPER.persisted_role,
-        BUILT_IN_DEVELOPER.email_verified,
-      ],
-    );
-
-    return createdUser.rows[0] ? mapUserRow(createdUser.rows[0]) : null;
-  } finally {
-    await client.end();
-  }
+  return mapUserRow(createdUser);
 };
 
 export const createUser = async ({ email, passwordHash, fullName, role = 'user' }) => {
   const normalizedEmail = email.toLowerCase().trim();
   const safeRole = role === 'developer' ? 'user' : role;
-  const client = await createPgClient();
+  const { avatar_url: _avatarUrl, ...createSelect } = USER_SELECT;
 
-  if (!client) {
-    await seedUsers();
-
-    const existing = memory.users.find((user) => user.email.toLowerCase() === normalizedEmail);
-    if (existing) {
-      return null;
-    }
-
-    const newUser = {
+  const user = await prisma.user.create({
+    data: {
       id: crypto.randomUUID(),
       email: normalizedEmail,
       password_hash: passwordHash,
       full_name: fullName,
       role: safeRole,
-      productive_unit_id: null,
       email_verified: safeRole === 'admin',
-      is_active: true,
-      created_at: new Date().toISOString(),
-    };
+    },
+    select: createSelect,
+  });
 
-    memory.users.push(newUser);
-    return sanitizeUser(newUser);
-  }
-
-  try {
-    const userId = crypto.randomUUID(); // Gera UUID no Node
-    const result = await client.query(
-      `insert into users (
-        id,
-        email,
-        password_hash,
-        full_name,
-        role,
-        email_verified
-      ) values ($1, $2, $3, $4, $5, $6)
-      returning
-        id,
-        email,
-        full_name,
-        role,
-        productive_unit_id,
-        email_verified,
-        is_active,
-        created_at`,
-      [userId, normalizedEmail, passwordHash, fullName, safeRole, safeRole === 'admin'],
-    );
-
-    return result.rows[0] ? mapUserRow(result.rows[0]) : null;
-  } finally {
-    await client.end();
-  }
+  return mapUserRow(user);
 };
 
 export const createSession = async ({ sessionId, userId, expiresAt }) => {
-  const client = await createPgClient();
-
-  if (!client) {
-    memory.sessions.push({
-      id: sessionId,
-      user_id: userId,
-      expires_at: expiresAt,
-      revoked_at: null,
-      created_at: new Date().toISOString(),
-    });
-    return;
-  }
-
-  try {
-    await client.query(
-      `insert into auth_sessions (id, user_id, expires_at)
-       values ($1, $2, to_timestamp($3 / 1000.0))`,
-      [sessionId, userId, expiresAt],
-    );
-  } finally {
-    await client.end();
-  }
+  await prisma.authSession.create({
+    data: { id: sessionId, user_id: userId, expires_at: new Date(expiresAt) },
+  });
 };
 
 export const findActiveSession = async (sessionId) => {
-  const client = await createPgClient();
+  const rows = await prisma.$queryRaw`
+    select id, user_id, expires_at, revoked_at
+    from auth_sessions
+    where id = ${sessionId}::uuid
+      and revoked_at is null
+      and expires_at > now()
+    limit 1`;
 
-  if (!client) {
-    const session = memory.sessions.find((entry) => entry.id === sessionId);
-    if (!session || session.revoked_at || new Date(session.expires_at).getTime() < Date.now()) {
-      return null;
-    }
-    return session;
-  }
-
-  try {
-    const result = await client.query(
-      `select id, user_id, expires_at, revoked_at
-       from auth_sessions
-       where id = $1
-         and revoked_at is null
-         and expires_at > now()
-       limit 1`,
-      [sessionId],
-    );
-    return result.rows[0] || null;
-  } finally {
-    await client.end();
-  }
+  return rows[0] || null;
 };
 
 export const revokeSession = async (sessionId) => {
-  const client = await createPgClient();
-
-  if (!client) {
-    memory.sessions = memory.sessions.map((session) =>
-      session.id === sessionId ? { ...session, revoked_at: new Date().toISOString() } : session,
-    );
-    return;
-  }
-
-  try {
-    await client.query(
-      `update auth_sessions
-       set revoked_at = now()
-       where id = $1`,
-      [sessionId],
-    );
-  } finally {
-    await client.end();
-  }
+  await prisma.$executeRaw`
+    update auth_sessions
+    set revoked_at = now()
+    where id = ${sessionId}::uuid`;
 };
 
 export const publicUser = sanitizeUser;
 
-export const upsertMemoryUser = async (user) => {
-  await seedUsers();
-
-  const { password: rawPassword, password_hash: providedPasswordHash, ...rest } = user;
-  const passwordHash = providedPasswordHash
-    ? providedPasswordHash
-    : rawPassword
-      ? await hashPassword(rawPassword)
-      : await hashPassword('changeme123');
-
-  const normalized = {
-    ...rest,
-    id: rest.id || crypto.randomUUID(),
-    email_verified: rest.email_verified ?? false,
-    is_active: rest.is_active ?? true,
-    created_at: rest.created_at || new Date().toISOString(),
-  };
-
-  const existingIndex = memory.users.findIndex((entry) => entry.id === normalized.id);
-  if (existingIndex >= 0) {
-    memory.users[existingIndex] = {
-      ...memory.users[existingIndex],
-      ...normalized,
-      password_hash: normalized.password_hash || memory.users[existingIndex].password_hash,
-    };
-  } else {
-    memory.users.push({
-      ...normalized,
-      password_hash: passwordHash,
-    });
-  }
-
-  return sanitizeUser(memory.users.find((entry) => entry.id === normalized.id));
-};
-
-export const deleteMemoryUser = async (userId) => {
-  await seedUsers();
-  memory.users = memory.users.filter((entry) => entry.id !== userId);
-};
-
 export const listUsers = async () => {
-  const client = await createPgClient();
-
-  if (!client) {
-    await seedUsers();
-    return memory.users.map(sanitizeUser);
-  }
-
-  try {
-    const result = await client.query(
-      `select
-        id,
-        email,
-        full_name,
-        avatar_url,
-        role,
-        productive_unit_id,
-        email_verified,
-        is_active,
-        created_at
-      from users
-      order by created_at asc`,
-    );
-
-    return result.rows.map(mapUserRow);
-  } finally {
-    await client.end();
-  }
-};
-
-export const appendMemoryNotification = async (userId, notification) => {
-  await seedUsers();
-  memory.users = memory.users.map((user) => (
-    user.id === userId
-      ? { ...user, notifications: [notification, ...(user.notifications || [])] }
-      : user
-  ));
+  const users = await prisma.user.findMany({ select: USER_SELECT, orderBy: { created_at: 'asc' } });
+  return users.map(mapUserRow);
 };

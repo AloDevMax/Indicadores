@@ -1,8 +1,36 @@
 import crypto from 'node:crypto';
-import { createPgClient } from '../db/client.mjs';
-import { memoryStore } from '../data/memoryStore.mjs';
-import { appendMemoryNotification, findUserById } from '../auth/repository.mjs';
-import { memoryAdminStore } from '../admin/repository.mjs';
+import { prisma } from '../shared/db/prisma.mjs';
+import { findUserById } from '../auth/repository.mjs';
+
+const REVIEWER_ROLES = ['admin', 'developer', 'supervisor'];
+
+const SUBMISSION_SELECT = {
+  id: true,
+  user_id: true,
+  badge_id: true,
+  proof_url: true,
+  description: true,
+  status: true,
+  submitted_at: true,
+  reviewed_by: true,
+  reviewed_at: true,
+  feedback: true,
+};
+
+const USER_BADGE_SELECT = { id: true, user_id: true, badge_id: true, awarded_at: true, awarded_by: true, tone: true };
+
+const isRecordNotFound = (error) => error?.code === 'P2025';
+
+// O padrão do Prisma (5s) é curto para lotes grandes, ainda mais com a
+// latência de um banco gerenciado.
+const TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 60_000 };
+
+const ensureReviewer = async (reviewerId, message) => {
+  const reviewer = await findUserById(reviewerId);
+  if (!reviewer || !REVIEWER_ROLES.includes(reviewer.role)) {
+    throw new Error(message);
+  }
+};
 
 const mapSubmission = (row) => ({
   id: row.id,
@@ -19,8 +47,9 @@ const mapSubmission = (row) => ({
   badge_name: row.badge_name || undefined,
 });
 
-const buildAwardPayload = async ({ userId, badgeId, awardedBy, tone, id, awardedAt }) => {
-  const targetUser = await findUserById(userId);
+// Recebe o client da transação: dentro dela, toda query passa por tx.
+const buildAwardPayload = async (db, { userId, badgeId, awardedBy, tone, id, awardedAt }) => {
+  const targetUser = await db.user.findUnique({ where: { id: userId }, select: { productive_unit_id: true } });
   const resolvedAwardedAt = awardedAt || new Date().toISOString();
 
   return {
@@ -35,13 +64,16 @@ const buildAwardPayload = async ({ userId, badgeId, awardedBy, tone, id, awarded
   };
 };
 
-const upsertMemoryBadgeAward = async ({ userId, badgeId, awardedBy, tone }) => {
-  const award = await buildAwardPayload({ userId, badgeId, awardedBy, tone });
-  memoryStore.userBadges = memoryStore.userBadges.filter(
-    (entry) => !(entry.user_id === userId && entry.badge_id === badgeId),
-  );
-  memoryStore.userBadges.push(award);
-  return award;
+const replaceAward = async (tx, { userId, badgeId, awardedBy, tone }) => {
+  await tx.userBadge.deleteMany({ where: { user_id: userId, badge_id: badgeId } });
+  const inserted = await tx.userBadge.create({
+    data: { user_id: userId, badge_id: badgeId, awarded_by: awardedBy, tone },
+    select: USER_BADGE_SELECT,
+  });
+
+  return buildAwardPayload(tx, {
+    userId, badgeId, awardedBy, tone, id: inserted.id, awardedAt: inserted.awarded_at,
+  });
 };
 
 const BADGE_TONE_LABELS = {
@@ -56,35 +88,30 @@ const createAwardNotification = ({ fullName, badgeName, tone }) => ({
   id: crypto.randomUUID(),
   title: 'Selo concedido',
   message: `Parabens ${fullName}, voce recebeu o selo ${badgeName} com marcacao ${BADGE_TONE_LABELS[tone]}.`,
-  sent_at: new Date().toISOString(),
+  sent_at: new Date(),
   read: false,
 });
 
-const persistAwardNotifications = async ({ client, userIds, badgeName, tone }) => {
-  const users = await Promise.all(userIds.map((userId) => findUserById(userId)));
-  const validUsers = users.filter(Boolean);
+const persistAwardNotifications = async (tx, { userIds, badgeName, tone }) => {
+  const users = await Promise.all(userIds.map((userId) => tx.user.findUnique({
+    where: { id: userId },
+    select: { id: true, full_name: true },
+  })));
 
-  if (!client) {
-    await Promise.all(validUsers.map((user) => appendMemoryNotification(
-      user.id,
-      createAwardNotification({ fullName: user.full_name, badgeName, tone }),
-    )));
-    return;
+  for (const user of users.filter(Boolean)) {
+    const notification = createAwardNotification({ fullName: user.full_name, badgeName, tone });
+    await tx.notification.create({ data: { ...notification, user_id: user.id } });
   }
+};
 
-  for (const user of validUsers) {
-    const notification = createAwardNotification({
-      fullName: user.full_name,
-      badgeName,
-      tone,
-    });
+// Unidade produtiva do dono da submissão, ou null se a submissão não existe.
+export const findSubmissionOwnerUnit = async (submissionId) => {
+  const submission = await prisma.badgeSubmission.findUnique({
+    where: { id: submissionId },
+    select: { user: { select: { productive_unit_id: true } } },
+  });
 
-    await client.query(
-      `insert into notifications (id, user_id, title, message, sent_at, read)
-       values ($1, $2, $3, $4, $5, $6)`,
-      [notification.id, user.id, notification.title, notification.message, notification.sent_at, notification.read],
-    );
-  }
+  return submission ? { productive_unit_id: submission.user.productive_unit_id } : null;
 };
 
 export const createSubmission = async ({ userId, badgeId, description, proofUrl }) => {
@@ -93,259 +120,112 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
     throw new Error('Usuário não encontrado.');
   }
 
-  const client = await createPgClient();
+  const submission = await prisma.badgeSubmission.create({
+    data: { user_id: userId, badge_id: badgeId, proof_url: proofUrl || null, description, status: 'pending' },
+    select: SUBMISSION_SELECT,
+  });
 
-  if (!client) {
-    const submission = {
-      id: crypto.randomUUID(),
-      user_id: userId,
-      badge_id: badgeId,
-      proof_url: proofUrl || null,
-      description,
-      status: 'pending',
-      submitted_at: new Date().toISOString(),
-      reviewed_by: null,
-      reviewed_at: null,
-      feedback: null,
-      user_name: user.full_name,
-    };
-    memoryStore.submissions.unshift(submission);
-    return mapSubmission(submission);
-  }
+  return mapSubmission({ ...submission, user_name: user.full_name });
+};
 
+const markSubmissionReviewed = async (tx, { submissionId, reviewerId, status }) => {
   try {
-    const result = await client.query(
-      `insert into badge_submissions (
-        id,
-        user_id,
-        badge_id,
-        proof_url,
-        description,
-        status
-      ) values (gen_random_uuid(), $1, $2, $3, $4, 'pending')
-      returning
-        id,
-        user_id,
-        badge_id,
-        proof_url,
-        description,
-        status,
-        submitted_at,
-        reviewed_by,
-        reviewed_at,
-        feedback`,
-      [userId, badgeId, proofUrl || null, description],
-    );
-
-    return mapSubmission({
-      ...result.rows[0],
-      user_name: user.full_name,
+    return await tx.badgeSubmission.update({
+      where: { id: submissionId },
+      data: { status, reviewed_by: reviewerId, reviewed_at: new Date() },
+      select: SUBMISSION_SELECT,
     });
-  } finally {
-    await client.end();
+  } catch (error) {
+    if (isRecordNotFound(error)) throw new Error('Solicitação não encontrada.', { cause: error });
+    throw error;
   }
 };
 
 export const reviewSubmission = async ({ submissionId, reviewerId, status }) => {
-  const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
-    throw new Error('Apenas administradores e supervisores podem revisar solicitações.');
-  }
+  await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem revisar solicitações.');
 
-  const client = await createPgClient();
+  const { submission, awardedBadge } = await prisma.$transaction(async (tx) => {
+    const reviewed = await markSubmissionReviewed(tx, { submissionId, reviewerId, status });
+    const award = status === 'approved'
+      ? await replaceAward(tx, { userId: reviewed.user_id, badgeId: reviewed.badge_id, awardedBy: reviewerId, tone: 'bronze' })
+      : null;
 
-  if (!client) {
-    const submissionIndex = memoryStore.submissions.findIndex((entry) => entry.id === submissionId);
-    if (submissionIndex === -1) {
-      throw new Error('Solicitação não encontrada.');
-    }
-    const submission = {
-      ...memoryStore.submissions[submissionIndex],
-      status,
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-    };
-    memoryStore.submissions[submissionIndex] = submission;
+    return { submission: reviewed, awardedBadge: award };
+  }, TRANSACTION_OPTIONS);
 
-    let awardedBadge = null;
-    if (status === 'approved') {
-      awardedBadge = await buildAwardPayload({
-        userId: submission.user_id,
-        badgeId: submission.badge_id,
-        awardedBy: reviewerId,
-        tone: 'bronze',
-      });
-      memoryStore.userBadges = memoryStore.userBadges.filter(
-        (entry) => !(entry.user_id === awardedBadge.user_id && entry.badge_id === awardedBadge.badge_id),
-      );
-      memoryStore.userBadges.push(awardedBadge);
-    }
-
-    return {
-      submission: mapSubmission(submission),
-      awardedBadge,
-    };
-  }
-
-  try {
-    await client.query('begin');
-
-    const submissionResult = await client.query(
-      `update badge_submissions
-       set status = $2,
-           reviewed_by = $3,
-           reviewed_at = now()
-       where id = $1
-       returning id, user_id, badge_id, proof_url, description, status, submitted_at, reviewed_by, reviewed_at, feedback`,
-      [submissionId, status, reviewerId],
-    );
-
-    const submission = submissionResult.rows[0];
-    if (!submission) {
-      throw new Error('Solicitação não encontrada.');
-    }
-
-    let awardedBadge = null;
-
-    if (status === 'approved') {
-      await client.query(
-        `delete from user_badges
-         where user_id = $1
-           and badge_id = $2`,
-        [submission.user_id, submission.badge_id],
-      );
-
-      const badgeResult = await client.query(
-        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
-         values (gen_random_uuid(), $1, $2, $3, 'bronze')
-         returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
-        [submission.user_id, submission.badge_id, reviewerId],
-      );
-      awardedBadge = await buildAwardPayload({
-        userId: submission.user_id,
-        badgeId: submission.badge_id,
-        awardedBy: reviewerId,
-        tone: 'bronze',
-        id: badgeResult.rows[0].id,
-        awardedAt: badgeResult.rows[0].awarded_at,
-      });
-    }
-
-    await client.query('commit');
-
-    const user = await findUserById(submission.user_id);
-    return {
-      submission: mapSubmission({
-        ...submission,
-        user_name: user?.full_name,
-      }),
-      awardedBadge,
-    };
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    await client.end();
-  }
+  const user = await findUserById(submission.user_id);
+  return {
+    submission: mapSubmission({ ...submission, user_name: user?.full_name }),
+    awardedBadge,
+  };
 };
 
 export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
-  const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
-    throw new Error('Apenas administradores e supervisores podem conceder badges.');
-  }
+  await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem conceder badges.');
 
-  const badgeName = memoryAdminStore.badges.find((badge) => badge.id === badgeId)?.name || 'Badge';
-  const client = await createPgClient();
-
-  if (!client) {
-    const awardedBadges = await Promise.all(userIds.map((userId) => upsertMemoryBadgeAward({ userId, badgeId, awardedBy: reviewerId, tone })));
-    try {
-      await persistAwardNotifications({ client: null, userIds, badgeName, tone });
-    } catch (notifError) {
-      console.error('[awardBadges] falha ao enviar notificações (badges já concedidos):', notifError.message);
-    }
-    return awardedBadges;
-  }
-
-  try {
-    await client.query('begin');
+  return prisma.$transaction(async (tx) => {
+    const badge = await tx.badge.findUnique({ where: { id: badgeId }, select: { name: true } });
     const results = [];
-    const badgeResult = await client.query(
-      `select name
-       from badges
-       where id = $1
-       limit 1`,
-      [badgeId],
-    );
-    const resolvedBadgeName = badgeResult.rows[0]?.name || badgeName;
 
     for (const userId of userIds) {
-      await client.query(
-        `delete from user_badges
-         where user_id = $1
-           and badge_id = $2`,
-        [userId, badgeId],
-      );
-
-      const inserted = await client.query(
-        `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
-         values (gen_random_uuid(), $1, $2, $3, $4)
-         returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
-        [userId, badgeId, reviewerId, tone],
-      );
-      results.push(await buildAwardPayload({
-        userId,
-        badgeId,
-        awardedBy: reviewerId,
-        tone,
-        id: inserted.rows[0].id,
-        awardedAt: inserted.rows[0].awarded_at,
-      }));
+      results.push(await replaceAward(tx, { userId, badgeId, awardedBy: reviewerId, tone }));
     }
 
     try {
-      await persistAwardNotifications({ client, userIds, badgeName: resolvedBadgeName, tone });
+      await persistAwardNotifications(tx, { userIds, badgeName: badge?.name || 'Badge', tone });
     } catch (notifError) {
       console.error('[awardBadges] falha ao enviar notificações (badges já concedidos):', notifError.message);
     }
 
-    await client.query('commit');
     return results;
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    await client.end();
-  }
+  }, TRANSACTION_OPTIONS);
 };
 
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
-  const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
-    throw new Error('Apenas administradores e supervisores podem remover badges.');
-  }
+  await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem remover badges.');
 
-  const client = await createPgClient();
+  await prisma.userBadge.deleteMany({ where: { user_id: userId, badge_id: badgeId } });
+  return { success: true };
+};
 
-  if (!client) {
-    memoryStore.userBadges = memoryStore.userBadges.filter(
-      (entry) => !(entry.user_id === userId && entry.badge_id === badgeId),
-    );
-    return { success: true };
-  }
+const recordImportRow = async (tx, { importRunId, rowNumber, row }) => {
+  await tx.importRunRow.create({
+    data: {
+      import_run_id: importRunId,
+      row_number: rowNumber,
+      raw_payload: row.row,
+      normalized_payload: {
+        user_id: row.user_id || null,
+        badge_id: row.badge_id || null,
+        tone: row.tone || null,
+      },
+      status: row.status === 'valid' ? 'imported' : row.status,
+      reason: row.reason || null,
+    },
+  });
+};
 
-  try {
-    await client.query(
-      `delete from user_badges
-       where user_id = $1
-         and badge_id = $2`,
-      [userId, badgeId],
-    );
-    return { success: true };
-  } finally {
-    await client.end();
-  }
+const awardImportedRow = async (tx, { row, reviewerId }) => {
+  // Substitui só o selo deste mês.
+  await tx.$executeRaw`
+    delete from user_badges
+    where user_id = ${row.user_id}::uuid
+      and badge_id = ${row.badge_id}
+      and date_trunc('month', awarded_at) = date_trunc('month', now())`;
+
+  const inserted = await tx.userBadge.create({
+    data: { user_id: row.user_id, badge_id: row.badge_id, awarded_by: reviewerId, tone: row.tone },
+    select: USER_BADGE_SELECT,
+  });
+
+  return buildAwardPayload(tx, {
+    userId: row.user_id,
+    badgeId: row.badge_id,
+    awardedBy: reviewerId,
+    tone: row.tone,
+    id: inserted.id,
+    awardedAt: inserted.awarded_at,
+  });
 };
 
 export const persistImportRun = async ({
@@ -355,10 +235,7 @@ export const persistImportRun = async ({
   matchedColumns,
   rows,
 }) => {
-  const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
-    throw new Error('Apenas administradores e supervisores podem processar importações.');
-  }
+  await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem processar importações.');
 
   const validRows = rows.filter((row) => row.status === 'valid');
   const summary = {
@@ -367,155 +244,77 @@ export const persistImportRun = async ({
     invalid: rows.length - validRows.length,
   };
 
-  const client = await createPgClient();
+  return prisma.$transaction(async (tx) => {
+    const importRun = await tx.importRun.create({
+      data: {
+        source_id: sourceId,
+        source_name: sourceName,
+        imported_by: reviewerId,
+        status: 'completed',
+        matched_columns: matchedColumns,
+        summary,
+      },
+      select: {
+        id: true,
+        source_id: true,
+        source_name: true,
+        imported_by: true,
+        imported_at: true,
+        status: true,
+        matched_columns: true,
+        summary: true,
+      },
+    });
 
-  if (!client) {
-    const importRun = {
-      id: crypto.randomUUID(),
-      source_id: sourceId,
-      source_name: sourceName,
-      imported_by: reviewerId,
-      imported_at: new Date().toISOString(),
-      status: 'completed',
-      matched_columns: matchedColumns,
-      summary,
-    };
-    memoryStore.importRuns.unshift(importRun);
-    const awardedBadges = await Promise.all(validRows.map((row) =>
-      upsertMemoryBadgeAward({
-        userId: row.user_id,
-        badgeId: row.badge_id,
-        awardedBy: reviewerId,
-        tone: row.tone,
-      }),
-    ));
-    return { importRun, awardedBadges, summary };
-  }
-
-  try {
-    await client.query('begin');
-
-    const importRunResult = await client.query(
-      `insert into import_runs (
-        id,
-        source_id,
-        source_name,
-        imported_by,
-        status,
-        matched_columns,
-        summary
-      ) values (gen_random_uuid(), $1, $2, $3, 'completed', $4::jsonb, $5::jsonb)
-      returning id, source_id, source_name, imported_by, imported_at, status, matched_columns, summary`,
-      [sourceId, sourceName, reviewerId, JSON.stringify(matchedColumns), JSON.stringify(summary)],
-    );
-
-    const importRun = importRunResult.rows[0];
     const awardedBadges = [];
-
     for (let index = 0; index < rows.length; index += 1) {
       const row = rows[index];
-      await client.query(
-        `insert into import_run_rows (import_run_id, row_number, raw_payload, normalized_payload, status, reason)
-         values ($1, $2, $3::jsonb, $4::jsonb, $5, $6)`,
-        [
-          importRun.id,
-          index + 1,
-          JSON.stringify(row.row),
-          JSON.stringify({
-            user_id: row.user_id || null,
-            badge_id: row.badge_id || null,
-            tone: row.tone || null,
-          }),
-          row.status === 'valid' ? 'imported' : row.status,
-          row.reason || null,
-        ],
-      );
+      await recordImportRow(tx, { importRunId: importRun.id, rowNumber: index + 1, row });
 
       if (row.status === 'valid') {
-        await client.query(
-          `delete from user_badges
-           where user_id = $1
-             and badge_id = $2
-             and date_trunc('month', awarded_at) = date_trunc('month', now())`,
-          [row.user_id, row.badge_id],
-        );
-
-        const inserted = await client.query(
-          `insert into user_badges (id, user_id, badge_id, awarded_by, tone)
-           values (gen_random_uuid(), $1, $2, $3, $4)
-           returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
-          [row.user_id, row.badge_id, reviewerId, row.tone],
-        );
-        awardedBadges.push(await buildAwardPayload({
-          userId: row.user_id,
-          badgeId: row.badge_id,
-          awardedBy: reviewerId,
-          tone: row.tone,
-          id: inserted.rows[0].id,
-          awardedAt: inserted.rows[0].awarded_at,
-        }));
+        awardedBadges.push(await awardImportedRow(tx, { row, reviewerId }));
       }
     }
 
-    await client.query('commit');
     return { importRun, awardedBadges, summary };
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    await client.end();
-  }
+  }, TRANSACTION_OPTIONS);
 };
 
 // awards: [{ userId, badgeId, tone }] — only non-zero values
 export const importMonthlyBadges = async ({ reviewerId, awards, month, year }) => {
-  const reviewer = await findUserById(reviewerId);
-  if (!reviewer || (reviewer.role !== 'admin' && reviewer.role !== 'developer' && reviewer.role !== 'supervisor')) {
-    throw new Error('Apenas administradores e supervisores podem importar badges mensais.');
-  }
+  await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem importar badges mensais.');
 
-  const client = await createPgClient();
+  // Um par (usuário, selo) por linha; se repetido, vale o último.
+  const uniquePairs = [...new Map(awards.map((a) => [`${a.userId}:${a.badgeId}`, a])).values()];
+  if (uniquePairs.length === 0) return { awardedCount: 0, awardedBadges: [] };
 
-  if (!client) {
-    const awardedBadges = await Promise.all(
-      awards.map((a) => upsertMemoryBadgeAward({ userId: a.userId, badgeId: a.badgeId, awardedBy: reviewerId, tone: a.tone })),
-    );
-    return { awardedCount: awardedBadges.length };
-  }
+  const userIds = uniquePairs.map((pair) => pair.userId);
+  const badgeIds = uniquePairs.map((pair) => pair.badgeId);
+  const tones = uniquePairs.map((pair) => pair.tone);
 
-  try {
-    await client.query('begin');
+  // Duas queries no total, qualquer que seja o tamanho da planilha: em loop,
+  // uma importação mensal grande estoura o timeout da transação.
+  const inserted = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`
+      delete from user_badges ub
+      using unnest(${userIds}::uuid[], ${badgeIds}::text[]) as pair(user_id, badge_id)
+      where ub.user_id = pair.user_id
+        and ub.badge_id = pair.badge_id
+        and date_trunc('month', ub.awarded_at) = date_trunc('month', make_date(${year}::int, ${month}::int, 1)::timestamp)`;
 
-    // Build list of (userId, badgeId) pairs being imported so we can delete previous entries for this month
-    const uniquePairs = [...new Map(awards.map(a => [`${a.userId}:${a.badgeId}`, a])).values()];
+    return tx.$queryRaw`
+      insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
+      select gen_random_uuid(), pair.user_id, pair.badge_id, ${reviewerId}::uuid, pair.tone::"BadgeTone",
+             make_date(${year}::int, ${month}::int, 1)::timestamp
+      from unnest(${userIds}::uuid[], ${badgeIds}::text[], ${tones}::text[]) as pair(user_id, badge_id, tone)
+      returning id, user_id, badge_id, awarded_at, awarded_by, tone::text as tone`;
+  }, TRANSACTION_OPTIONS);
 
-    for (const { userId, badgeId } of uniquePairs) {
-      await client.query(
-        `delete from user_badges
-         where user_id = $1
-           and badge_id = $2
-           and date_trunc('month', awarded_at) = date_trunc('month', make_date($3, $4, 1)::timestamp)`,
-        [userId, badgeId, year, month],
-      );
-    }
+  // returning não garante ordem: devolve na ordem da planilha.
+  const position = new Map(uniquePairs.map((pair, index) => [`${pair.userId}:${pair.badgeId}`, index]));
+  const awardedBadges = [...inserted].sort(
+    (left, right) => position.get(`${left.user_id}:${left.badge_id}`) - position.get(`${right.user_id}:${right.badge_id}`),
+  );
 
-    const inserted = [];
-    for (const { userId, badgeId, tone } of uniquePairs) {
-      const result = await client.query(
-        `insert into user_badges (id, user_id, badge_id, awarded_by, tone, awarded_at)
-         values (gen_random_uuid(), $1, $2, $3, $4, make_date($5, $6, 1)::timestamp)
-         returning id, user_id, badge_id, awarded_at, awarded_by, tone`,
-        [userId, badgeId, reviewerId, tone, year, month],
-      );
-      inserted.push(result.rows[0]);
-    }
-
-    await client.query('commit');
-    return { awardedCount: inserted.length, awardedBadges: inserted };
-  } catch (error) {
-    await client.query('rollback');
-    throw error;
-  } finally {
-    await client.end();
-  }
+  return { awardedCount: awardedBadges.length, awardedBadges };
 };

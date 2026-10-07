@@ -1,143 +1,73 @@
-import { createPgClient } from './client.mjs';
-import { memoryAdminStore } from '../admin/repository.mjs';
-import { memoryStore } from '../data/memoryStore.mjs';
+import { prisma } from '../shared/db/prisma.mjs';
 
 /**
  * Per-route resource fetching functions.
- * These handle both PostgreSQL and in-memory fallback.
  */
 
-export const listBadges = async () => {
-  const client = await createPgClient();
-
-  if (!client) {
-    return memoryAdminStore.badges;
-  }
-
-  try {
-    const result = await client.query(
-      'select id, name, description, category, icon_name, image_url, points from badges order by name asc'
-    );
-    return result.rows;
-  } finally {
-    await client.end();
-  }
+const DEFAULT_BADGE_LEGENDS = {
+  bronze: 'Bronze - Boa performance',
+  silver: 'Prata - Excelente performance',
+  gold: 'Ouro - Desempenho excepcional',
+  loss_1: 'Perda 1 - Expectativa não atendida',
+  loss_2: 'Perda 2 - Falha grave',
 };
 
-export const listUsers = async () => {
-  const client = await createPgClient();
+export const listBadges = async () => prisma.badge.findMany({
+  select: { id: true, name: true, description: true, category: true, icon_name: true, image_url: true, points: true },
+  orderBy: { name: 'asc' },
+});
 
-  if (!client) {
-    return memoryStore.users || [];
-  }
+export const listProductiveUnits = async () => prisma.productiveUnit.findMany({
+  select: { id: true, name: true },
+  orderBy: { name: 'asc' },
+});
 
-  try {
-    const result = await client.query(
-      `select id, email, full_name, role, productive_unit_id, avatar_url, email_verified, is_active, created_at
-       from users
-       order by full_name asc`
-    );
-    return result.rows;
-  } finally {
-    await client.end();
-  }
-};
+export const listUsers = async () => prisma.user.findMany({
+  select: {
+    id: true,
+    email: true,
+    full_name: true,
+    role: true,
+    productive_unit_id: true,
+    avatar_url: true,
+    email_verified: true,
+    is_active: true,
+    created_at: true,
+  },
+  orderBy: { full_name: 'asc' },
+});
 
-export const listUserBadges = async () => {
-  const client = await createPgClient();
+export const listUserBadges = async () => prisma.userBadge.findMany({
+  select: { id: true, user_id: true, badge_id: true, tone: true, awarded_at: true, awarded_by: true },
+  orderBy: { awarded_at: 'desc' },
+});
 
-  if (!client) {
-    return memoryStore.userBadges || [];
-  }
-
-  try {
-    const result = await client.query(
-      `select id, user_id, badge_id, tone, awarded_at, awarded_by
-       from user_badges
-       order by awarded_at desc`
-    );
-    return result.rows;
-  } finally {
-    await client.end();
-  }
-};
-
-export const listSubmissions = async () => {
-  const client = await createPgClient();
-
-  if (!client) {
-    return memoryStore.submissions || [];
-  }
-
-  try {
-    const result = await client.query(
-      `select s.id, s.user_id, s.badge_id, b.name as badge_name, s.description, s.status, s.submitted_at, s.proof_url
-       from badge_submissions s
-       left join badges b on b.id = s.badge_id
-       order by s.submitted_at desc`
-    );
-    return result.rows;
-  } finally {
-    await client.end();
-  }
-};
+export const listSubmissions = async () => prisma.$queryRaw`
+  select s.id, s.user_id, s.badge_id, b.name as badge_name, s.description, s.status::text as status, s.submitted_at, s.proof_url
+  from badge_submissions s
+  left join badges b on b.id = s.badge_id
+  order by s.submitted_at desc`;
 
 export const getBadgeLegends = async () => {
-  const client = await createPgClient();
+  const legends = await prisma.badgeLegendSetting.findFirst({
+    select: { bronze: true, silver: true, gold: true, loss_1: true, loss_2: true },
+    orderBy: { updated_at: 'desc' },
+  });
 
-  if (!client) {
-    return memoryStore.badgeLegends || {
-      bronze: 'Bronze - Boa performance',
-      silver: 'Prata - Excelente performance',
-      gold: 'Ouro - Desempenho excepcional',
-      loss_1: 'Perda 1 - Expectativa não atendida',
-      loss_2: 'Perda 2 - Falha grave',
-    };
-  }
-
-  try {
-    const result = await client.query(
-      'select bronze, silver, gold, loss_1, loss_2 from badge_legend_settings order by updated_at desc limit 1'
-    );
-    if (result.rows.length === 0) {
-      return {
-        bronze: 'Bronze - Boa performance',
-        silver: 'Prata - Excelente performance',
-        gold: 'Ouro - Desempenho excepcional',
-        loss_1: 'Perda 1 - Expectativa não atendida',
-        loss_2: 'Perda 2 - Falha grave',
-      };
-    }
-    return result.rows[0];
-  } finally {
-    await client.end();
-  }
+  return legends || DEFAULT_BADGE_LEGENDS;
 };
 
-export const listImportSources = async () => {
-  const client = await createPgClient();
-
-  if (!client) {
-    return memoryAdminStore.importSources || [];
-  }
-
-  try {
-    const result = await client.query(
-      `select
-        id,
-        name,
-        description,
-        productive_unit_column,
-        user_column,
-        badge_column,
-        tone_column,
-        award_column
-       from import_sources
-       where archived_at is null
-       order by created_at asc`
-    );
-    return result.rows;
-  } finally {
-    await client.end();
-  }
-};
+export const listImportSources = async () => prisma.importSource.findMany({
+  select: {
+    id: true,
+    name: true,
+    description: true,
+    productive_unit_column: true,
+    user_column: true,
+    badge_column: true,
+    tone_column: true,
+    award_column: true,
+  },
+  where: { archived_at: null },
+  orderBy: { created_at: 'asc' },
+});

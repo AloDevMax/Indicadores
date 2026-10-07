@@ -1,25 +1,41 @@
 // @vitest-environment node
 //
 // Route-level Supertest coverage for the Express app built by createApp()
-// (server/index.mjs). Mirrors the mock-free, real-in-memory-store pattern
-// used by server/auth/service.test.mjs, server/operations/repository.test.mjs
-// and server/admin/repository.test.mjs: no vi.mock of the service/repository
-// layers, real Bearer tokens minted the same way service.test.mjs does, and
-// the process-lifetime in-memory fallback store (DATABASE_URL is unset for
-// this whole test run).
+// (server/index.mjs). No vi.mock of the service/repository layers: requests go
+// through the real repositories against the test database (see
+// server/test/globalSetup.mjs), seeded in beforeAll with the reference data
+// the app used to start with, and real Bearer tokens are minted the same way
+// service.test.mjs does.
 //
-// createApp() has no side effects at import time (no DB check, no .listen())
-// — that is exactly what the Task 10a refactor made possible, and is what
-// lets this file import server/index.mjs directly instead of re-mounting a
-// router on a bare app the way uploadRoutes.test.mjs has to.
+// createApp() has no side effects at import time (no DB check, no .listen()),
+// which lets this file import server/index.mjs directly instead of re-mounting
+// a router on a bare app the way uploadRoutes.test.mjs has to.
 import crypto from 'node:crypto';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from './index.mjs';
-import { createSession, upsertMemoryUser } from './auth/repository.mjs';
+import { createSession } from './auth/repository.mjs';
 import { createSessionToken, generateSessionId } from './auth/crypto.mjs';
+import { prisma } from './shared/db/prisma.mjs';
+import { resetDatabase } from './test/db.mjs';
+import { createTestUser, seedReferenceData } from './test/fixtures.mjs';
 
 const app = createApp();
+
+// Two users seeded in beforeAll for the read-route tests.
+const SEED_ADMIN_ID = '00000000-0000-4000-8000-000000000001';
+const SEED_USER_ID = '00000000-0000-4000-8000-000000000003';
+
+beforeAll(async () => {
+  await resetDatabase();
+  await seedReferenceData();
+  await createTestUser({
+    id: SEED_ADMIN_ID, email: 'admin@test.com', password: 'admin123', full_name: 'Gestor Supremo', role: 'admin', email_verified: true,
+  });
+  await createTestUser({
+    id: SEED_USER_ID, email: 'joao@acme.com', password: 'joao123', full_name: 'Joao Silva', role: 'user', productive_unit_id: 'pu1', email_verified: true,
+  });
+});
 
 const uniqueEmail = (label) => `${label}-${crypto.randomUUID()}@example.com`;
 
@@ -31,7 +47,12 @@ const uniqueEmail = (label) => `${label}-${crypto.randomUUID()}@example.com`;
  * repository + crypto layers instead).
  */
 const authHeaderFor = async (role, overrides = {}) => {
-  const user = await upsertMemoryUser({
+  if (overrides.productive_unit_id) {
+    const id = overrides.productive_unit_id;
+    await prisma.productiveUnit.upsert({ where: { id }, create: { id, name: `Unidade ${id}` }, update: {} });
+  }
+
+  const user = await createTestUser({
     id: crypto.randomUUID(),
     email: uniqueEmail(role),
     full_name: `Test ${role}`,
@@ -130,7 +151,7 @@ describe('auth guard matrix', () => {
 describe('unauthenticated read routes', () => {
   // None of these call requireAuthenticatedUser at all — verified directly
   // against server/index.mjs. Run before any fixture-creating tests below so
-  // the in-memory store is still in its pristine, seeded state.
+  // the database still holds only the beforeAll seed.
 
   it('GET /api/badges returns the seeded badge library', async () => {
     const response = await request(app).get('/api/badges');
@@ -142,23 +163,18 @@ describe('unauthenticated read routes', () => {
     );
   });
 
-  it('GET /api/users returns the seeded users in memory-fallback mode', async () => {
+  it('GET /api/users returns the seeded users', async () => {
     // Regression coverage for a wrong-import bug: this route must read
-    // listUsers() from server/auth/repository.mjs (the store actually
-    // written by register/login), not server/db/resourceRepository.mjs's
-    // identically named but disconnected listUsers(), which reads
-    // server/data/memoryStore.mjs's `users` field — a key that store never
-    // defines, so it always resolved to []. The three built-in seed users
-    // (admin-1, the built-in developer dev-1, and u1) are always present
-    // here because auth/repository.mjs's listUsers() lazily seeds the store
-    // on first call.
+    // listUsers() from server/auth/repository.mjs, not the identically named
+    // listUsers() in server/db/resourceRepository.mjs, which used to read a
+    // store that was always empty.
     const response = await request(app).get('/api/users');
 
     expect(response.status).toBe(200);
     expect(response.body.users).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: 'admin-1', email: 'admin@test.com', role: 'admin' }),
-        expect.objectContaining({ id: 'u1', email: 'joao@acme.com', role: 'user' }),
+        expect.objectContaining({ id: SEED_ADMIN_ID, email: 'admin@test.com', role: 'admin' }),
+        expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com', role: 'user' }),
       ]),
     );
   });
@@ -229,14 +245,21 @@ describe('unauthenticated read routes', () => {
 });
 
 describe('GET /api/health', () => {
-  it('returns { status: "ok" } when DATABASE_URL is unset (createPgClient() resolves null)', async () => {
-    // Verified against server/db/client.mjs: with no DATABASE_URL,
-    // createPgClient() returns null before ever attempting a connection, so
-    // the route's try block short-circuits straight to the "ok" response.
+  it('returns 200 { status: "ok" } when the database answers', async () => {
     const response = await request(app).get('/api/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });
+  });
+
+  it('returns 503 { status: "unavailable" } when the database query fails', async () => {
+    const spy = vi.spyOn(prisma, '$queryRaw').mockRejectedValueOnce(new Error('down'));
+
+    const response = await request(app).get('/api/health');
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({ status: 'unavailable' });
+    spy.mockRestore();
   });
 });
 
@@ -245,7 +268,7 @@ describe('GET /api/bootstrap', () => {
     const response = await request(app).get('/api/bootstrap');
 
     expect(response.status).toBe(200);
-    expect(response.body.source).toBe('seed');
+    expect(response.body.source).toBe('database');
     expect(response.body.users).toEqual([]);
     expect(response.body.userBadges).toEqual([]);
     expect(response.body.submissions).toEqual([]);
@@ -259,7 +282,7 @@ describe('GET /api/bootstrap', () => {
     const response = await request(app).get('/api/bootstrap').set('Authorization', header);
 
     expect(response.status).toBe(200);
-    expect(response.body.source).toBe('seed');
+    expect(response.body.source).toBe('database');
     expect(Array.isArray(response.body.badges)).toBe(true);
     expect(Array.isArray(response.body.productiveUnits)).toBe(true);
   });
@@ -380,9 +403,9 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     // Direct coverage for server/index.mjs:39-48's real (non-developer)
     // branch, which the listUsers() wrong-import bug always denied
     // regardless of actual scope. Both accounts are given the same real
-    // productive_unit_id, and the target user is a genuine entry in
-    // server/auth/repository.mjs's store (via authHeaderFor -> upsertMemoryUser),
-    // the same store ensureUsersWithinScope's listUsers() now reads.
+    // productive_unit_id, and the target user is a real row in the users
+    // table (via authHeaderFor -> createTestUser), which
+    // ensureUsersWithinScope's listUsers() reads.
     const unitId = 'unit-award-same';
     const { header: supervisorHeader } = await authHeaderFor('supervisor', { productive_unit_id: unitId });
     const { user: targetUser } = await authHeaderFor('user', { productive_unit_id: unitId });
@@ -447,6 +470,9 @@ describe('protected routes exercised end-to-end with a valid token', () => {
         email: uniqueEmail('same-unit-target'),
         full_name: 'Same Unit User',
         productive_unit_id: unitId,
+        // The frontend always sends a role; without one the insert fails with
+        // a 500 (NOT NULL), a known gap tracked outside Fase 2.
+        role: 'user',
       });
 
     expect(response.status).toBe(201);
@@ -486,8 +512,10 @@ describe('protected routes exercised end-to-end with a valid token', () => {
   it('a fake submission id 403s the review route even for a developer-equivalent supervisor within scope', async () => {
     const reviewer = await authHeaderFor('admin');
 
+    // Submission ids are UUIDs: a non-UUID id currently 500s on the database
+    // (invalid uuid syntax), a known gap tracked outside Fase 2.
     const response = await request(app)
-      .post('/api/submissions/does-not-exist/review')
+      .post(`/api/submissions/${crypto.randomUUID()}/review`)
       .set('Authorization', reviewer.header)
       .send({ status: 'approved' });
 

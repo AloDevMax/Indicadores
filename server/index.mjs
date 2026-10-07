@@ -5,16 +5,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { createPgClient } from './db/client.mjs';
-import { checkDatabaseConnection } from './db/checkConnection.mjs';
 import { loadBootstrapData } from './db/bootstrapRepository.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
-import { ensureBuiltInDeveloper, listUsers } from './auth/repository.mjs';
-import { awardBadges, createSubmission, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, memoryAdminStore, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { listUsers } from './auth/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, persistImportRun, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, saveBadge, saveImportSource, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
-import { memoryStore } from './data/memoryStore.mjs';
-import { listBadges, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listImportSources } from './db/resourceRepository.mjs';
+import { prisma } from './shared/db/prisma.mjs';
 
 
 const port = env.PORT;
@@ -51,42 +49,17 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
 const ensureSubmissionWithinScope = async (user, submissionId) => {
   if (isDeveloper(user)) return true;
 
-  const client = await createPgClient();
+  const owner = await findSubmissionOwnerUnit(submissionId);
+  if (!owner) return false;
 
-  if (!client) {
-    const submission = memoryStore.submissions.find((entry) => entry.id === submissionId);
-    if (!submission) return false;
-
-    const users = await listUsers();
-    const submissionUser = users.find((entry) => entry.id === submission.user_id);
-    if (!submissionUser) return false;
-
-    return submissionUser.productive_unit_id === user.productive_unit_id;
-  }
-
-  try {
-    const result = await client.query(
-      `select u.productive_unit_id
-       from badge_submissions s
-       inner join users u on u.id = s.user_id
-       where s.id = $1
-       limit 1`,
-      [submissionId],
-    );
-
-    if (!result.rows[0]) return false;
-
-    return result.rows[0].productive_unit_id === user.productive_unit_id;
-  } finally {
-    await client.end();
-  }
+  return owner.productive_unit_id === user.productive_unit_id;
 };
 
 /**
  * Monta o aplicativo Express completo (middlewares + rotas), sem efeitos
- * colaterais de inicialização: não checa conexão com o banco, não semeia a
- * conta developer e não abre porta. Isso fica no bloco de execução direta no
- * final do arquivo, para que os testes possam importar e montar o app sozinhos.
+ * colaterais de inicialização: não conecta ao banco e não abre porta. Isso
+ * fica no bloco de execução direta no final do arquivo, para que os testes
+ * possam importar e montar o app sozinhos.
  */
 export function createApp() {
   const app = express();
@@ -151,14 +124,10 @@ export function createApp() {
 
   app.get('/api/health', asyncRoute(async (_req, res) => {
     try {
-      const client = await createPgClient();
-      if (client) {
-        await client.query('SELECT 1');
-        await client.end();
-      }
+      await prisma.$queryRaw`select 1`;
       res.json({ status: 'ok' });
     } catch {
-      res.json({ status: 'degraded' });
+      res.status(503).json({ status: 'unavailable' });
     }
   }));
 
@@ -392,15 +361,8 @@ export function createApp() {
   }));
 
   app.get('/api/productive-units', asyncRoute(async (_req, res) => {
-    const client = await createPgClient();
-
-    if (!client) {
-      return res.json({ productiveUnits: memoryAdminStore.productiveUnits });
-    }
-
-    const result = await client.query('select id, name from productive_units order by name asc');
-    await client.end();
-    res.json({ productiveUnits: result.rows });
+    const productiveUnits = await listProductiveUnits();
+    res.json({ productiveUnits });
   }));
 
   app.get('/api/badges', asyncRoute(async (_req, res) => {
@@ -449,54 +411,26 @@ export function createApp() {
   return app;
 }
 
-const checkConnectionWithRetry = async (maxAttempts = 3) => {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    console.log(`Tentativa ${attempt}/${maxAttempts}...`);
-    const connected = await checkDatabaseConnection(false);
-    if (connected) return true;
-
-    if (attempt < maxAttempts) {
-      console.log(`Aguardando 2 segundos antes de próxima tentativa...\n`);
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
-  }
-  return false;
-};
-
 const startServer = async () => {
-  // Verificar conexão com banco de dados na inicialização
-  console.log('\n========================================');
-  console.log('Verificando conexão com o banco de dados...');
-  console.log('========================================\n');
-
-  const dbConnected = await checkConnectionWithRetry(3);
-
-  if (!dbConnected) {
-    console.error('\n[AVISO CRÍTICO] A aplicação está usando FALLBACK EM MEMÓRIA');
-    console.error('Dados adicionados ao site NÃO serão persistidos após reiniciar!\n');
-    if (env.NODE_ENV === 'production') {
-      console.error('[PRODUÇÃO] Verifique: DATABASE_URL, módulo pg instalado, PostgreSQL acessível');
-    }
-  }
-
-  // Garantir conta developer uma vez na inicialização
-  ensureBuiltInDeveloper().catch(err =>
-    console.error('[STARTUP] ensureBuiltInDeveloper falhou:', err.message),
-  );
-
-  console.log('Caminho atual (CWD):', process.cwd());
   try {
-    const distContent = fs.readdirSync(path.resolve(process.cwd(), 'dist'), { recursive: true });
-    console.log('Arquivos encontrados na dist:', distContent.length, 'arquivos');
-  } catch (e) {
-    console.log('Erro ao ler a pasta dist:', e.message);
+    await prisma.$connect();
+  } catch (error) {
+    console.error('[STARTUP] Não foi possível conectar ao banco de dados:', error.message);
+    process.exit(1);
   }
 
   const server = http.createServer(createApp());
 
   server.listen(port, '0.0.0.0', () => {
     console.log(`Servidor pronto na porta ${port}`);
-    console.log(`Buscando arquivos do site em: ${frontendPath}`);
+  });
+
+  process.on('SIGTERM', () => {
+    console.log('[SHUTDOWN] SIGTERM recebido, encerrando...');
+    server.close(async () => {
+      await prisma.$disconnect();
+      process.exit(0);
+    });
   });
 
   return server;
