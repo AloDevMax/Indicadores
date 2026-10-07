@@ -93,4 +93,4 @@ The schema lives in [`prisma/schema.prisma`](prisma/schema.prisma) (migrations i
 
 - Local database: see [`docs/docker.md`](docs/docker.md). Production deploy: see [`docs/deploy.md`](docs/deploy.md)
 - Check the connection: `npm run db:check`
-- Required in production (see `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD` — the server refuses to start without them
+- Required in production (see `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD`, `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — the server refuses to start without them

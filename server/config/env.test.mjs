@@ -86,6 +86,30 @@ describe('parseEnv', () => {
     expect(env.SUPABASE_STORAGE_BUCKET).toBe('midia');
   });
 
+  it('rejeita SUPABASE_URL que não é uma URL http(s)', () => {
+    expect(() => parseEnv({ ...PROD_BASE, SUPABASE_URL: 'ref.supabase.co' })).toThrow(
+      'SUPABASE_URL: deve ser uma URL http(s)',
+    );
+  });
+
+  it('remove as barras finais da SUPABASE_URL', () => {
+    expect(parseEnv({ ...PROD_BASE, SUPABASE_URL: 'https://ref.supabase.co//' }).SUPABASE_URL).toBe('https://ref.supabase.co');
+  });
+
+  it('não inclui o valor de nenhuma variável na mensagem de erro', () => {
+    const secret = 'sb_secret_valor-que-nao-pode-vazar';
+    const error = (() => {
+      try {
+        parseEnv({ ...PROD_BASE, SUPABASE_SERVICE_ROLE_KEY: secret, SUPABASE_URL: secret, PORT: secret });
+      } catch (caught) {
+        return caught;
+      }
+      return null;
+    })();
+    expect(error?.message).toMatch(/Variáveis de ambiente inválidas/);
+    expect(error.message).not.toContain(secret);
+  });
+
   it('rejeita STORAGE_DRIVER desconhecido', () => {
     expect(() => parseEnv({ ...DEV_BASE, STORAGE_DRIVER: 's3' })).toThrow(/STORAGE_DRIVER/);
   });

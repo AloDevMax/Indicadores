@@ -1,8 +1,8 @@
 # Troubleshooting: conexão com o banco em produção
 
 O servidor **não sobe** sem `DATABASE_URL` (em qualquer ambiente). Em produção (`NODE_ENV=production`) também são
-obrigatórias `AUTH_SECRET` e `DEVELOPER_INITIAL_PASSWORD`: o processo termina com `Variáveis de ambiente inválidas:`
-listando o que falta. Corrija as variáveis no painel do Hostinger e refaça o deploy (ver [deploy.md](deploy.md)).
+obrigatórias `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD`, `STORAGE_DRIVER=supabase`, `SUPABASE_URL` e
+`SUPABASE_SERVICE_ROLE_KEY`: o processo termina com `Variáveis de ambiente inválidas:` listando o que falta. Corrija as variáveis no painel do Hostinger e refaça o deploy (ver [deploy.md](deploy.md)).
 
 ## Banco inacessível
 

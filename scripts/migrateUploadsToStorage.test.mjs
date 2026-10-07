@@ -158,4 +158,15 @@ describe('migrateUploads', () => {
     expect(storage.objects.has('segredo.png')).toBe(false);
     fs.rmSync(path.join(path.dirname(dir), 'segredo.png'));
   });
+
+  it('URL que aponta para uma pasta conta como ausente, não como falha', async () => {
+    fs.mkdirSync(path.join(dir, 'uploads'));
+    await prisma.badge.update({ where: { id: 'b1' }, data: { image_url: '/uploads/' } });
+    const storage = createFakeStorage();
+
+    const summary = await migrateUploads({ prisma, storage, dir, apply: true, log: silentLog });
+
+    expect(summary).toEqual({ migrados: 2, pulados: 1, ausentes: 1, falhas: 0 });
+    expect((await urls()).b1).toBe('/uploads/');
+  });
 });

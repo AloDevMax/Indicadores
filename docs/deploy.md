@@ -12,7 +12,8 @@ push na main → CI: validate (lint, testes, build)
              → Hostinger detecta o push em "production" → build + deploy
 ```
 
-O Hostinger observa a branch `production`, e só o CI a avança. Assim o schema já está migrado quando o código novo
+O Hostinger observa a branch `production`, e só o CI a avança. Crie a branch `production` a partir da `main`
+antes do primeiro release e antes de conectar o app no Hostinger, que precisa dela para o primeiro deploy. Assim o schema já está migrado quando o código novo
 sobe. Ninguém faz push manual em `production`.
 
 O workflow é `.github/workflows/deploy.yml`. Os Secrets (environment `production` no GitHub) estão listados no
@@ -70,10 +71,14 @@ Na VPS, os uploads ficavam no volume `uploads_data`, montado em `/app/dist/publi
 Para copiá-los para o bucket:
 
 ```bash
-docker compose cp app:/app/dist/public/uploads ./uploads-vps   # na VPS
+docker compose cp app:/app/dist/public/uploads/. ./uploads-vps   # na VPS; o "/." copia o conteúdo sem aninhar a pasta
 node --env-file=.env.production scripts/migrateUploadsToStorage.mjs --dir ./uploads-vps           # dry-run
 node --env-file=.env.production scripts/migrateUploadsToStorage.mjs --dir ./uploads-vps --apply
 ```
+
+O `.env.production` usado pelo script precisa de `DATABASE_URL`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`. Se
+ele também tiver `NODE_ENV=production`, a validação do boot passa a exigir `AUTH_SECRET` e
+`DEVELOPER_INITIAL_PASSWORD`; deixe o `NODE_ENV` de fora ou preencha as duas.
 
 O script reescreve os valores de `users.avatar_url`, `badges.image_url` e `badge_submissions.proof_url` que começam
 com `/uploads/`, e pode ser rodado de novo com segurança. O resumo final mostra `migrados / pulados / ausentes /

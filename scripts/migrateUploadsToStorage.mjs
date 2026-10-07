@@ -22,7 +22,8 @@ const readLocalFile = async (dir, name) => {
   try {
     return await fs.promises.readFile(path.join(dir, name));
   } catch (error) {
-    if (error.code === 'ENOENT') return null;
+    // EISDIR: a URL aponta para uma pasta (ex.: '/uploads/'), não para um arquivo.
+    if (error.code === 'ENOENT' || error.code === 'EISDIR') return null;
     throw error;
   }
 };

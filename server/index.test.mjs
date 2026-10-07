@@ -545,3 +545,27 @@ describe('catch-all route', () => {
     expect(response.text).toContain('<html');
   });
 });
+
+describe('/uploads conforme o driver de storage', () => {
+  it('com o driver supabase, /uploads/* responde 404 em vez do index.html da SPA', async () => {
+    const response = await request(createApp({ storageDriver: 'supabase' })).get('/uploads/antigo.png');
+
+    expect(response.status).toBe(404);
+    expect(response.text).not.toContain('<html');
+  });
+
+  it('com o driver local, /uploads serve os arquivos de public/uploads', async () => {
+    const { LOCAL_UPLOADS_DIR } = await import('./uploads/storage/localStorage.mjs');
+    const fs = await import('node:fs');
+    const name = `teste-${crypto.randomUUID()}.png`;
+    fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+    fs.writeFileSync(`${LOCAL_UPLOADS_DIR}/${name}`, 'img');
+    try {
+      const response = await request(createApp({ storageDriver: 'local' })).get(`/uploads/${name}`);
+      expect(response.status).toBe(200);
+      expect(response.body.toString()).toBe('img');
+    } finally {
+      fs.rmSync(`${LOCAL_UPLOADS_DIR}/${name}`, { force: true });
+    }
+  });
+});

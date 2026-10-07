@@ -62,7 +62,7 @@ const ensureSubmissionWithinScope = async (user, submissionId) => {
  * fica no bloco de execução direta no final do arquivo, para que os testes
  * possam importar e montar o app sozinhos.
  */
-export function createApp() {
+export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   const app = express();
 
   app.use(express.json());
@@ -88,10 +88,13 @@ export function createApp() {
     },
   }));
 
-  // Com o driver supabase, os arquivos são servidos pelo Storage e /uploads não existe.
-  if (env.STORAGE_DRIVER === 'local') {
+  // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
+  // no banco responde 404, em vez de cair no index.html da SPA.
+  if (storageDriver === 'local') {
     fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
     app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
+  } else {
+    app.use('/uploads', (_req, res) => res.status(404).end());
   }
 
   app.use('/api/upload', uploadRouter);

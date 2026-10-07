@@ -25,7 +25,14 @@ const envSchema = z
       (value) => (value === '' ? undefined : value),
       z.enum(['local', 'supabase']).default('local'),
     ),
-    SUPABASE_URL: optionalString,
+    SUPABASE_URL: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z
+        .string()
+        .regex(/^https?:\/\/[^/\s]+/, 'deve ser uma URL http(s)')
+        .transform((value) => value.replace(/\/+$/, ''))
+        .optional(),
+    ),
     SUPABASE_SERVICE_ROLE_KEY: optionalString,
     SUPABASE_STORAGE_BUCKET: z.preprocess(
       (value) => (value === '' ? undefined : value),
