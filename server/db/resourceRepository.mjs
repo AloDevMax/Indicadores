@@ -38,9 +38,43 @@ export const listUsers = async () => prisma.user.findMany({
 });
 
 export const listUserBadges = async () => prisma.userBadge.findMany({
-  select: { id: true, user_id: true, badge_id: true, tone: true, awarded_at: true, awarded_by: true },
+  select: { id: true, user_id: true, badge_id: true, tone: true, awarded_at: true },
   orderBy: { awarded_at: 'desc' },
 });
+
+// Mesmos pesos de src/features/badges/badgeMetrics.ts (BADGE_TONE_WEIGHTS).
+const BADGE_TONE_WEIGHTS = { bronze: 1, silver: 2, gold: 3, loss_1: -1, loss_2: -2 };
+
+const emptyRankingEntry = (userId) => ({ user_id: userId, monthly_score: 0, positive_count: 0, loss_count: 0, category_scores: {} });
+
+const addAwardToEntry = (entry, { tone, badge: { category } }) => {
+  const weight = BADGE_TONE_WEIGHTS[tone];
+  return {
+    ...entry,
+    monthly_score: entry.monthly_score + weight,
+    positive_count: entry.positive_count + (weight > 0 ? 1 : 0),
+    loss_count: entry.loss_count + (weight < 0 ? 1 : 0),
+    category_scores: { ...entry.category_scores, [category]: (entry.category_scores[category] || 0) + weight },
+  };
+};
+
+/**
+ * Saldo de cada usuário no mês (UTC), sem as concessões individuais: o ranking
+ * compara todas as unidades, mas o detalhe dos selos fica restrito à unidade.
+ */
+export const listMonthlyRanking = async ({ year, month }) => {
+  const awards = await prisma.userBadge.findMany({
+    where: { awarded_at: { gte: new Date(Date.UTC(year, month - 1, 1)), lt: new Date(Date.UTC(year, month, 1)) } },
+    select: { user_id: true, tone: true, badge: { select: { category: true } } },
+  });
+
+  const byUser = new Map();
+  awards.forEach((award) => {
+    byUser.set(award.user_id, addAwardToEntry(byUser.get(award.user_id) || emptyRankingEntry(award.user_id), award));
+  });
+
+  return [...byUser.values()];
+};
 
 export const listSubmissions = async () => prisma.$queryRaw`
   select s.id, s.user_id, u.full_name as user_name, s.badge_id, b.name as badge_name, s.description, s.status::text as status, s.submitted_at, s.proof_url

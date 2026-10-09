@@ -13,7 +13,13 @@ import { toast } from '@/shared/lib/toast';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useConfirm } from '@/shared/contexts/ConfirmContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
-import { invalidateCache } from '@/shared/lib/resourceCache';
+import { invalidateCache, invalidateCacheByPrefix } from '@/shared/lib/resourceCache';
+
+// Uma concessão muda tanto a lista de selos quanto o saldo de qualquer mês do ranking.
+const invalidateAwardCaches = () => {
+  invalidateCache('userBadges');
+  invalidateCacheByPrefix('ranking:');
+};
 
 const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const AWARD_PAGE_SIZE = 10;
@@ -240,7 +246,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       await reviewSubmissionWithApi(submissionId, status);
       invalidateCache('submissions');
       if (status === 'approved') {
-        invalidateCache('userBadges');
+        invalidateAwardCaches();
       }
       await Promise.all([refreshSubmissions(), refreshUserBadges()]);
       toast.success(`Solicitação ${status === 'approved' ? 'aprovada e selo concedido' : 'rejeitada'}.`);
@@ -478,7 +484,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       setIsAwardingBadges(true);
       await awardBadgesWithApi(selectedUsers, selectedAwardBadge, selectedAwardTone);
-      invalidateCache('userBadges');
+      invalidateAwardCaches();
       await refreshUserBadges();
 
       toast.success(`${selectedUsers.length} colaboradores foram premiados!`);
@@ -503,7 +509,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       await awardBadgesWithApi([targetUserId], badgeId, tone);
-      invalidateCache('userBadges');
+      invalidateAwardCaches();
       await refreshUserBadges();
       toast.success('Selo atribuído com sucesso.');
     } catch (error) {
@@ -520,7 +526,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       await removeUserBadgeWithApi(targetUserId, badgeId);
-      invalidateCache('userBadges');
+      invalidateAwardCaches();
       await refreshUserBadges();
       toast.success('Selo removido com sucesso.');
     } catch (error) {
@@ -716,7 +722,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     try {
       const result = await importMonthlyBadgesWithApi(awards, importMonth, importYear);
       if (result.awardedBadges?.length) {
-        invalidateCache('userBadges');
+        invalidateAwardCaches();
         await refreshUserBadges();
       }
       setImportResult({ awardedCount: result.awardedCount });

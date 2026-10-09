@@ -183,7 +183,7 @@ describe('unauthenticated read routes', () => {
 });
 
 describe('read routes that require a session', () => {
-  describe.each(['/api/users', '/api/user-badges', '/api/submissions'])('GET %s', (path) => {
+  describe.each(['/api/users', '/api/user-badges', '/api/submissions', '/api/ranking'])('GET %s', (path) => {
     it('returns 401 with the session-error body when the Authorization header is missing', async () => {
       const response = await request(app).get(path);
 
@@ -254,13 +254,114 @@ describe('read routes that require a session', () => {
     expect(response.body.users).toContainEqual(expect.objectContaining({ id: SEED_USER_ID, email: 'joao@acme.com' }));
   });
 
-  it('GET /api/user-badges returns the awards to any signed-in user (the ranking needs them)', async () => {
-    const { header } = await authHeaderFor('user');
+  describe('GET /api/user-badges scope', () => {
+    const awardTo = async (userId, tone = 'gold') => {
+      const id = crypto.randomUUID();
+      await prisma.userBadge.create({ data: { id, user_id: userId, badge_id: '1', tone } });
+      return id;
+    };
 
-    const response = await request(app).get('/api/user-badges').set('Authorization', header);
+    it('returns a plain user their own awards and their unit colleagues\', not other units\'', async () => {
+      const me = await authHeaderFor('user', { productive_unit_id: 'pu-ub-a' });
+      const colleague = await authHeaderFor('user', { productive_unit_id: 'pu-ub-a' });
+      const stranger = await authHeaderFor('user', { productive_unit_id: 'pu-ub-b' });
+      const mine = await awardTo(me.user.id);
+      const colleagues = await awardTo(colleague.user.id, 'loss_2');
+      const strangers = await awardTo(stranger.user.id, 'loss_2');
 
-    expect(response.status).toBe(200);
-    expect(Array.isArray(response.body.userBadges)).toBe(true);
+      const response = await request(app).get('/api/user-badges').set('Authorization', me.header);
+
+      expect(response.status).toBe(200);
+      const ids = response.body.userBadges.map((ub) => ub.id);
+      expect(ids).toEqual(expect.arrayContaining([mine, colleagues]));
+      expect(ids).not.toContain(strangers);
+    });
+
+    it('returns only their own awards to a plain user without a unit', async () => {
+      const me = await authHeaderFor('user');
+      const mine = await awardTo(me.user.id);
+      await awardTo(SEED_USER_ID);
+
+      const response = await request(app).get('/api/user-badges').set('Authorization', me.header);
+
+      expect(response.status).toBe(200);
+      expect(response.body.userBadges.map((ub) => ub.id)).toEqual([mine]);
+    });
+
+    it('returns only awards from the supervisor\'s own unit', async () => {
+      const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-ub-c' });
+      const inUnit = await authHeaderFor('user', { productive_unit_id: 'pu-ub-c' });
+      const outOfUnit = await authHeaderFor('user', { productive_unit_id: 'pu-ub-d' });
+      const visible = await awardTo(inUnit.user.id);
+      const hidden = await awardTo(outOfUnit.user.id);
+
+      const response = await request(app).get('/api/user-badges').set('Authorization', supervisor.header);
+
+      expect(response.status).toBe(200);
+      const ids = response.body.userBadges.map((ub) => ub.id);
+      expect(ids).toContain(visible);
+      expect(ids).not.toContain(hidden);
+    });
+
+    it('returns every award to an admin, without who granted it', async () => {
+      const someone = await authHeaderFor('user', { productive_unit_id: 'pu-ub-e' });
+      const id = await awardTo(someone.user.id);
+      const { header } = await authHeaderFor('admin');
+
+      const response = await request(app).get('/api/user-badges').set('Authorization', header);
+
+      expect(response.status).toBe(200);
+      const award = response.body.userBadges.find((ub) => ub.id === id);
+      expect(award).toMatchObject({ user_id: someone.user.id, badge_id: '1', tone: 'gold' });
+      expect(award).not.toHaveProperty('awarded_by');
+    });
+  });
+
+  describe('GET /api/ranking', () => {
+    const awardOn = (userId, badgeId, tone, isoDate) =>
+      prisma.userBadge.create({ data: { user_id: userId, badge_id: badgeId, tone, awarded_at: new Date(isoDate) } });
+
+    it('returns 400 for a missing or out-of-range month', async () => {
+      const { header } = await authHeaderFor('user');
+
+      const missing = await request(app).get('/api/ranking?year=2020').set('Authorization', header);
+      const outOfRange = await request(app).get('/api/ranking?year=2020&month=13').set('Authorization', header);
+
+      expect(missing.status).toBe(400);
+      expect(outOfRange.status).toBe(400);
+    });
+
+    it('gives a plain user the monthly scores of users in other units, without their individual awards', async () => {
+      const me = await authHeaderFor('user', { productive_unit_id: 'pu-rk-a' });
+      const other = await authHeaderFor('user', { productive_unit_id: 'pu-rk-b' });
+      await awardOn(other.user.id, '1', 'gold', '2020-03-01T00:00:00Z'); // Qualidade +3
+      await awardOn(other.user.id, '2', 'silver', '2020-03-31T23:59:59Z'); // Segurança +2
+      await awardOn(other.user.id, '1', 'loss_2', '2020-03-15T12:00:00Z'); // Qualidade -2
+      await awardOn(other.user.id, '1', 'gold', '2020-02-29T23:59:59Z'); // previous month: ignored
+      await awardOn(other.user.id, '1', 'gold', '2020-04-01T00:00:00Z'); // next month: ignored
+
+      const response = await request(app).get('/api/ranking?year=2020&month=3').set('Authorization', me.header);
+
+      expect(response.status).toBe(200);
+      expect(response.body.ranking.find((entry) => entry.user_id === other.user.id)).toEqual({
+        user_id: other.user.id,
+        monthly_score: 3,
+        positive_count: 2,
+        loss_count: 1,
+        category_scores: { Qualidade: 1, 'Segurança': 2 },
+      });
+    });
+
+    it('leaves out users with no awards in the month', async () => {
+      const me = await authHeaderFor('user');
+      const idle = await authHeaderFor('user');
+      await awardOn(idle.user.id, '1', 'gold', '2020-05-10T00:00:00Z');
+
+      const response = await request(app).get('/api/ranking?year=2020&month=6').set('Authorization', me.header);
+
+      expect(response.status).toBe(200);
+      expect(response.body.ranking.map((entry) => entry.user_id)).not.toContain(idle.user.id);
+    });
   });
 
   describe('GET /api/submissions scope', () => {

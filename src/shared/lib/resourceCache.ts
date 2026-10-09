@@ -32,6 +32,10 @@ export function invalidateCache(key: string): void {
   cache.delete(key);
 }
 
+export function invalidateCacheByPrefix(prefix: string): void {
+  [...cache.keys()].filter((key) => key.startsWith(prefix)).forEach((key) => cache.delete(key));
+}
+
 export function clearAllCache(): void {
   cache.clear();
 }

@@ -3,7 +3,7 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
-import { ZodError } from 'zod';
+import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
@@ -12,7 +12,7 @@ import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge,
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
-import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends } from './db/resourceRepository.mjs';
+import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listMonthlyRanking } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
 
 
@@ -48,6 +48,23 @@ const scopeSubmissions = (viewer, submissions, users) => {
   if (isSupervisor(viewer)) return submissions;
   return submissions.filter((s) => s.user_id === viewer.id);
 };
+
+// Concessões: quem tem unidade vê as da própria unidade (inclusive as próprias);
+// usuário comum sem unidade, só as próprias. O ranking entre unidades usa /api/ranking.
+const scopeUserBadges = (viewer, userBadges, users) => {
+  if (isAdminOrDeveloper(viewer)) return userBadges;
+  if (viewer.productive_unit_id) {
+    const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
+    return userBadges.filter((ub) => unitUserIds.has(ub.user_id));
+  }
+  if (isSupervisor(viewer)) return userBadges;
+  return userBadges.filter((ub) => ub.user_id === viewer.id);
+};
+
+const rankingQuerySchema = z.object({
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+});
 
 const ensureManagerUnitScope = (user, unitId) => {
   if (isSupervisor(user)) return Boolean(unitId) && user.productive_unit_id === unitId;
@@ -369,13 +386,22 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     res.json({ users: users.map((user) => hideEmailFrom(auth.body.user, user)) });
   }));
 
-  // Sem filtro por papel: o ranking de qualquer usuário precisa das concessões de todos.
   app.get('/api/user-badges', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
-    const userBadges = await listUserBadges();
-    res.json({ userBadges });
+    const [userBadges, users] = await Promise.all([listUserBadges(), listUsers()]);
+    res.json({ userBadges: scopeUserBadges(auth.body.user, userBadges, users) });
+  }));
+
+  // Só o saldo agregado de cada usuário, visível a qualquer logado.
+  app.get('/api/ranking', asyncRoute(async (req, res) => {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+
+    const { year, month } = rankingQuerySchema.parse(req.query);
+    const ranking = await listMonthlyRanking({ year, month });
+    res.json({ ranking });
   }));
 
   app.get('/api/submissions', asyncRoute(async (req, res) => {
