@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
-import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, getUserMonthlyBadgeMetrics, getUserMonthlyBadges } from '@/features/badges/badgeMetrics';
+import React, { useCallback, useMemo, useState } from 'react';
+import { BADGE_TONE_LABELS, BADGE_TONE_WEIGHTS, canSeeAwardDetails, getUserMonthlyBadges } from '@/features/badges/badgeMetrics';
 import { BarChart3, User, X } from 'lucide-react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useRouteData } from '@/shared/hooks/useRouteData';
-import { fetchUsersWithApi, fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi } from '@/shared/api';
-import { DEFAULT_BADGE_LEGENDS } from '@/shared/types';
+import { fetchUsersWithApi, fetchBadgesWithApi, fetchUserBadgesWithApi, fetchBadgeLegendsWithApi, fetchRankingWithApi } from '@/shared/api';
+import { DEFAULT_BADGE_LEGENDS, RankingEntry } from '@/shared/types';
 
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -17,10 +17,14 @@ const Ranking: React.FC = () => {
 
   const now = new Date();
   const isSupervisor = currentUser?.role === 'supervisor';
-  const [selectedUser, setSelectedUser] = useState<typeof currentUser | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [filterMonth, setFilterMonth] = useState(now.getUTCMonth());
   const [filterYear, setFilterYear] = useState(now.getUTCFullYear());
+
+  // O saldo de todas as unidades vem agregado; /api/user-badges só traz o detalhe da própria unidade.
+  const fetchRanking = useCallback(() => fetchRankingWithApi(filterYear, filterMonth + 1), [filterYear, filterMonth]);
+  const { data: ranking = [] } = useRouteData<RankingEntry[]>(`ranking:${filterYear}-${filterMonth + 1}`, fetchRanking, []);
 
   const referenceDate = useMemo(() => new Date(Date.UTC(filterYear, filterMonth, 15)), [filterMonth, filterYear]);
 
@@ -37,21 +41,28 @@ const Ranking: React.FC = () => {
   }, [badges]);
 
   const sortedUsers = useMemo(() => {
-    return [...filteredExplorers]
+    const entriesByUser = new Map((ranking ?? []).map(entry => [entry.user_id, entry]));
+    return filteredExplorers
       .map(user => {
-        const metrics = getUserMonthlyBadgeMetrics(user.id, userBadges, referenceDate);
-        const categoryScore = selectedCategory === 'Todos'
-          ? metrics.monthlyScore
-          : metrics.monthlyBadges
-              .filter(ub => badges.find(b => b.id === ub.badge_id)?.category === selectedCategory)
-              .reduce((sum, ub) => sum + BADGE_TONE_WEIGHTS[ub.tone], 0);
-        return { ...user, monthlyScore: metrics.monthlyScore, monthlyMetrics: metrics, categoryScore };
+        const entry = entriesByUser.get(user.id);
+        const monthlyScore = entry?.monthly_score ?? 0;
+        const categoryScore = selectedCategory === 'Todos' ? monthlyScore : entry?.category_scores[selectedCategory] ?? 0;
+        return {
+          ...user,
+          monthlyScore,
+          categoryScore,
+          positiveCount: entry?.positive_count ?? 0,
+          lossCount: entry?.loss_count ?? 0,
+        };
       })
       .sort((a, b) => {
         if (b.categoryScore !== a.categoryScore) return b.categoryScore - a.categoryScore;
         return b.monthlyScore - a.monthlyScore;
       });
-  }, [selectedCategory, filteredExplorers, userBadges, badges, referenceDate]);
+  }, [selectedCategory, filteredExplorers, ranking]);
+
+  const selectedUser = sortedUsers.find(u => u.id === selectedUserId) ?? null;
+  const setSelectedUser = (user: { id: string } | null) => setSelectedUserId(user?.id ?? null);
 
   const topThree = sortedUsers.slice(0, 3);
   const remainingUsers = sortedUsers.slice(3);
@@ -145,7 +156,7 @@ const Ranking: React.FC = () => {
                     <div className="w-12 h-12 rounded-lg bg-white flex items-center justify-center text-xl shadow-sm"><User size={20} className="text-slate-600" /></div>
                     <div>
                       <div className="font-black text-slate-900 group-hover:text-brand-primary transition-colors">{user.full_name}</div>
-                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.monthlyMetrics.positiveCount} Selos Positivos</div>
+                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{user.positiveCount} Selos Positivos</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -183,7 +194,7 @@ const Ranking: React.FC = () => {
                   <h2 className="text-3xl font-bold font-heading text-slate-900 tracking-tight">{selectedUser.full_name}</h2>
                   <div className="flex items-center gap-4 mt-2">
                     <span className="bg-brand-primary text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                      saldo {getUserMonthlyBadgeMetrics(selectedUser.id, userBadges, referenceDate).monthlyScore}
+                      saldo {selectedUser.monthlyScore}
                     </span>
                   </div>
                 </div>
@@ -192,19 +203,21 @@ const Ranking: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto pr-2 space-y-8">
               {(() => {
-                const metrics = getUserMonthlyBadgeMetrics(selectedUser.id, userBadges, referenceDate);
                 const monthlyUserBadges = getUserMonthlyBadges(selectedUser.id, userBadges, referenceDate);
                 return (
                   <>
                     <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-around text-center">
-                      <div><div className="text-2xl font-black text-brand-primary">{metrics.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
+                      <div><div className="text-2xl font-black text-brand-primary">{selectedUser.monthlyScore}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Saldo do Mês</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
-                      <div><div className="text-2xl font-black text-slate-900">{metrics.positiveCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selos Positivos</div></div>
+                      <div><div className="text-2xl font-black text-slate-900">{selectedUser.positiveCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Selos Positivos</div></div>
                       <div className="w-[1px] h-8 bg-slate-200"></div>
-                      <div><div className="text-2xl font-black text-red-500">{metrics.lossCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Perdas</div></div>
+                      <div><div className="text-2xl font-black text-red-500">{selectedUser.lossCount}</div><div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Perdas</div></div>
                     </div>
                     <div className="space-y-4">
                       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Selos do Mês</h3>
+                      {!canSeeAwardDetails(currentUser, selectedUser) ? (
+                        <div className="py-8 text-center text-slate-400 font-bold text-xs uppercase">Os selos individuais só aparecem para a unidade do colaborador.</div>
+                      ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {monthlyUserBadges.map((ub, idx) => {
                           const badge = badges.find(b => b.id === ub.badge_id);
@@ -234,6 +247,7 @@ const Ranking: React.FC = () => {
                           <div className="col-span-2 py-8 text-center text-slate-400 font-bold text-xs uppercase">Nenhum selo no mês selecionado</div>
                         )}
                       </div>
+                      )}
                     </div>
                   </>
                 );

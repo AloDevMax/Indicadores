@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ProductiveUnit, Profile, UserBadge } from '@/shared/types';
+import { Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ProductiveUnit, Profile, RankingEntry, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -279,6 +279,22 @@ export const fetchUserBadgesWithApi = async (): Promise<UserBadge[]> => {
 
   const data = (await response.json()) as { userBadges: UserBadge[] };
   return data.userBadges;
+};
+
+/** `month` vai de 1 a 12. */
+export const fetchRankingWithApi = async (year: number, month: number): Promise<RankingEntry[]> => {
+  const apiBaseUrl = getApiBaseUrl();
+  const token = getStoredAuthToken();
+  const response = await fetch(`${apiBaseUrl}/api/ranking?year=${year}&month=${month}`, {
+    headers: token ? createJsonHeaders(token) : undefined,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar ranking com status ${response.status}`);
+  }
+
+  const data = (await response.json()) as { ranking: RankingEntry[] };
+  return data.ranking;
 };
 
 export const fetchSubmissionsWithApi = async (): Promise<BadgeSubmission[]> => {

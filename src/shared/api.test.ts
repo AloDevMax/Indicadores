@@ -5,6 +5,7 @@ import {
   clearStoredAuthToken,
   deleteUserWithApi,
   fetchCurrentUser,
+  fetchRankingWithApi,
   getApiBaseUrl,
   getStoredAuthToken,
   loginWithApi,
@@ -100,6 +101,27 @@ describe('api.ts', () => {
 
       expect(result).toBeNull();
       expect(getStoredAuthToken()).toBeNull();
+    });
+  });
+
+  describe('fetchRankingWithApi', () => {
+    it('requests the month\'s ranking with the session token and returns payload.ranking', async () => {
+      storeAuthToken('token-123');
+      const ranking = [{ user_id: 'u1', monthly_score: 3, positive_count: 1, loss_count: 0, category_scores: { Qualidade: 3 } }];
+      vi.mocked(fetch).mockResolvedValue(jsonResponse({ ranking }) as unknown as Response);
+
+      const result = await fetchRankingWithApi(2026, 3);
+
+      expect(result).toEqual(ranking);
+      const [url, init] = vi.mocked(fetch).mock.calls[0];
+      expect(String(url)).toMatch(/\/api\/ranking\?year=2026&month=3$/);
+      expect((init?.headers as Record<string, string>).Authorization).toBe('Bearer token-123');
+    });
+
+    it('throws with the status on a non-OK response', async () => {
+      vi.mocked(fetch).mockResolvedValue(jsonResponse({}, { ok: false, status: 401 }) as unknown as Response);
+
+      await expect(fetchRankingWithApi(2026, 3)).rejects.toThrow('Falha ao buscar ranking com status 401');
     });
   });
 

@@ -1,4 +1,15 @@
-import { BadgeTone, UserBadge } from '@/shared/types';
+import { BadgeTone, Profile, UserBadge } from '@/shared/types';
+
+/**
+ * Espelha o escopo de GET /api/user-badges (scopeUserBadges no servidor): diz se
+ * o viewer recebe as concessões individuais do target ou só o saldo do ranking.
+ */
+export const canSeeAwardDetails = (viewer: Profile, target: Pick<Profile, 'id' | 'productive_unit_id'>): boolean => {
+  if (viewer.role === 'admin' || viewer.role === 'developer') return true;
+  if (viewer.id === target.id) return true;
+  if (viewer.productive_unit_id) return viewer.productive_unit_id === target.productive_unit_id;
+  return viewer.role === 'supervisor';
+};
 
 export const BADGE_TONE_WEIGHTS: Record<BadgeTone, number> = {
   bronze: 1,

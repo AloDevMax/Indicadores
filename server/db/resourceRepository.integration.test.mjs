@@ -7,6 +7,7 @@ import {
   listBadges,
   listProductiveUnits,
   listSubmissions,
+  listMonthlyRanking,
   listUserBadges,
   listUsers,
 } from './resourceRepository.mjs';
@@ -91,8 +92,8 @@ describe('listUserBadges', () => {
     const userBadges = await listUserBadges();
 
     expect(userBadges).toEqual([
-      { id: newer, user_id: BIA_ID, badge_id: 'b2', tone: 'loss_1', awarded_at: expect.any(Date), awarded_by: null },
-      { id: older, user_id: ANA_ID, badge_id: 'b1', tone: 'bronze', awarded_at: expect.any(Date), awarded_by: BIA_ID },
+      { id: newer, user_id: BIA_ID, badge_id: 'b2', tone: 'loss_1', awarded_at: expect.any(Date) },
+      { id: older, user_id: ANA_ID, badge_id: 'b1', tone: 'bronze', awarded_at: expect.any(Date) },
     ]);
     expect(userBadges.map((entry) => entry.awarded_at.toISOString()))
       .toEqual(['2024-05-01T08:00:00.000Z', '2024-04-01T08:00:00.000Z']);
@@ -100,6 +101,32 @@ describe('listUserBadges', () => {
 
   it('returns an empty list when nothing was awarded', async () => {
     expect(await listUserBadges()).toEqual([]);
+  });
+});
+
+describe('listMonthlyRanking', () => {
+  it('sums each user\'s awards in the UTC month into score, counts and per-category scores', async () => {
+    await prisma.badge.update({ where: { id: 'b2' }, data: { category: 'Segurança' } });
+    await prisma.userBadge.createMany({
+      data: [
+        { user_id: ANA_ID, badge_id: 'b1', tone: 'gold', awarded_at: new Date('2024-04-01T00:00:00.000Z') },
+        { user_id: ANA_ID, badge_id: 'b2', tone: 'loss_1', awarded_at: new Date('2024-04-30T23:59:59.000Z') },
+        { user_id: BIA_ID, badge_id: 'b1', tone: 'bronze', awarded_at: new Date('2024-04-10T00:00:00.000Z') },
+        { user_id: BIA_ID, badge_id: 'b1', tone: 'gold', awarded_at: new Date('2024-05-01T00:00:00.000Z') },
+      ],
+    });
+
+    const ranking = await listMonthlyRanking({ year: 2024, month: 4 });
+
+    expect(ranking).toHaveLength(2);
+    expect(ranking).toEqual(expect.arrayContaining([
+      { user_id: ANA_ID, monthly_score: 2, positive_count: 1, loss_count: 1, category_scores: { Qualidade: 3, 'Segurança': -1 } },
+      { user_id: BIA_ID, monthly_score: 1, positive_count: 1, loss_count: 0, category_scores: { Qualidade: 1 } },
+    ]));
+  });
+
+  it('returns an empty list for a month without awards', async () => {
+    expect(await listMonthlyRanking({ year: 2024, month: 4 })).toEqual([]);
   });
 });
 

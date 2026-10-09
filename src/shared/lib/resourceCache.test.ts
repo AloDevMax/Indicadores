@@ -1,5 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearAllCache, getCache, invalidateCache, setCache } from './resourceCache';
+import { clearAllCache, getCache, invalidateCache, invalidateCacheByPrefix, setCache } from './resourceCache';
+
+describe('invalidateCacheByPrefix', () => {
+  afterEach(() => clearAllCache());
+
+  it('evicts every key starting with the prefix and keeps the others', () => {
+    setCache('ranking:2026-3', [1]);
+    setCache('ranking:2026-4', [2]);
+    setCache('userBadges', [3]);
+
+    invalidateCacheByPrefix('ranking:');
+
+    expect(getCache('ranking:2026-3')).toBeNull();
+    expect(getCache('ranking:2026-4')).toBeNull();
+    expect(getCache('userBadges')).toEqual([3]);
+  });
+});
 
 describe('resourceCache', () => {
   beforeEach(() => {

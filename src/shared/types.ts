@@ -46,10 +46,19 @@ export interface UserBadge {
   user_id: string;
   badge_id: string;
   awarded_at: string;
-  awarded_by: string | null;
+  awarded_by?: string | null;
   tone: BadgeTone;
   productive_unit_id?: string;
   created_at?: string;
+}
+
+/** Saldo mensal agregado de um usuário (GET /api/ranking), sem as concessões individuais. */
+export interface RankingEntry {
+  user_id: string;
+  monthly_score: number;
+  positive_count: number;
+  loss_count: number;
+  category_scores: Record<string, number>;
 }
 
 export interface BadgeLegendSettings {
