@@ -84,7 +84,7 @@ Full-stack monolith: Express serves both the REST API and the static React bundl
 | What | Where |
 |------|-------|
 | Frontend SPA | `src/main.tsx` → `src/App.tsx` |
-| Backend Express | `server/index.mjs` (port 4004) |
+| Backend Express | `server/start.mjs` → `server/index.mjs` (port 4004) |
 | All API calls | `src/shared/api.ts` |
 | Shared types | `src/shared/types.ts` |
 | Database schema | `prisma/schema.prisma` |

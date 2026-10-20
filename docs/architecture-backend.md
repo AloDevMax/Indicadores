@@ -1,6 +1,6 @@
 # Backend
 
-- **Entry**: `server/index.mjs` — Express app on `PORT` env var (default 4004). In production runs from `dist/server/index.mjs` (built by `tsc` in `npm run build`).
+- **Entry**: `server/start.mjs` starts the server unconditionally (Hostinger loads the entry through a wrapper, so no `process.argv[1]` guard) and listens before connecting to the database (Hostinger requires `listen()` within 3 s). `server/index.mjs` defines the Express app (`createApp`, `startServer`) and has no side effects on import. `PORT` env var (default 4004). In production runs from `dist/server/start.mjs` (built by `tsc` in `npm run build`).
 - **Module system**: ES modules (`.mjs`) throughout the server. No bundler — Node executes the files directly.
 - **TypeScript**: `tsconfig.json` covers only `server/` (`allowJs: true`, output to `dist/server`). The frontend has its own `tsconfig.app.json`.
 - **Static serving**: Serves the built frontend from the repo root (`frontendPath = ..`). With `STORAGE_DRIVER=local`, `/uploads` is served from `public/uploads/`; with `supabase`, files live in Supabase Storage and `/uploads/*` returns 404. SPA fallback (`app.get('*')`) returns `index.html`.

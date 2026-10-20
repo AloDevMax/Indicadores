@@ -26,7 +26,7 @@ estiver vazio. No environment dá para exigir aprovação manual antes da migrat
 |---|---|
 | Repositório / branch | este repositório, branch `production` |
 | Build command | `npm run build` (precisa das devDependencies: vite, typescript, prisma) |
-| Entry file | `dist/server/index.mjs` |
+| Entry file | `dist/server/start.mjs` (sobe o servidor sem guarda de `argv`: o Hostinger carrega o entry por um wrapper e exige `listen()` em até 3 s) |
 | Node | 20 ou 22 (`engines` no `package.json`) |
 
 O servidor lê a porta de `PORT`; o default 4004 só vale localmente. O mesmo app serve a API e o frontend.
