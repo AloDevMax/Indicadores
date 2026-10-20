@@ -433,36 +433,23 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   return app;
 }
 
-const startServer = async () => {
-  try {
-    await prisma.$connect();
-  } catch (error) {
-    console.error('[STARTUP] Não foi possível conectar ao banco de dados:', error.message);
-    process.exit(1);
-  }
-
+// Escuta antes de conectar ao banco: o Hostinger derruba o app que não chamar
+// listen() em até 3 segundos. Se o banco estiver inacessível, o processo
+// termina mesmo assim, logo depois. Quem sobe o servidor é server/start.mjs.
+export const startServer = ({
+  port: listenPort = port,
+  connect = () => prisma.$connect(),
+  exit = (code) => process.exit(code),
+} = {}) => new Promise((resolve) => {
   const server = http.createServer(createApp());
 
-  server.listen(port, '0.0.0.0', () => {
-    console.log(`Servidor pronto na porta ${port}`);
+  server.listen(listenPort, '0.0.0.0', () => {
+    console.log(`Servidor pronto na porta ${server.address().port}`);
+    resolve(server);
   });
 
-  process.on('SIGTERM', () => {
-    console.log('[SHUTDOWN] SIGTERM recebido, encerrando...');
-    server.close(async () => {
-      await prisma.$disconnect();
-      process.exit(0);
-    });
+  connect().catch((error) => {
+    console.error('[STARTUP] Não foi possível conectar ao banco de dados:', error.message);
+    exit(1);
   });
-
-  return server;
-};
-
-// Só sobe o servidor quando o arquivo é executado diretamente
-// (`node server/index.mjs`, `node dist/server/index.mjs`). Ao ser importado
-// — por testes, por exemplo — nada além das definições acima é avaliado.
-// `import.meta.main` só existe no Node 24.2+/22.18+; a imagem de produção usa
-// Node 20, então a comparação com `process.argv[1]` é a checagem portável.
-if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
-  await startServer();
-}
+});
