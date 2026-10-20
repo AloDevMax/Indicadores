@@ -58,10 +58,14 @@ describe('server/start.mjs', () => {
     child = undefined;
   });
 
-  it('sobe o servidor mesmo carregado por um wrapper, como no Hostinger', async () => {
+  // node -e faz o papel do wrapper: process.argv[1] não é o entry. O wrapper do
+  // Hostinger usa require(), que falha em módulos ESM com top-level await.
+  it.each([
+    ['import()', "import('./server/start.mjs')"],
+    ['require()', "require('./server/start.mjs')"],
+  ])('sobe o servidor carregado por um wrapper via %s, como no Hostinger', async (_loader, script) => {
     const port = await freePort();
-    // node -e faz o papel do wrapper: process.argv[1] não é o entry.
-    child = spawn(process.execPath, ['-e', "import('./server/start.mjs')"], {
+    child = spawn(process.execPath, ['-e', script], {
       cwd: ROOT,
       env: { ...process.env, NODE_ENV: 'test', PORT: String(port), DATABASE_URL: TEST_DATABASE_URL },
       stdio: ['ignore', 'pipe', 'pipe'],
