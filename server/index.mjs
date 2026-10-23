@@ -15,6 +15,7 @@ import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
 import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listMonthlyRanking } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
+import { securityHeaders } from './securityHeaders.mjs';
 
 
 const port = env.PORT;
@@ -149,12 +150,14 @@ const createLoginLimiters = ({ windowMs, maxFailuresPerEmail, maxFailuresPerIp }
 export function createApp({
   storageDriver = env.STORAGE_DRIVER,
   clientDir = CLIENT_BUILD_DIR,
+  isProduction = env.NODE_ENV === 'production',
   loginRateLimit = DEFAULT_LOGIN_RATE_LIMIT,
 } = {}) {
   const app = express();
 
   // Atrás de proxy (Hostinger), req.ip só é o endereço do cliente com TRUST_PROXY configurado.
   app.set('trust proxy', env.TRUST_PROXY);
+  app.use(securityHeaders({ clientDir, isProduction }));
   app.use(express.json());
 
   const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
