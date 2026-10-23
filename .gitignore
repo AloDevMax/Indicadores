@@ -1,5 +1,7 @@
 ﻿node_modules/
 dist/
+# Zips do deploy manual no Hostinger (npm run release:zip)
+releases/
 
 # Environment
 .env*

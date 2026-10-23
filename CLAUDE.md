@@ -19,6 +19,7 @@ npm run dev:server        # Backend only (port 4004) — requires the database (
 # Build & production
 npm run build             # prisma generate → vite build → tsc
 npm start                 # Production Express server
+npm run release:zip       # .zip of origin/production for the manual Hostinger upload (refuses if production != main)
 
 # Database
 npm run db:migrate        # prisma migrate dev — create/apply migrations on the local database
