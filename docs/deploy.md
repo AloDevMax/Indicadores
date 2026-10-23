@@ -51,13 +51,14 @@ do deploy a linha `Entry file:` (`dist/server/start.mjs`).
 | `NODE_ENV` | `production` |
 | `DATABASE_URL` | pooler de transação do Supabase, porta 6543, com `?pgbouncer=true&connection_limit=1` |
 | `DIRECT_URL` | session pooler do Supabase, porta 5432 |
-| `AUTH_SECRET` | segredo das sessões (trocá-lo derruba as sessões ativas) |
+| `AUTH_SECRET` | segredo das sessões, com pelo menos 32 caracteres e diferente do `.env.example` (trocá-lo derruba as sessões ativas). Gere com `openssl rand -hex 32` |
 | `DEVELOPER_INITIAL_PASSWORD` | senha da conta developer (o seed a regrava a cada release) |
 | `STORAGE_DRIVER` | `supabase` (o boot recusa `local` em produção) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | chave service role. Só no servidor: nunca com prefixo `VITE_`, nunca no frontend |
 | `SUPABASE_STORAGE_BUCKET` | opcional, default `uploads` |
 | `ALLOWED_ORIGINS` | domínio final (só importa para chamadas vindas de outra origem) |
+| `TRUST_PROXY` | número de proxies reversos à frente do app (default `0`). Na Hostinger o app roda atrás de um proxy reverso: use `1`. Valor baixo demais faz o limite de login por endereço tratar todos os clientes como um só; o `express-rate-limit` avisa no log com `ERR_ERL_UNEXPECTED_X_FORWARDED_FOR` |
 
 Se faltar alguma variável obrigatória, o processo termina no boot com `Variáveis de ambiente inválidas:` e a lista.
 
@@ -91,7 +92,8 @@ node --env-file=.env.production scripts/migrateUploadsToStorage.mjs --dir ./uplo
 
 O `.env.production` usado pelo script precisa de `DATABASE_URL`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`. Se
 ele também tiver `NODE_ENV=production`, a validação do boot passa a exigir `AUTH_SECRET` e
-`DEVELOPER_INITIAL_PASSWORD`; deixe o `NODE_ENV` de fora ou preencha as duas.
+`DEVELOPER_INITIAL_PASSWORD`. Com `STORAGE_DRIVER=supabase`, o `AUTH_SECRET` é exigido mesmo sem
+`NODE_ENV=production` (o segredo de desenvolvimento só vale com storage local): use o mesmo valor da produção.
 
 O script reescreve os valores de `users.avatar_url`, `badges.image_url` e `badge_submissions.proof_url` que começam
 com `/uploads/`, e pode ser rodado de novo com segurança. O resumo final mostra `migrados / pulados / ausentes /

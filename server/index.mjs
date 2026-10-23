@@ -1,12 +1,13 @@
 import http from 'node:http';
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
-import { listUsers } from './auth/repository.mjs';
+import { listUsers, revokeUserSessions } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
@@ -105,9 +106,34 @@ const isAcceptableAvatarUrl = async ({ id, avatar_url: avatarUrl }) => {
   return avatarUrl === await findUserAvatarUrl(id);
 };
 
-export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
+// Só tentativas que falham contam (skipSuccessfulRequests). Por e-mail, barra a força bruta numa conta;
+// por endereço, a mesma senha testada em muitas contas.
+const DEFAULT_LOGIN_RATE_LIMIT = { windowMs: 15 * 60 * 1000, maxFailuresPerEmail: 10, maxFailuresPerIp: 100 };
+
+const createLoginLimiters = ({ windowMs, maxFailuresPerEmail, maxFailuresPerIp }) => {
+  const options = {
+    windowMs,
+    skipSuccessfulRequests: true,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' },
+  };
+
+  return [
+    rateLimit({ ...options, limit: maxFailuresPerIp }),
+    rateLimit({
+      ...options,
+      limit: maxFailuresPerEmail,
+      keyGenerator: (req) => `email:${String(req.body?.email ?? '').trim().toLowerCase()}`,
+    }),
+  ];
+};
+
+export function createApp({ storageDriver = env.STORAGE_DRIVER, loginRateLimit = DEFAULT_LOGIN_RATE_LIMIT } = {}) {
   const app = express();
 
+  // Atrás de proxy (Hostinger), req.ip só é o endereço do cliente com TRUST_PROXY configurado.
+  app.set('trust proxy', env.TRUST_PROXY);
   app.use(express.json());
 
   const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
@@ -142,7 +168,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
 
   app.use('/api/upload', uploadRouter);
 
-  app.post('/api/auth/login', asyncRoute(async (req, res) => {
+  app.post('/api/auth/login', ...createLoginLimiters(loginRateLimit), asyncRoute(async (req, res) => {
     const result = await loginUser(req.body);
     res.status(result.status).json(result.body);
   }));
@@ -294,6 +320,10 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     }
 
     const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
+    // Senha redefinida ou conta desativada: quem estava logado com o acesso antigo sai.
+    if (user.id === req.body.id && (req.body.password || req.body.is_active === false)) {
+      await revokeUserSessions(user.id);
+    }
     res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
   }));
 
@@ -352,7 +382,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     const auth = await getAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
-    const result = await updateOwnProfile(auth.body.user, req.body);
+    const result = await updateOwnProfile(auth.body.user, req.body, { sessionId: auth.sessionId });
     res.status(result.status).json(result.body);
   }));
 

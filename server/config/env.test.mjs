@@ -7,7 +7,7 @@ const DEV_BASE = { DATABASE_URL: 'postgresql://u:p@localhost:5432/labquest' };
 const PROD_BASE = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://u:p@db:5432/labquest',
-  AUTH_SECRET: 'segredo-de-producao',
+  AUTH_SECRET: 'segredo-de-producao-com-32-caracteres-ou-mais',
   DEVELOPER_INITIAL_PASSWORD: 'senha-forte',
   STORAGE_DRIVER: 'supabase',
   SUPABASE_URL: 'https://ref.supabase.co',
@@ -47,7 +47,7 @@ describe('parseEnv', () => {
 
   it('aceita uma configuração de produção completa sem aplicar defaults de dev', () => {
     const env = parseEnv(PROD_BASE);
-    expect(env.AUTH_SECRET).toBe('segredo-de-producao');
+    expect(env.AUTH_SECRET).toBe('segredo-de-producao-com-32-caracteres-ou-mais');
     expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte');
   });
 
@@ -124,5 +124,42 @@ describe('parseEnv', () => {
 
   it('retorna um objeto congelado', () => {
     expect(Object.isFrozen(parseEnv(DEV_BASE))).toBe(true);
+  });
+});
+
+describe('parseEnv — AUTH_SECRET', () => {
+  it('recusa em produção um AUTH_SECRET com menos de 32 caracteres', () => {
+    expect(() => parseEnv({ ...PROD_BASE, AUTH_SECRET: 'curto-demais' }))
+      .toThrow('AUTH_SECRET: deve ter pelo menos 32 caracteres');
+  });
+
+  it.each(['dev-only-auth-secret-change-me', 'troque-por-um-segredo-forte-em-producao'])(
+    'recusa em produção o valor de exemplo %s',
+    (secret) => {
+      expect(() => parseEnv({ ...PROD_BASE, AUTH_SECRET: secret })).toThrow('AUTH_SECRET: não use o valor de exemplo');
+    },
+  );
+
+  it('exige AUTH_SECRET com STORAGE_DRIVER=supabase mesmo sem NODE_ENV=production', () => {
+    const { NODE_ENV: _nodeEnv, AUTH_SECRET: _secret, ...supabaseWithoutSecret } = PROD_BASE;
+    expect(() => parseEnv(supabaseWithoutSecret)).toThrow('AUTH_SECRET: obrigatória fora do ambiente local');
+  });
+
+  it('aceita um AUTH_SECRET forte em produção', () => {
+    expect(parseEnv(PROD_BASE).AUTH_SECRET).toBe('segredo-de-producao-com-32-caracteres-ou-mais');
+  });
+});
+
+describe('parseEnv — TRUST_PROXY', () => {
+  it('não confia em proxy por padrão: req.ip é o endereço da conexão', () => {
+    expect(parseEnv(DEV_BASE).TRUST_PROXY).toBe(0);
+  });
+
+  it('converte TRUST_PROXY no número de proxies à frente do app', () => {
+    expect(parseEnv({ ...DEV_BASE, TRUST_PROXY: '1' }).TRUST_PROXY).toBe(1);
+  });
+
+  it('recusa um TRUST_PROXY que não seja inteiro não negativo', () => {
+    expect(() => parseEnv({ ...DEV_BASE, TRUST_PROXY: 'sim' })).toThrow('TRUST_PROXY');
   });
 });

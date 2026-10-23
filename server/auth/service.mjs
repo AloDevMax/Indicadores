@@ -7,8 +7,10 @@ import {
   findUserById,
   publicUser,
   revokeSession,
+  revokeUserSessions,
 } from './repository.mjs';
 import {
+  DUMMY_PASSWORD_HASH,
   createSessionToken,
   generateSessionId,
   verifyPassword,
@@ -44,8 +46,10 @@ export const loginUser = async (input) => {
   }
   const payload = parsed.data;
   const user = await findUserByEmail(payload.email);
+  // Sem conta, verifica contra o hash fictício: o tempo de resposta não revela quais e-mails existem.
+  const isPasswordCorrect = await verifyPassword(payload.password, user?.password_hash ?? DUMMY_PASSWORD_HASH);
 
-  if (!user || !(await verifyPassword(payload.password, user.password_hash))) {
+  if (!user || !isPasswordCorrect) {
     return {
       status: 401,
       body: { error: 'Credenciais inválidas.' },
@@ -100,6 +104,13 @@ export const getAuthenticatedUser = async (authorizationHeader) => {
       body: { error: 'Usuário não encontrado.' },
     };
   }
+  // Desativar o colaborador corta o acesso na hora, sem esperar o token expirar.
+  if (user.is_active === false) {
+    return {
+      status: 401,
+      body: { error: 'Sessão inválida ou expirada.' },
+    };
+  }
 
   return {
     status: 200,
@@ -132,7 +143,8 @@ export const requireAuthenticatedUser = async (authorizationHeader) => {
   return authResult;
 };
 
-export const updateOwnProfile = async (currentUser, input) => {
+// sessionId: a sessão de quem faz a troca, a única que continua valendo depois de uma nova senha.
+export const updateOwnProfile = async (currentUser, input, { sessionId } = {}) => {
   const parsed = profileUpdateSchema.safeParse(input ?? {});
   if (!parsed.success) {
     return { status: 400, body: { error: 'Dados inválidos.', details: parsed.error.errors } };
@@ -157,6 +169,9 @@ export const updateOwnProfile = async (currentUser, input) => {
     ...(fullName !== undefined && { full_name: fullName }),
     ...(newPassword && { password: newPassword }),
   });
+  if (newPassword) {
+    await revokeUserSessions(currentUser.id, { exceptSessionId: sessionId });
+  }
 
   return { status: 200, body: { user: publicUser(await findUserById(currentUser.id)) } };
 };

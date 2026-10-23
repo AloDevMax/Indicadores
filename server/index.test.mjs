@@ -933,3 +933,126 @@ describe('POST /api/admin/users só aceita avatar do storage', () => {
     expect((await prisma.user.findUnique({ where: { id: existing.id } })).avatar_url).toBe('/uploads/meu.png');
   });
 });
+
+describe('sessions end when access is withdrawn', () => {
+  const activeSessions = (userId) => prisma.authSession.count({ where: { user_id: userId, revoked_at: null } });
+  const meStatus = async (token) =>
+    (await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`)).status;
+
+  it('401s an existing session once the user is deactivated', async () => {
+    const { email, token } = await loginOverHttp('deactivated');
+    await prisma.user.update({ where: { email }, data: { is_active: false } });
+
+    const response = await request(app).get('/api/submissions').set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual(SESSION_ERROR_BODY);
+  });
+
+  it('revokes every session of a user an admin deactivates', async () => {
+    const { email, token } = await loginOverHttp('to-deactivate');
+    const target = await prisma.user.findUnique({ where: { email } });
+    const { header } = await authHeaderFor('developer');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ id: target.id, email, full_name: target.full_name, role: 'user', is_active: false });
+
+    expect(response.status).toBe(201);
+    expect(await activeSessions(target.id)).toBe(0);
+    expect(await meStatus(token)).toBe(401);
+  });
+
+  it('revokes every session of a user whose password an admin resets', async () => {
+    const { email, token } = await loginOverHttp('to-reset');
+    const target = await prisma.user.findUnique({ where: { email } });
+    const { header } = await authHeaderFor('developer');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ id: target.id, email, full_name: target.full_name, role: 'user', password: 'redefinida1' });
+
+    expect(response.status).toBe(201);
+    expect(await activeSessions(target.id)).toBe(0);
+    expect(await meStatus(token)).toBe(401);
+  });
+
+  it('keeps the sessions of a user an admin only renames', async () => {
+    const { email, token } = await loginOverHttp('to-rename');
+    const target = await prisma.user.findUnique({ where: { email } });
+    const { header } = await authHeaderFor('developer');
+
+    await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ id: target.id, email, full_name: 'Outro Nome', role: 'user' });
+
+    expect(await meStatus(token)).toBe(200);
+  });
+
+  it('changing your own password ends your other sessions and keeps the current one', async () => {
+    const { email, token: current } = await loginOverHttp('own-change');
+    const other = (await request(app).post('/api/auth/login').send({ email, password: 'password1' })).body.token;
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', `Bearer ${current}`)
+      .send({ current_password: 'password1', new_password: 'nova-senha-123' });
+
+    expect(response.status).toBe(200);
+    expect(await meStatus(current)).toBe(200);
+    expect(await meStatus(other)).toBe(401);
+  });
+});
+
+describe('POST /api/auth/login — failed-attempt limits', () => {
+  const LIMITS = { windowMs: 60_000, maxFailuresPerEmail: 3, maxFailuresPerIp: 5 };
+  const TOO_MANY_ATTEMPTS = { error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' };
+
+  const createAccount = async (label) => {
+    const email = uniqueEmail(label);
+    await createTestUser({ email, password: 'correta123', full_name: `Limite ${label}`, role: 'user' });
+    return email;
+  };
+  const attempt = (limitedApp, email, password) =>
+    request(limitedApp).post('/api/auth/login').send({ email, password });
+
+  it('blocks an e-mail after too many wrong passwords, even with the right one, in any letter case', async () => {
+    const limitedApp = createApp({ loginRateLimit: LIMITS });
+    const email = await createAccount('target');
+
+    for (let i = 0; i < LIMITS.maxFailuresPerEmail; i += 1) {
+      expect((await attempt(limitedApp, i % 2 ? email.toUpperCase() : email, `errada${i}`)).status).toBe(401);
+    }
+    const blocked = await attempt(limitedApp, email, 'correta123');
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toEqual(TOO_MANY_ATTEMPTS);
+  });
+
+  it('keeps other e-mails usable while one is blocked', async () => {
+    const limitedApp = createApp({ loginRateLimit: LIMITS });
+    const blockedEmail = await createAccount('blocked');
+    const otherEmail = await createAccount('other');
+
+    for (let i = 0; i <= LIMITS.maxFailuresPerEmail; i += 1) await attempt(limitedApp, blockedEmail, 'errada');
+
+    expect((await attempt(limitedApp, otherEmail, 'correta123')).status).toBe(200);
+  });
+
+  it('does not count successful logins', async () => {
+    const limitedApp = createApp({ loginRateLimit: LIMITS });
+    const email = await createAccount('success');
+
+    const statuses = [];
+    for (let i = 0; i < LIMITS.maxFailuresPerEmail + 2; i += 1) statuses.push((await attempt(limitedApp, email, 'correta123')).status);
+
+    expect(statuses.every((status) => status === 200)).toBe(true);
+  });
+
+  it('blocks an address spraying wrong passwords across many e-mails', async () => {
+    const limitedApp = createApp({ loginRateLimit: LIMITS });
+
+    for (let i = 0; i < LIMITS.maxFailuresPerIp; i += 1) {
+      expect((await attempt(limitedApp, uniqueEmail(`spray${i}`), 'errada')).status).toBe(401);
+    }
+    const blocked = await attempt(limitedApp, await createAccount('spray-victim'), 'correta123');
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body).toEqual(TOO_MANY_ATTEMPTS);
+  });
+});
