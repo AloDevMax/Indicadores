@@ -22,7 +22,7 @@ const build = (options) => {
 };
 
 describe('createSupabaseStorage', () => {
-  it('put envia o arquivo sem sobrescrever e retorna a URL pública', async () => {
+  it('put envia o arquivo sem sobrescrever, com cache de 1 ano, e retorna a URL pública', async () => {
     const { client, bucket, storage } = build();
     const buffer = Buffer.from('img');
 
