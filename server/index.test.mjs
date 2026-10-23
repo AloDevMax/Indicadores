@@ -851,13 +851,46 @@ describe('admin-issued temporary passwords', () => {
   });
 });
 
-describe('catch-all route', () => {
+describe('static files: only the client build is public', () => {
+  // Um build fictício do Vite: os testes não dependem de ter rodado `npm run build`.
+  const clientDir = fs.mkdtempSync(path.join(os.tmpdir(), 'labquest-client-'));
+  fs.mkdirSync(path.join(clientDir, 'assets'));
+  fs.writeFileSync(path.join(clientDir, 'index.html'), '<!doctype html><html><body>SPA</body></html>');
+  fs.writeFileSync(path.join(clientDir, 'assets', 'app.js'), 'console.log("app")');
+  const staticApp = createApp({ clientDir });
+
+  afterAll(() => fs.rmSync(clientDir, { recursive: true, force: true }));
+
+  it('serves the built assets', async () => {
+    const response = await request(staticApp).get('/assets/app.js');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toBe('console.log("app")');
+  });
+
   it('serves index.html for an unknown GET path', async () => {
-    const response = await request(app).get('/some/unknown/spa/route');
+    const response = await request(staticApp).get('/some/unknown/spa/route');
 
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toMatch(/text\/html/);
-    expect(response.text).toContain('<html');
+    expect(response.text).toContain('SPA');
+  });
+
+  it.each(['/server/config/env.mjs', '/server/index.mjs', '/package.json', '/prisma/schema.prisma'])(
+    'never serves the server source or project files: GET %s gets the SPA',
+    async (filePath) => {
+      const response = await request(staticApp).get(filePath);
+
+      expect(response.headers['content-type']).toMatch(/text\/html/);
+      expect(response.text).toContain('SPA');
+    },
+  );
+
+  it('the default client directory does not expose the server source either', async () => {
+    const response = await request(app).get('/server/config/env.mjs');
+
+    expect(response.text).not.toContain('AUTH_SECRET');
+    expect(response.headers['content-type']).not.toMatch(/javascript/);
   });
 });
 

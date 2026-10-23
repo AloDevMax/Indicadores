@@ -22,7 +22,11 @@ const port = env.PORT;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const frontendPath = path.resolve(__dirname, '..');
+// Só o build do Vite (dist/client) é público: servir a pasta acima de server/ publicava o código do
+// servidor (dist/server/*.mjs em produção; server/, prisma/ e package.json rodando do código-fonte).
+// Rodando de dist/server ou de server/, os dois caminhos levam a <repo>/dist/client.
+const isBuiltServer = path.basename(path.dirname(__dirname)) === 'dist';
+const CLIENT_BUILD_DIR = path.resolve(__dirname, isBuiltServer ? '../client' : '../dist/client');
 
 const asyncRoute = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -121,7 +125,7 @@ const isAcceptableAvatarUrl = async ({ id, avatar_url: avatarUrl }) => {
 
 export function createApp({
   storageDriver = env.STORAGE_DRIVER,
-  clientDir = frontendPath,
+  clientDir = CLIENT_BUILD_DIR,
   isProduction = env.NODE_ENV === 'production',
 } = {}) {
   const app = express();
@@ -142,6 +146,16 @@ export function createApp({
     next();
   });
 
+  // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
+  // no banco responde 404, em vez de cair no index.html da SPA. Vem antes do build do cliente:
+  // o Vite copia public/ (inclusive uploads/ de dev) para dentro dele.
+  if (storageDriver === 'local') {
+    fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
+    app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
+  } else {
+    app.use('/uploads', (_req, res) => res.status(404).end());
+  }
+
   app.use(express.static(clientDir, {
     setHeaders(res, filePath) {
       if (filePath.endsWith('index.html')) {
@@ -149,15 +163,6 @@ export function createApp({
       }
     },
   }));
-
-  // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
-  // no banco responde 404, em vez de cair no index.html da SPA.
-  if (storageDriver === 'local') {
-    fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
-    app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
-  } else {
-    app.use('/uploads', (_req, res) => res.status(404).end());
-  }
 
   app.use('/api/upload', uploadRouter);
 
