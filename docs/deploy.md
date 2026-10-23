@@ -31,6 +31,19 @@ estiver vazio. No environment dá para exigir aprovação manual antes da migrat
 
 O servidor lê a porta de `PORT`; o default 4004 só vale localmente. O mesmo app serve a API e o frontend.
 
+### Deploy manual por .zip (enquanto o deploy via GitHub estiver desligado)
+
+Pelo acesso de "client management" o deploy via GitHub não fica disponível, então o código sobe por upload de um
+.zip no hPanel. Depois que o CI terminar o `release` (a `production` avança para o commit da `main`):
+
+```bash
+npm run release:zip   # → releases/labquest-<data>-<sha>.zip (pasta ignorada pelo git)
+```
+
+O script faz `git fetch`, recusa se `origin/production` for diferente de `origin/main` (o release ainda não
+migrou o Supabase) e empacota o commit da `production` com `git archive`. Envie o zip no hPanel e confira no log
+do deploy a linha `Entry file:` (`dist/server/start.mjs`).
+
 ### Variáveis de ambiente
 
 | Variável | Valor |
