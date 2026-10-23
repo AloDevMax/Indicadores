@@ -84,3 +84,12 @@ export const verifySessionToken = (token) => {
 };
 
 export const generateSessionId = () => crypto.randomUUID();
+
+// Sem 0/O, 1/l/I: a senha temporária é lida pelo admin e repassada ao colaborador.
+const TEMPORARY_PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const TEMPORARY_PASSWORD_LENGTH = 12;
+
+export const generateTemporaryPassword = () => Array.from(
+  { length: TEMPORARY_PASSWORD_LENGTH },
+  () => TEMPORARY_PASSWORD_ALPHABET[crypto.randomInt(TEMPORARY_PASSWORD_ALPHABET.length)],
+).join('');

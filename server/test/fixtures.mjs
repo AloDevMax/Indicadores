@@ -19,6 +19,7 @@ export const createTestUser = async ({ password, password_hash: passwordHash, ..
     productive_unit_id: user.productive_unit_id ?? null,
     email_verified: user.email_verified ?? false,
     is_active: user.is_active ?? true,
+    must_change_password: user.must_change_password ?? false,
   };
 
   const created = await prisma.user.upsert({ where: { id: data.id }, create: data, update: data });

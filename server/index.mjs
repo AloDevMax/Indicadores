@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser } from './auth/service.mjs';
+import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
+import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
@@ -293,8 +293,8 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
       return res.status(400).json({ error: 'Avatar inválido: envie a imagem pelo upload.' });
     }
 
-    const user = await saveUser(req.body, req.body.password);
-    res.status(201).json({ user });
+    const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
+    res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
   }));
 
   app.post('/api/admin/badges', asyncRoute(async (req, res) => {
@@ -348,19 +348,12 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
   }));
 
   app.put('/api/user/profile', asyncRoute(async (req, res) => {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    // getAuthenticatedUser (não require...): é por aqui que a troca obrigatória de senha acontece.
+    const auth = await getAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
-    const currentUser = auth.body.user;
-    const { full_name, email, password } = req.body;
-
-    const updates = {};
-    if (full_name !== undefined) updates.full_name = full_name;
-    if (email !== undefined) updates.email = email;
-    if (password !== undefined && password.trim()) updates.password = password;
-
-    const savedUser = await updateUserProfile(currentUser.id, updates);
-    res.status(200).json({ user: savedUser });
+    const result = await updateOwnProfile(auth.body.user, req.body);
+    res.status(result.status).json(result.body);
   }));
 
   app.get('/api/productive-units', asyncRoute(async (_req, res) => {

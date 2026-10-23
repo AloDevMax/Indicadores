@@ -1,7 +1,7 @@
 import express from 'express';
 import { saveUploadedFile } from './uploadService.mjs';
 import busboy from 'busboy';
-import { getAuthenticatedUser } from '../auth/service.mjs';
+import { requireAuthenticatedUser } from '../auth/service.mjs';
 
 export const uploadRouter = express.Router();
 
@@ -42,7 +42,7 @@ const parseFormData = (req, res, next) => {
 };
 
 uploadRouter.post('/badge-image', parseFormData, async (req, res) => {
-  const auth = await getAuthenticatedUser(req.headers.authorization);
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
   try {
@@ -61,7 +61,7 @@ uploadRouter.post('/badge-image', parseFormData, async (req, res) => {
 });
 
 uploadRouter.post('/company-logo', parseFormData, async (req, res) => {
-  const auth = await getAuthenticatedUser(req.headers.authorization);
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
   try {
@@ -80,7 +80,7 @@ uploadRouter.post('/company-logo', parseFormData, async (req, res) => {
 });
 
 uploadRouter.post('/user-avatar', parseFormData, async (req, res) => {
-  const auth = await getAuthenticatedUser(req.headers.authorization);
+  const auth = await requireAuthenticatedUser(req.headers.authorization);
   if (auth.status !== 200) return res.status(auth.status).json(auth.body);
 
   try {

@@ -32,6 +32,7 @@ const sanitizeUser = (user) => ({
   created_at: user.created_at,
   email_verified: Boolean(user.email_verified),
   is_active: user.is_active ?? true,
+  must_change_password: Boolean(user.must_change_password),
   notifications: user.notifications || [],
 });
 
@@ -44,6 +45,7 @@ const USER_SELECT = {
   productive_unit_id: true,
   email_verified: true,
   is_active: true,
+  must_change_password: true,
   created_at: true,
 };
 
@@ -63,6 +65,7 @@ const findUserRowByEmail = async (email) => {
       productive_unit_id,
       email_verified,
       is_active,
+      must_change_password,
       created_at
     from users
     where lower(email) = lower(${email})

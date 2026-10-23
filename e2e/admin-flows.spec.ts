@@ -66,27 +66,38 @@ async function logout(page) {
 /**
  * Creates a brand-new plain user the way the app does it now that there is
  * no self-registration: the developer creates the account through the admin
- * API (POST /api/admin/users), then the user logs in through the UI. Unique
+ * API (POST /api/admin/users), which issues a one-time temporary password.
+ * The user must change it before using the app, so this helper does that
+ * over the API too (the UI flow itself is covered by
+ * e2e/temporary-password.spec.ts) and then logs in through the UI. Unique
  * email per call so repeat runs against the same long-lived e2e database
- * don't collide — mirrors the crypto.randomUUID() discipline used in
- * server/auth/service.test.mjs.
+ * don't collide.
  */
 async function createPlainUserAndLogin(page) {
   const uid = crypto.randomUUID();
   const email = `e2e-${uid}@example.com`;
   const fullName = `E2E User ${uid.slice(0, 8)}`;
 
-  const loginResponse = await page.request.post('/api/auth/login', {
+  const developerLogin = await page.request.post('/api/auth/login', {
     data: { email: DEVELOPER_EMAIL, password: DEVELOPER_PASSWORD },
   });
-  expect(loginResponse.status()).toBe(200);
-  const { token } = await loginResponse.json();
+  expect(developerLogin.status()).toBe(200);
+  const { token: developerToken } = await developerLogin.json();
 
   const createResponse = await page.request.post('/api/admin/users', {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { email, full_name: fullName, role: 'user', password: TEST_PASSWORD },
+    headers: { Authorization: `Bearer ${developerToken}` },
+    data: { email, full_name: fullName, role: 'user' },
   });
   expect(createResponse.status()).toBe(201);
+  const { temporary_password: temporaryPassword } = await createResponse.json();
+
+  const userLogin = await page.request.post('/api/auth/login', { data: { email, password: temporaryPassword } });
+  const { token: userToken } = await userLogin.json();
+  const changeResponse = await page.request.put('/api/user/profile', {
+    headers: { Authorization: `Bearer ${userToken}` },
+    data: { current_password: temporaryPassword, new_password: TEST_PASSWORD },
+  });
+  expect(changeResponse.status()).toBe(200);
 
   await login(page, email, TEST_PASSWORD);
   return { email, fullName };

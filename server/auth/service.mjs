@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { updateUserProfile } from '../admin/repository.mjs';
 import {
   createSession,
   findActiveSession,
@@ -18,6 +19,21 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1).max(128),
 });
+
+// O e-mail é a identidade corporativa e só o admin altera; por isso o schema é strict.
+const profileUpdateSchema = z.object({
+  full_name: z.string().trim().min(2).max(120).optional(),
+  current_password: z.string().min(1).max(128).optional(),
+  new_password: z.string().min(8).max(128).optional(),
+}).strict().refine((input) => !input.new_password || input.current_password, {
+  path: ['current_password'],
+  message: 'Informe a senha atual.',
+});
+
+const PASSWORD_CHANGE_REQUIRED = {
+  status: 403,
+  body: { error: 'Troque sua senha antes de continuar.', code: 'PASSWORD_CHANGE_REQUIRED' },
+};
 
 const getExpirationTimestamp = () => Date.now() + 1000 * 60 * 60 * 24 * 7;
 
@@ -106,7 +122,41 @@ export const logoutUser = async (authorizationHeader) => {
   };
 };
 
+// Para todas as rotas, exceto /me, logout e a própria troca de senha: enquanto a
+// senha emitida pelo admin não for trocada, o resto da API fica bloqueado.
 export const requireAuthenticatedUser = async (authorizationHeader) => {
   const authResult = await getAuthenticatedUser(authorizationHeader);
+  if (authResult.status === 200 && authResult.body.user.must_change_password) {
+    return PASSWORD_CHANGE_REQUIRED;
+  }
   return authResult;
+};
+
+export const updateOwnProfile = async (currentUser, input) => {
+  const parsed = profileUpdateSchema.safeParse(input ?? {});
+  if (!parsed.success) {
+    return { status: 400, body: { error: 'Dados inválidos.', details: parsed.error.errors } };
+  }
+  const { full_name: fullName, current_password: currentPassword, new_password: newPassword } = parsed.data;
+
+  if (currentUser.must_change_password && !newPassword) {
+    return PASSWORD_CHANGE_REQUIRED;
+  }
+
+  if (newPassword) {
+    const userWithHash = await findUserByEmail(currentUser.email);
+    if (!userWithHash || !(await verifyPassword(currentPassword, userWithHash.password_hash))) {
+      return { status: 400, body: { error: 'Senha atual incorreta.' } };
+    }
+    if (newPassword === currentPassword) {
+      return { status: 400, body: { error: 'A nova senha deve ser diferente da atual.' } };
+    }
+  }
+
+  await updateUserProfile(currentUser.id, {
+    ...(fullName !== undefined && { full_name: fullName }),
+    ...(newPassword && { password: newPassword }),
+  });
+
+  return { status: 200, body: { user: publicUser(await findUserById(currentUser.id)) } };
 };

@@ -52,7 +52,7 @@ All API routes are declared inline in `server/index.mjs` — there is no route m
 - `/api/health` — DB connectivity report
 - `/api/admin/*` — badges, companies, productive-units, users, bulk-invite, seed-indicator-badges, import-monthly-badges, award-badges, user-badges/remove
 - `/api/submissions`, `/api/submissions/:id/review`
-- `/api/user/profile`
+- `/api/user/profile` — own name and password; also where a pending `must_change_password` is cleared
 - `/api/companies/:companyId/productive-units`
 - `/api/upload/*` (delegated to `uploads/uploadRoutes.mjs`)
 

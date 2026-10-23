@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createSessionToken,
   generateSessionId,
+  generateTemporaryPassword,
   hashPassword,
   verifyPassword,
   verifySessionToken,
@@ -56,5 +57,20 @@ describe('generateSessionId', () => {
     const a = generateSessionId();
     const b = generateSessionId();
     expect(a).not.toBe(b);
+  });
+});
+
+describe('generateTemporaryPassword', () => {
+  it('returns a 12-character password drawn only from the unambiguous alphabet', () => {
+    const password = generateTemporaryPassword();
+
+    expect(password).toHaveLength(12);
+    expect(password).toMatch(/^[A-HJ-NP-Za-km-z2-9]{12}$/);
+  });
+
+  it('returns a different password on every call', () => {
+    const passwords = new Set(Array.from({ length: 50 }, () => generateTemporaryPassword()));
+
+    expect(passwords.size).toBe(50);
   });
 });

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, ProductiveUnit, Profile, RankingEntry, UserBadge } from '@/shared/types';
+import { Badge, BadgeLegendSettings, BadgeSubmission, BadgeTone, IssuedPassword, ProductiveUnit, Profile, RankingEntry, UserBadge } from '@/shared/types';
 
 const AUTH_TOKEN_KEY = 'quest_auth_token';
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
@@ -24,10 +24,10 @@ const readErrorMessage = async (response: Response) => {
   }
 };
 
-const postJson = async <T>(path: string, body: unknown, token?: string): Promise<T> => {
+const sendJson = async <T>(method: 'POST' | 'PUT', path: string, body: unknown, token?: string): Promise<T> => {
   const apiBaseUrl = getApiBaseUrl();
   const response = await fetch(`${apiBaseUrl}${path}`, {
-    method: 'POST',
+    method,
     headers: createJsonHeaders(token),
     body: JSON.stringify(body),
   });
@@ -38,6 +38,8 @@ const postJson = async <T>(path: string, body: unknown, token?: string): Promise
 
   return response.json() as Promise<T>;
 };
+
+const postJson = <T>(path: string, body: unknown, token?: string) => sendJson<T>('POST', path, body, token);
 
 export const storeAuthToken = (token: string) => {
   sessionStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -170,13 +172,29 @@ export const saveProductiveUnitWithApi = async (productiveUnit: ProductiveUnit) 
   return payload.productiveUnit;
 };
 
+/** Without a password the server generates a temporary one, returned only in this response. */
 export const saveUserWithApi = async (user: Profile, password?: string) => {
-  const payload = await postJson<{ user: Profile }>('/api/admin/users', { ...user, password }, requireAuthToken());
+  const payload = await postJson<{ user: Profile; temporary_password?: string }>(
+    '/api/admin/users',
+    { ...user, password },
+    requireAuthToken(),
+  );
+  return { user: payload.user, temporaryPassword: payload.temporary_password };
+};
+
+export interface OwnProfileUpdate {
+  full_name?: string;
+  current_password?: string;
+  new_password?: string;
+}
+
+export const updateOwnProfileWithApi = async (update: OwnProfileUpdate) => {
+  const payload = await sendJson<{ user: Profile }>('PUT', '/api/user/profile', update, requireAuthToken());
   return payload.user;
 };
 
 export const bulkInviteUsersWithApi = async (emails: string[], productiveUnitId?: string) => {
-  return postJson<{ createdUsers: Profile[]; skippedEmails: string[] }>(
+  return postJson<{ createdUsers: Profile[]; skippedEmails: string[]; temporaryPasswords: IssuedPassword[] }>(
     '/api/admin/users/bulk-invite',
     {
       emails,

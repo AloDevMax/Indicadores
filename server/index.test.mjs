@@ -665,7 +665,7 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     expect(response.body).toEqual({ error: 'Acesso restrito à sua empresa.' });
   });
 
-  it('PUT /api/user/profile updates the authenticated user\'s own profile', async () => {
+  it('PUT /api/user/profile updates the authenticated user\'s own name without asking for the password', async () => {
     const { header, user } = await authHeaderFor('user');
 
     const response = await request(app)
@@ -675,6 +675,176 @@ describe('protected routes exercised end-to-end with a valid token', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.user).toMatchObject({ id: user.id, full_name: 'Nome Atualizado' });
+  });
+});
+
+describe('PUT /api/user/profile — validation and password change', () => {
+  const profileUser = async (overrides = {}) => {
+    const email = uniqueEmail('profile');
+    const user = await createTestUser({ email, password: 'senha-atual', full_name: 'Perfil', role: 'user', ...overrides });
+    const login = await request(app).post('/api/auth/login').send({ email, password: 'senha-atual' });
+    return { user, email, header: `Bearer ${login.body.token}` };
+  };
+
+  it('rejects an e-mail change: the e-mail is managed by admins (400, e-mail untouched)', async () => {
+    const { user, email, header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ email: uniqueEmail('outro') });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Dados inválidos.');
+    expect((await prisma.user.findUnique({ where: { id: user.id } })).email).toBe(email);
+  });
+
+  it('rejects a name shorter than 2 characters', async () => {
+    const { header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header).send({ full_name: 'A' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Dados inválidos.');
+  });
+
+  it('rejects a new password shorter than 8 characters', async () => {
+    const { header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ current_password: 'senha-atual', new_password: 'curta' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Dados inválidos.');
+  });
+
+  it('requires the current password to set a new one', async () => {
+    const { header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ new_password: 'nova-senha-123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Dados inválidos.');
+  });
+
+  it('rejects a wrong current password and keeps the old one', async () => {
+    const { email, header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ current_password: 'errada', new_password: 'nova-senha-123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('Senha atual incorreta.');
+    const relogin = await request(app).post('/api/auth/login').send({ email, password: 'senha-atual' });
+    expect(relogin.status).toBe(200);
+  });
+
+  it('rejects a new password equal to the current one', async () => {
+    const { header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ current_password: 'senha-atual', new_password: 'senha-atual' });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe('A nova senha deve ser diferente da atual.');
+  });
+
+  it('changes the password with the right current password', async () => {
+    const { email, header } = await profileUser();
+
+    const response = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ current_password: 'senha-atual', new_password: 'nova-senha-123' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.must_change_password).toBe(false);
+    expect((await request(app).post('/api/auth/login').send({ email, password: 'nova-senha-123' })).status).toBe(200);
+    expect((await request(app).post('/api/auth/login').send({ email, password: 'senha-atual' })).status).toBe(401);
+  });
+});
+
+describe('pending password change gate', () => {
+  const flaggedUser = async () => {
+    const email = uniqueEmail('flagged');
+    await createTestUser({ email, password: 'temporaria1', full_name: 'Flagged', role: 'admin', must_change_password: true });
+    const login = await request(app).post('/api/auth/login').send({ email, password: 'temporaria1' });
+    return { header: `Bearer ${login.body.token}` };
+  };
+
+  it('blocks the rest of the API with 403 PASSWORD_CHANGE_REQUIRED', async () => {
+    const { header } = await flaggedUser();
+
+    const badges = await request(app).get('/api/badges').set('Authorization', header);
+    const users = await request(app).get('/api/users').set('Authorization', header);
+
+    expect(badges.status).toBe(200); // public catalog, no auth involved
+    expect(users.status).toBe(403);
+    expect(users.body).toEqual({ error: 'Troque sua senha antes de continuar.', code: 'PASSWORD_CHANGE_REQUIRED' });
+  });
+
+  it('blocks uploads too', async () => {
+    const { header } = await flaggedUser();
+
+    const response = await request(app).post('/api/upload/user-avatar').set('Authorization', header)
+      .attach('avatar', Buffer.from('fake-image-bytes'), 'avatar.png');
+
+    expect(response.status).toBe(403);
+    expect(response.body.code).toBe('PASSWORD_CHANGE_REQUIRED');
+  });
+
+  it('still allows /me, the password change, and then unlocks the API', async () => {
+    const { header } = await flaggedUser();
+
+    const me = await request(app).get('/api/auth/me').set('Authorization', header);
+    expect(me.status).toBe(200);
+    expect(me.body.user.must_change_password).toBe(true);
+
+    const nameOnly = await request(app).put('/api/user/profile').set('Authorization', header).send({ full_name: 'Só Nome' });
+    expect(nameOnly.status).toBe(403);
+    expect(nameOnly.body.code).toBe('PASSWORD_CHANGE_REQUIRED');
+
+    const change = await request(app).put('/api/user/profile').set('Authorization', header)
+      .send({ current_password: 'temporaria1', new_password: 'minha-senha-123' });
+    expect(change.status).toBe(200);
+
+    const users = await request(app).get('/api/users').set('Authorization', header);
+    expect(users.status).toBe(200);
+  });
+});
+
+describe('admin-issued temporary passwords', () => {
+  it('POST /api/admin/users without a password returns a one-time temporary password that logs in', async () => {
+    const { header } = await authHeaderFor('developer');
+    const email = uniqueEmail('temp');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email, full_name: 'Temporário', role: 'user' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.temporary_password).toMatch(/^[A-HJ-NP-Za-km-z2-9]{12}$/);
+    expect(response.body.user.temporary_password).toBeUndefined();
+    const login = await request(app).post('/api/auth/login').send({ email, password: response.body.temporary_password });
+    expect(login.status).toBe(200);
+    expect(login.body.user.must_change_password).toBe(true);
+  });
+
+  it('POST /api/admin/users with a password returns no temporary password', async () => {
+    const { header } = await authHeaderFor('developer');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email: uniqueEmail('chosen'), full_name: 'Escolhida', role: 'user', password: 'escolhida1' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.temporary_password).toBeUndefined();
+  });
+
+  it('POST /api/admin/users/bulk-invite returns one temporary password per created user', async () => {
+    const { header } = await authHeaderFor('developer');
+    const emails = [uniqueEmail('invite-a'), uniqueEmail('invite-b')];
+
+    const response = await request(app).post('/api/admin/users/bulk-invite').set('Authorization', header)
+      .send({ emails });
+
+    expect(response.status).toBe(200);
+    expect(response.body.temporaryPasswords.map((entry) => entry.email)).toEqual(emails);
   });
 });
 
