@@ -57,16 +57,22 @@ describe('findUserByEmail', () => {
     expect(user.created_at.toISOString()).toBe('2024-01-01T10:00:00.000Z');
   });
 
-  it('reports the built-in developer account as developer even though it is stored as admin', async () => {
+  it('reports the stored role, without promoting the developer e-mail to developer', async () => {
     await insertUser({ email: DEVELOPER_EMAIL, role: 'admin' });
 
     const user = await findUserByEmail(DEVELOPER_EMAIL);
 
-    expect(user.role).toBe('developer');
+    expect(user.role).toBe('admin');
   });
 
   it('returns null when no user has the email', async () => {
     expect(await findUserByEmail('ninguem@example.com')).toBeNull();
+  });
+});
+
+describe('users.email', () => {
+  it('rejects an e-mail that is not stored in lowercase, so case variants cannot coexist', async () => {
+    await expect(insertUser({ email: 'Ana@Example.com' })).rejects.toThrow();
   });
 });
 
@@ -97,7 +103,7 @@ describe('findUserById', () => {
 });
 
 describe('ensureBuiltInDeveloper', () => {
-  it('creates the developer account (stored as admin) when it does not exist', async () => {
+  it('creates the developer account (stored as developer) when it does not exist', async () => {
     const user = await ensureBuiltInDeveloper();
 
     expect(user).toEqual({
@@ -115,7 +121,7 @@ describe('ensureBuiltInDeveloper', () => {
     expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
 
     const stored = await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } });
-    expect(stored.role).toBe('admin');
+    expect(stored.role).toBe('developer');
   });
 
   it('resets password, name, role and verification of an existing developer account, keeping its id', async () => {
@@ -145,7 +151,7 @@ describe('ensureBuiltInDeveloper', () => {
     expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
 
     const stored = await prisma.user.findUnique({ where: { id: existing.id } });
-    expect(stored.role).toBe('admin');
+    expect(stored.role).toBe('developer');
     expect(await prisma.user.count()).toBe(1);
   });
 });
@@ -221,7 +227,7 @@ describe('listUsers', () => {
       created_at: expect.any(Date),
     });
     expect(users[1].id).toBe(newer.id);
-    expect(users[2].role).toBe('developer');
+    expect(users[2].role).toBe('admin');
     expect(users.every((user) => !('password_hash' in user))).toBe(true);
   });
 

@@ -23,6 +23,17 @@ const PROFILE_SELECT = {
 const USER_SELECT = { ...PROFILE_SELECT, is_active: true };
 
 const isRecordNotFound = (error) => error?.code === 'P2025';
+const isUniqueViolation = (error) => error?.code === 'P2002';
+
+export class DuplicateEmailError extends Error {
+  constructor(options) {
+    super('Já existe um usuário com esse e-mail.', options);
+    this.name = 'DuplicateEmailError';
+  }
+}
+
+// O banco só aceita e-mail em minúsculas (users_email_lowercase): assim o índice único também barra variações de caixa.
+const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : email);
 
 export const saveBadge = async (badge) => {
   const id = badge.id || randomId();
@@ -112,7 +123,7 @@ export const updateUserProfile = async (userId, updates) => {
   const data = { updated_at: new Date() };
 
   if (updates.full_name !== undefined) data.full_name = updates.full_name;
-  if (updates.email !== undefined) data.email = updates.email;
+  if (updates.email !== undefined) data.email = normalizeEmail(updates.email);
   if (updates.avatar_url !== undefined) data.avatar_url = updates.avatar_url;
   if (updates.password !== undefined) {
     // O próprio usuário escolheu a senha: a troca obrigatória está cumprida.
@@ -130,7 +141,7 @@ export const updateUserProfile = async (userId, updates) => {
 
 const updateExistingUser = async (user, password) => {
   const data = {
-    email: user.email,
+    email: normalizeEmail(user.email),
     full_name: user.full_name,
     role: user.role,
     productive_unit_id: user.productive_unit_id || null,
@@ -149,6 +160,16 @@ const updateExistingUser = async (user, password) => {
     return await prisma.user.update({ where: { id: user.id }, data, select: USER_SELECT });
   } catch (error) {
     if (isRecordNotFound(error)) return null;
+    if (isUniqueViolation(error)) throw new DuplicateEmailError({ cause: error });
+    throw error;
+  }
+};
+
+const createUser = async (data) => {
+  try {
+    return await prisma.user.create({ data, select: USER_SELECT });
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new DuplicateEmailError({ cause: error });
     throw error;
   }
 };
@@ -162,20 +183,17 @@ export const saveUser = async (user, password) => {
 
   // Sem senha informada, gera uma temporária e a devolve uma única vez para o admin repassar.
   const temporaryPassword = password ? undefined : generateTemporaryPassword();
-  const createdUser = await prisma.user.create({
-    data: {
-      id: crypto.randomUUID(),
-      email: user.email,
-      password_hash: await hashPassword(password || temporaryPassword),
-      full_name: user.full_name,
-      avatar_url: user.avatar_url || null,
-      role: user.role,
-      productive_unit_id: user.productive_unit_id || null,
-      email_verified: false,
-      is_active: user.is_active ?? true,
-      must_change_password: true,
-    },
-    select: USER_SELECT,
+  const createdUser = await createUser({
+    id: crypto.randomUUID(),
+    email: normalizeEmail(user.email),
+    password_hash: await hashPassword(password || temporaryPassword),
+    full_name: user.full_name,
+    avatar_url: user.avatar_url || null,
+    role: user.role,
+    productive_unit_id: user.productive_unit_id || null,
+    email_verified: false,
+    is_active: user.is_active ?? true,
+    must_change_password: true,
   });
 
   return temporaryPassword ? { ...createdUser, temporary_password: temporaryPassword } : createdUser;

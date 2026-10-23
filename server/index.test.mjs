@@ -933,3 +933,155 @@ describe('POST /api/admin/users só aceita avatar do storage', () => {
     expect((await prisma.user.findUnique({ where: { id: existing.id } })).avatar_url).toBe('/uploads/meu.png');
   });
 });
+
+describe('POST /api/admin/users — who can edit an existing account', () => {
+  const loginStatus = async (email, password) =>
+    (await request(app).post('/api/auth/login').send({ email, password })).status;
+
+  const createTarget = async (overrides) => {
+    if (overrides.productive_unit_id) {
+      const id = overrides.productive_unit_id;
+      await prisma.productiveUnit.upsert({ where: { id }, create: { id, name: `Unidade ${id}` }, update: {} });
+    }
+    return createTestUser({
+      email: uniqueEmail(overrides.role), password: 'original1', full_name: 'Alvo', productive_unit_id: null, ...overrides,
+    });
+  };
+
+  const editPayload = (target, changes = {}) => ({
+    id: target.id,
+    email: target.email,
+    full_name: target.full_name,
+    role: target.role,
+    productive_unit_id: target.productive_unit_id ?? '',
+    ...changes,
+  });
+
+  it('403s a supervisor resetting the password of an admin from another unit, leaving the account untouched', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'edit-unit-a' });
+    const admin = await createTarget({ role: 'admin', productive_unit_id: 'edit-unit-b' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(admin, { role: 'user', productive_unit_id: 'edit-unit-a', password: 'hacked123' }));
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Supervisores só podem editar colaboradores da própria unidade produtiva.' });
+    expect(await loginStatus(admin.email, 'hacked123')).toBe(401);
+    expect(await prisma.user.findUnique({ where: { id: admin.id }, select: { role: true, productive_unit_id: true } }))
+      .toEqual({ role: 'admin', productive_unit_id: 'edit-unit-b' });
+  });
+
+  it('403s a supervisor editing a plain user from another unit', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'edit-unit-a' });
+    const target = await createTarget({ role: 'user', productive_unit_id: 'edit-unit-b' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(target, { productive_unit_id: 'edit-unit-a' }));
+
+    expect(response.status).toBe(403);
+    expect((await prisma.user.findUnique({ where: { id: target.id } })).productive_unit_id).toBe('edit-unit-b');
+  });
+
+  it('403s a supervisor editing another supervisor of their own unit', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'edit-unit-a' });
+    const target = await createTarget({ role: 'supervisor', productive_unit_id: 'edit-unit-a' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(target, { role: 'user' }));
+
+    expect(response.status).toBe(403);
+    expect((await prisma.user.findUnique({ where: { id: target.id } })).role).toBe('supervisor');
+  });
+
+  it('lets a supervisor edit a plain user of their own unit', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'edit-unit-a' });
+    const target = await createTarget({ role: 'user', productive_unit_id: 'edit-unit-a' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(target, { full_name: 'Nome Novo' }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.user).toMatchObject({ id: target.id, full_name: 'Nome Novo', role: 'user', productive_unit_id: 'edit-unit-a' });
+  });
+
+  it('403s an admin resetting the developer account password', async () => {
+    const { header } = await authHeaderFor('admin');
+    const developer = await createTarget({ role: 'developer' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(developer, { role: 'admin', password: 'hacked123' }));
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Somente o desenvolvedor pode alterar essa conta.' });
+    expect(await loginStatus(developer.email, 'hacked123')).toBe(401);
+    expect((await prisma.user.findUnique({ where: { id: developer.id } })).role).toBe('developer');
+  });
+
+  it('lets an admin edit another admin', async () => {
+    const { header } = await authHeaderFor('admin');
+    const target = await createTarget({ role: 'admin' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(target, { full_name: 'Gestor Renomeado' }));
+
+    expect(response.status).toBe(201);
+    expect(response.body.user).toMatchObject({ id: target.id, full_name: 'Gestor Renomeado', role: 'admin' });
+  });
+
+  it('lets the developer reset any account password', async () => {
+    const { header } = await authHeaderFor('developer');
+    const target = await createTarget({ role: 'admin' });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send(editPayload(target, { password: 'redefinida1' }));
+
+    expect(response.status).toBe(201);
+    expect(await loginStatus(target.email, 'redefinida1')).toBe(200);
+  });
+});
+
+describe('POST /api/admin/users — the developer role does not come from the e-mail', () => {
+  const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
+  // Renomeia em vez de apagar: a conta pode ter sessões (auth_sessions) apontando para ela.
+  const releaseDeveloperEmail = () => prisma.user.updateMany({
+    where: { email: DEVELOPER_EMAIL }, data: { email: uniqueEmail('former-developer') },
+  });
+
+  it('keeps an admin who takes a case variant of the developer e-mail as admin', async () => {
+    await releaseDeveloperEmail();
+    const { header, user } = await authHeaderFor('admin');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ id: user.id, email: 'ALO.DE.CASTRO@HOTMAIL.COM', full_name: user.full_name, role: 'admin' });
+    const me = await request(app).get('/api/auth/me').set('Authorization', header);
+
+    expect(response.status).toBe(201);
+    expect(response.body.user.email).toBe(DEVELOPER_EMAIL);
+    expect(me.body.user.role).toBe('admin');
+    await releaseDeveloperEmail();
+  });
+
+  it('409s a case variant of an e-mail that is already registered', async () => {
+    const existingEmail = uniqueEmail('taken');
+    await createTestUser({ email: existingEmail, full_name: 'Dono', role: 'user' });
+    const { header } = await authHeaderFor('developer');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email: existingEmail.toUpperCase(), full_name: 'Copia', role: 'user' });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ error: 'Já existe um usuário com esse e-mail.' });
+    expect(await prisma.user.count({ where: { email: existingEmail } })).toBe(1);
+  });
+
+  it('stores a new account e-mail in lowercase, without surrounding spaces', async () => {
+    const { header } = await authHeaderFor('developer');
+    const email = uniqueEmail('mixed');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email: `  ${email.toUpperCase()} `, full_name: 'Caixa Mista', role: 'user' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.user.email).toBe(email);
+  });
+});
