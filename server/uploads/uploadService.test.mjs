@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 import { afterEach, describe, expect, it } from 'vitest';
 import { deleteUploadedFile, saveUploadedFile, validateImageFile } from './uploadService.mjs';
 
@@ -31,6 +32,9 @@ afterEach(async () => {
   }
   createdFilenames = [];
 });
+
+const realImage = (width, height, format) =>
+  sharp({ create: { width, height, channels: 3, background: '#DD3244' } }).toFormat(format).toBuffer();
 
 const trackFromUrl = (imageUrl) => {
   const filename = path.basename(imageUrl);
@@ -61,41 +65,56 @@ describe('validateImageFile', () => {
 
 describe('saveUploadedFile', () => {
   it.each([
-    ['image/jpeg', 'jpg'],
+    ['image/jpeg', 'jpeg'],
     ['image/png', 'png'],
     ['image/webp', 'webp'],
     ['image/gif', 'gif'],
-  ])('saves a %s file, returns a matching /uploads/*.%s URL, and writes the exact buffer contents', async (mimeType, ext) => {
-    const buffer = Buffer.from(`fake-${ext}-bytes-${Date.now()}`, 'utf8');
+  ])('converte um %s para WebP otimizado e grava em /uploads/*.webp', async (mimeType, format) => {
+    const buffer = await realImage(1200, 900, format);
 
-    const imageUrl = await saveUploadedFile(buffer, mimeType, 'original-name.bin');
+    const imageUrl = await saveUploadedFile(buffer, mimeType, 'badge');
     trackFromUrl(imageUrl);
 
-    expect(imageUrl).toMatch(new RegExp(`^/uploads/[0-9a-f]{16}-\\d+\\.${ext}$`));
+    expect(imageUrl).toMatch(/^\/uploads\/[0-9a-f]{16}-\d+\.webp$/);
 
-    const filename = path.basename(imageUrl);
-    const filePath = path.join(uploadsDir, filename);
-    expect(fs.existsSync(filePath)).toBe(true);
+    const written = await fs.promises.readFile(path.join(uploadsDir, path.basename(imageUrl)));
+    const meta = await sharp(written).metadata();
+    expect(meta).toMatchObject({ format: 'webp', width: 512, height: 384 });
+  });
 
-    const written = await fs.promises.readFile(filePath);
-    expect(written).toEqual(buffer);
+  it('usa o tamanho do avatar quando o tipo de upload é avatar', async () => {
+    const imageUrl = await saveUploadedFile(await realImage(800, 600, 'png'), 'image/png', 'avatar');
+    trackFromUrl(imageUrl);
+
+    const written = await fs.promises.readFile(path.join(uploadsDir, path.basename(imageUrl)));
+    expect(await sharp(written).metadata()).toMatchObject({ width: 256, height: 256 });
   });
 
   it('generates distinct filenames on repeated calls with identical input', async () => {
-    const buffer = Buffer.from('same-content', 'utf8');
+    const buffer = await realImage(10, 10, 'png');
 
-    const url1 = await saveUploadedFile(buffer, 'image/png', 'a.png');
+    const url1 = await saveUploadedFile(buffer, 'image/png', 'badge');
     trackFromUrl(url1);
-    const url2 = await saveUploadedFile(buffer, 'image/png', 'a.png');
+    const url2 = await saveUploadedFile(buffer, 'image/png', 'badge');
     trackFromUrl(url2);
 
     expect(url1).not.toBe(url2);
   });
 
+  it('rejeita bytes que não são uma imagem e não grava arquivo', async () => {
+    const before = await fs.promises.readdir(uploadsDir);
+
+    await expect(saveUploadedFile(Buffer.from('fake-png'), 'image/png', 'badge')).rejects.toThrow(
+      'Arquivo de imagem inválido ou corrompido.'
+    );
+
+    expect(await fs.promises.readdir(uploadsDir)).toEqual(before);
+  });
+
   it('propagates validateImageFile\'s rejection for a disallowed mimeType and writes no file', async () => {
     const before = await fs.promises.readdir(uploadsDir);
 
-    await expect(saveUploadedFile(Buffer.from('x'), 'application/pdf', 'a.pdf')).rejects.toThrow(
+    await expect(saveUploadedFile(Buffer.from('x'), 'application/pdf', 'badge')).rejects.toThrow(
       'Tipo de arquivo não permitido. Tipos aceitos: image/jpeg, image/png, image/webp, image/gif'
     );
 
@@ -107,7 +126,7 @@ describe('saveUploadedFile', () => {
     const before = await fs.promises.readdir(uploadsDir);
     const oversized = Buffer.alloc(5 * 1024 * 1024 + 1);
 
-    await expect(saveUploadedFile(oversized, 'image/png', 'a.png')).rejects.toThrow(
+    await expect(saveUploadedFile(oversized, 'image/png', 'badge')).rejects.toThrow(
       'Arquivo muito grande. Máximo: 5MB'
     );
 
@@ -118,8 +137,7 @@ describe('saveUploadedFile', () => {
 
 describe('deleteUploadedFile', () => {
   it('removes a file previously created by saveUploadedFile', async () => {
-    const buffer = Buffer.from('to-be-deleted', 'utf8');
-    const imageUrl = await saveUploadedFile(buffer, 'image/png', 'a.png');
+    const imageUrl = await saveUploadedFile(await realImage(10, 10, 'png'), 'image/png', 'badge');
     const filename = trackFromUrl(imageUrl);
     const filePath = path.join(uploadsDir, filename);
 

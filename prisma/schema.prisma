@@ -83,6 +83,7 @@ model User {
   badge_legend_settings BadgeLegendSetting[] @relation("LegendUpdatedBy")
   import_runs           ImportRun[]          @relation("ImportedBy")
 
+  @@index([productive_unit_id])
   @@map("users")
 }
 
@@ -95,6 +96,7 @@ model AuthSession {
 
   user User @relation(fields: [user_id], references: [id])
 
+  @@index([user_id])
   @@map("auth_sessions")
 }
 
@@ -140,6 +142,9 @@ model UserBadge {
   badge     Badge @relation(fields: [badge_id], references: [id])
   awardedBy User? @relation("AwardedBy", fields: [awarded_by], references: [id])
 
+  @@index([user_id, badge_id])
+  @@index([badge_id])
+  @@index([awarded_at])
   @@map("user_badges")
 }
 
@@ -159,6 +164,9 @@ model BadgeSubmission {
   badge      Badge @relation(fields: [badge_id], references: [id])
   reviewedBy User? @relation("ReviewedBy", fields: [reviewed_by], references: [id])
 
+  @@index([user_id])
+  @@index([badge_id])
+  @@index([status])
   @@map("badge_submissions")
 }
 
@@ -172,6 +180,7 @@ model Notification {
 
   user User @relation(fields: [user_id], references: [id])
 
+  @@index([user_id])
   @@map("notifications")
 }
 
@@ -219,5 +228,6 @@ model ImportRunRow {
 
   import_run ImportRun @relation(fields: [import_run_id], references: [id])
 
+  @@index([import_run_id])
   @@map("import_run_rows")
 }

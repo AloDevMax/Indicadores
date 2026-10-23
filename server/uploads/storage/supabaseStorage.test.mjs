@@ -22,14 +22,18 @@ const build = (options) => {
 };
 
 describe('createSupabaseStorage', () => {
-  it('put envia o arquivo sem sobrescrever e retorna a URL pública', async () => {
+  it('put envia o arquivo sem sobrescrever, com cache de 1 ano, e retorna a URL pública', async () => {
     const { client, bucket, storage } = build();
     const buffer = Buffer.from('img');
 
     const url = await storage.put('a.png', buffer, 'image/png');
 
     expect(client.storage.from).toHaveBeenCalledWith('uploads');
-    expect(bucket.upload).toHaveBeenCalledWith('a.png', buffer, { contentType: 'image/png', upsert: false });
+    expect(bucket.upload).toHaveBeenCalledWith('a.png', buffer, {
+      contentType: 'image/png',
+      upsert: false,
+      cacheControl: '31536000',
+    });
     expect(url).toBe(PUBLIC_URL);
   });
 
