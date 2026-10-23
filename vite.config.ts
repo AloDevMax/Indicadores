@@ -18,6 +18,11 @@ export default defineConfig({
       },
     },
   },
+  // dist/client: é a única pasta que o Express publica (o tsc compila o servidor em dist/server).
+  build: {
+    outDir: 'dist/client',
+    emptyOutDir: true,
+  },
   plugins: [react()],
   resolve: {
     alias: {

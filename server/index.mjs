@@ -7,9 +7,9 @@ import { fileURLToPath } from 'url';
 import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
-import { listUsers, revokeUserSessions } from './auth/repository.mjs';
+import { findUserById, listUsers, revokeUserSessions } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
+import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
@@ -22,7 +22,11 @@ const port = env.PORT;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const frontendPath = path.resolve(__dirname, '..');
+// Só o build do Vite (dist/client) é público: servir a pasta acima de server/ publicava o código do
+// servidor (dist/server/*.mjs em produção; server/, prisma/ e package.json rodando do código-fonte).
+// Rodando de dist/server ou de server/, os dois caminhos levam a <repo>/dist/client.
+const isBuiltServer = path.basename(path.dirname(__dirname)) === 'dist';
+const CLIENT_BUILD_DIR = path.resolve(__dirname, isBuiltServer ? '../client' : '../dist/client');
 
 const asyncRoute = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -83,6 +87,19 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
   return targetUserIds.every((targetUserId) => allowedUserIds.has(targetUserId));
 };
 
+// Editar uma conta exige alcançá-la como ela está no banco, não só pelos dados enviados:
+// senão um supervisor "trazia" para a própria unidade (e redefinia a senha de) qualquer conta.
+const reasonToDenyEditing = (editor, target) => {
+  if (isDeveloper(editor)) return null;
+  if (isDeveloper(target)) return 'Somente o desenvolvedor pode alterar essa conta.';
+  if (!isSupervisor(editor)) return null;
+
+  const isOwnUnitCollaborator = target.role === 'user'
+    && Boolean(editor.productive_unit_id)
+    && target.productive_unit_id === editor.productive_unit_id;
+  return isOwnUnitCollaborator ? null : 'Supervisores só podem editar colaboradores da própria unidade produtiva.';
+};
+
 const ensureSubmissionWithinScope = async (user, submissionId) => {
   if (isDeveloper(user)) return true;
 
@@ -129,7 +146,11 @@ const createLoginLimiters = ({ windowMs, maxFailuresPerEmail, maxFailuresPerIp }
   ];
 };
 
-export function createApp({ storageDriver = env.STORAGE_DRIVER, loginRateLimit = DEFAULT_LOGIN_RATE_LIMIT } = {}) {
+export function createApp({
+  storageDriver = env.STORAGE_DRIVER,
+  clientDir = CLIENT_BUILD_DIR,
+  loginRateLimit = DEFAULT_LOGIN_RATE_LIMIT,
+} = {}) {
   const app = express();
 
   // Atrás de proxy (Hostinger), req.ip só é o endereço do cliente com TRUST_PROXY configurado.
@@ -149,22 +170,23 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER, loginRateLimit =
     next();
   });
 
-  app.use(express.static(frontendPath, {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('index.html')) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      }
-    },
-  }));
-
   // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
-  // no banco responde 404, em vez de cair no index.html da SPA.
+  // no banco responde 404, em vez de cair no index.html da SPA. Vem antes do build do cliente:
+  // o Vite copia public/ (inclusive uploads/ de dev) para dentro dele.
   if (storageDriver === 'local') {
     fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
     app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
   } else {
     app.use('/uploads', (_req, res) => res.status(404).end());
   }
+
+  app.use(express.static(clientDir, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      }
+    },
+  }));
 
   app.use('/api/upload', uploadRouter);
 
@@ -315,16 +337,27 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER, loginRateLimit =
       return res.status(400).json({ error: 'Você não pode desativar seu próprio usuário.' });
     }
 
+    const existingUser = req.body.id ? await findUserById(req.body.id) : null;
+    const denialReason = existingUser && reasonToDenyEditing(auth.body.user, existingUser);
+    if (denialReason) {
+      return res.status(403).json({ error: denialReason });
+    }
+
     if (!(await isAcceptableAvatarUrl(req.body))) {
       return res.status(400).json({ error: 'Avatar inválido: envie a imagem pelo upload.' });
     }
 
-    const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
-    // Senha redefinida ou conta desativada: quem estava logado com o acesso antigo sai.
-    if (user.id === req.body.id && (req.body.password || req.body.is_active === false)) {
-      await revokeUserSessions(user.id);
+    try {
+      const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
+      // Senha redefinida ou conta desativada: quem estava logado com o acesso antigo sai.
+      if (user.id === req.body.id && (req.body.password || req.body.is_active === false)) {
+        await revokeUserSessions(user.id);
+      }
+      res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
+    } catch (error) {
+      if (error instanceof DuplicateEmailError) return res.status(409).json({ error: error.message });
+      throw error;
     }
-    res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
   }));
 
   app.post('/api/admin/badges', asyncRoute(async (req, res) => {
@@ -445,7 +478,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER, loginRateLimit =
 
   app.get('*', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(clientDir, 'index.html'));
   });
 
   return app;
