@@ -7,15 +7,13 @@ import type { Profile } from '@/shared/types';
 vi.mock('@/shared/api', () => ({
   fetchCurrentUser: vi.fn(),
   loginWithApi: vi.fn(),
-  registerWithApi: vi.fn(),
   logoutWithApi: vi.fn(),
 }));
 
-import { fetchCurrentUser, loginWithApi, registerWithApi, logoutWithApi } from '@/shared/api';
+import { fetchCurrentUser, loginWithApi, logoutWithApi } from '@/shared/api';
 
 const mockedFetchCurrentUser = vi.mocked(fetchCurrentUser);
 const mockedLoginWithApi = vi.mocked(loginWithApi);
-const mockedRegisterWithApi = vi.mocked(registerWithApi);
 const mockedLogoutWithApi = vi.mocked(logoutWithApi);
 
 const baseProfile: Profile = {
@@ -34,22 +32,13 @@ const loggedInProfile: Profile = {
   created_at: '2024-02-01T00:00:00Z',
 };
 
-const registeredProfile: Profile = {
-  id: 'user-3',
-  email: 'new@example.com',
-  full_name: 'New User',
-  role: 'user',
-  created_at: '2024-03-01T00:00:00Z',
-};
-
 function AuthConsumer() {
-  const { user, isAuthLoading, login, register, logout } = useAuth();
+  const { user, isAuthLoading, login, logout } = useAuth();
   return (
     <div>
       <span data-testid="loading">{String(isAuthLoading)}</span>
       <span data-testid="user-json">{user ? JSON.stringify(user) : 'null'}</span>
       <button onClick={() => login('login@example.com', 'secret')}>Login</button>
-      <button onClick={() => register('register@example.com', 'secret', 'Register Name')}>Register</button>
       <button onClick={() => logout()}>Logout</button>
     </div>
   );
@@ -60,7 +49,6 @@ describe('AuthContext', () => {
     vi.clearAllMocks();
     mockedFetchCurrentUser.mockResolvedValue(baseProfile);
     mockedLoginWithApi.mockResolvedValue(loggedInProfile);
-    mockedRegisterWithApi.mockResolvedValue(registeredProfile);
     mockedLogoutWithApi.mockResolvedValue(undefined);
   });
 
@@ -124,26 +112,6 @@ describe('AuthContext', () => {
 
     expect(mockedLoginWithApi).toHaveBeenCalledTimes(1);
     expect(mockedLoginWithApi).toHaveBeenCalledWith('login@example.com', 'secret');
-  });
-
-  it('register calls registerWithApi with the given details and updates the user', async () => {
-    const user = userEvent.setup();
-    render(
-      <AuthProvider>
-        <AuthConsumer />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => expect(screen.getByTestId('loading').textContent).toBe('false'));
-
-    await user.click(screen.getByRole('button', { name: 'Register' }));
-
-    await waitFor(() =>
-      expect(screen.getByTestId('user-json').textContent).toBe(JSON.stringify(registeredProfile)),
-    );
-
-    expect(mockedRegisterWithApi).toHaveBeenCalledTimes(1);
-    expect(mockedRegisterWithApi).toHaveBeenCalledWith('register@example.com', 'secret', 'Register Name');
   });
 
   it('logout calls logoutWithApi and clears the user', async () => {

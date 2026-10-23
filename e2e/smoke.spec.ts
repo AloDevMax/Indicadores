@@ -12,11 +12,19 @@ test.describe('Login page', () => {
     await expect(page.getByRole('button', { name: 'Entrar', exact: true })).toBeVisible();
   });
 
-  test('links to the registration page', async ({ page }) => {
+  test('offers no self-registration: the login page has no sign-up link', async ({ page }) => {
     await page.goto('/#/login');
 
-    await page.getByRole('link', { name: 'Cadastre-se' }).click();
-    await expect(page).toHaveURL(/#\/register$/);
+    await expect(page.getByRole('heading', { name: 'Entrar' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Cadastre-se' })).toHaveCount(0);
+  });
+
+  test('sends a visitor at the root, or at the old /register route, to the login page', async ({ page }) => {
+    await page.goto('/#/');
+    await expect(page).toHaveURL(/#\/login$/);
+
+    await page.goto('/#/register');
+    await expect(page).toHaveURL(/#\/login$/);
   });
 
   test('shows an error message on invalid credentials', async ({ page }) => {

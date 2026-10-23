@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
-import { registerUser, loginUser, getAuthenticatedUser, logoutUser } from './service.mjs';
+import { loginUser, getAuthenticatedUser, logoutUser } from './service.mjs';
 import { createSession } from './repository.mjs';
 import { createSessionToken, generateSessionId, hashPassword } from './crypto.mjs';
 import { resetDatabase } from '../test/db.mjs';
@@ -9,41 +9,20 @@ import { createTestUser } from '../test/fixtures.mjs';
 
 const uniqueEmail = () => `user-${crypto.randomUUID()}@example.com`;
 
+// Accounts are created by admins only (there is no self-registration), so
+// tests create the user directly and obtain a real token through loginUser.
+const createUserWithPassword = (email, password) =>
+  createTestUser({ email, password, full_name: 'Test User', role: 'user' });
+
+const loginNewUser = async () => {
+  const email = uniqueEmail();
+  await createUserWithPassword(email, 'password1');
+  const result = await loginUser({ email, password: 'password1' });
+  return { email, token: result.body.token };
+};
+
 beforeAll(async () => {
   await resetDatabase();
-});
-
-describe('registerUser', () => {
-  it('returns 400 for an invalid email', async () => {
-    const result = await registerUser({ email: 'not-an-email', password: 'password1', full_name: 'Test User' });
-    expect(result.status).toBe(400);
-    expect(result.body.error).toBe('Dados inválidos.');
-  });
-
-  it('returns 400 when password is shorter than 6 characters', async () => {
-    const result = await registerUser({ email: uniqueEmail(), password: '123', full_name: 'Test User' });
-    expect(result.status).toBe(400);
-  });
-
-  it('returns 201 with a token and the created user on success', async () => {
-    const email = uniqueEmail();
-    const result = await registerUser({ email, password: 'password1', full_name: 'Test User' });
-
-    expect(result.status).toBe(201);
-    expect(result.body.user).toMatchObject({ email, full_name: 'Test User', role: 'user' });
-    expect(typeof result.body.token).toBe('string');
-    expect(result.body.token.length).toBeGreaterThan(0);
-  });
-
-  it('returns 409 when the email is already registered', async () => {
-    const email = uniqueEmail();
-    await registerUser({ email, password: 'password1', full_name: 'First' });
-
-    const result = await registerUser({ email, password: 'password2', full_name: 'Second' });
-
-    expect(result.status).toBe(409);
-    expect(result.body.error).toBe('Email já cadastrado.');
-  });
 });
 
 describe('loginUser', () => {
@@ -60,7 +39,7 @@ describe('loginUser', () => {
 
   it('returns 401 when the password is wrong', async () => {
     const email = uniqueEmail();
-    await registerUser({ email, password: 'correct-password', full_name: 'Test User' });
+    await createUserWithPassword(email, 'correct-password');
 
     const result = await loginUser({ email, password: 'wrong-password' });
 
@@ -88,7 +67,7 @@ describe('loginUser', () => {
 
   it('returns 200 with a token and the sanitized user on success', async () => {
     const email = uniqueEmail();
-    await registerUser({ email, password: 'correct-password', full_name: 'Test User' });
+    await createUserWithPassword(email, 'correct-password');
 
     const result = await loginUser({ email, password: 'correct-password' });
 
@@ -112,11 +91,10 @@ describe('getAuthenticatedUser', () => {
   });
 
   it('returns 401 when the session was revoked', async () => {
-    const email = uniqueEmail();
-    const registerResult = await registerUser({ email, password: 'password1', full_name: 'Test User' });
-    await logoutUser(`Bearer ${registerResult.body.token}`);
+    const { token } = await loginNewUser();
+    await logoutUser(`Bearer ${token}`);
 
-    const result = await getAuthenticatedUser(`Bearer ${registerResult.body.token}`);
+    const result = await getAuthenticatedUser(`Bearer ${token}`);
 
     expect(result.status).toBe(401);
   });
@@ -137,10 +115,9 @@ describe('getAuthenticatedUser', () => {
   });
 
   it('returns 200 with the user on a valid session', async () => {
-    const email = uniqueEmail();
-    const registerResult = await registerUser({ email, password: 'password1', full_name: 'Test User' });
+    const { email, token } = await loginNewUser();
 
-    const result = await getAuthenticatedUser(`Bearer ${registerResult.body.token}`);
+    const result = await getAuthenticatedUser(`Bearer ${token}`);
 
     expect(result.status).toBe(200);
     expect(result.body.user).toMatchObject({ email });
@@ -154,14 +131,13 @@ describe('logoutUser', () => {
   });
 
   it('revokes the session and returns success', async () => {
-    const email = uniqueEmail();
-    const registerResult = await registerUser({ email, password: 'password1', full_name: 'Test User' });
+    const { token } = await loginNewUser();
 
-    const logoutResult = await logoutUser(`Bearer ${registerResult.body.token}`);
+    const logoutResult = await logoutUser(`Bearer ${token}`);
     expect(logoutResult.status).toBe(200);
     expect(logoutResult.body).toEqual({ success: true });
 
-    const afterLogout = await getAuthenticatedUser(`Bearer ${registerResult.body.token}`);
+    const afterLogout = await getAuthenticatedUser(`Bearer ${token}`);
     expect(afterLogout.status).toBe(401);
   });
 });

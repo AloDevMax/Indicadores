@@ -18,7 +18,7 @@ server/
 ├── shared/db/
 │   └── prisma.mjs              # the single PrismaClient (connection pool)
 ├── auth/
-│   ├── service.mjs             # login/register/logout, session validation, Zod schemas
+│   ├── service.mjs             # login/logout, session validation, Zod schemas
 │   ├── repository.mjs          # users + sessions, the built-in developer account
 │   └── crypto.mjs              # password hashing, session token signing
 ├── admin/
@@ -48,7 +48,7 @@ server/
 
 All API routes are declared inline in `server/index.mjs` — there is no route module yet. Major groups:
 
-- `/api/auth/*` — login, register, logout, me
+- `/api/auth/*` — login, logout, me (no self-registration; admins create accounts via `/api/admin/users`)
 - `/api/health` — DB connectivity report
 - `/api/admin/*` — badges, companies, productive-units, users, bulk-invite, seed-indicator-badges, import-monthly-badges, award-badges, user-badges/remove
 - `/api/submissions`, `/api/submissions/:id/review`

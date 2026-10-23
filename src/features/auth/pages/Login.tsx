@@ -1,6 +1,5 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 
 interface LoginResult {
   success: boolean;
@@ -80,11 +79,6 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </button>
           {error && <div className="text-red-600 font-bold text-sm text-center mt-2">{error}</div>}
         </form>
-
-        <div className="mt-6 text-center relative z-10">
-          <p className="text-sm text-slate-500">Nao tem conta? <Link to="/register" className="text-brand-primary font-bold hover:text-brand-primary-dark">Cadastre-se</Link></p>
-          <p className="mt-2 text-xs text-slate-400">Quer entender o produto antes? <Link to="/" className="font-bold text-slate-600 hover:text-brand-primary-dark">Voltar para a pagina inicial</Link></p>
-        </div>
       </div>
     </div>
   );

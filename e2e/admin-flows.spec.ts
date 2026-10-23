@@ -64,33 +64,31 @@ async function logout(page) {
 }
 
 /**
- * Registers a brand-new plain user through the UI (unique email per call so
- * repeat runs against the same long-lived e2e database don't collide —
- * mirrors the crypto.randomUUID() discipline used in server/auth/service.test.mjs).
- *
- * NOTE on selectors: Register.tsx's inputs have <label> text but no
- * htmlFor/id association and no placeholders, so there is no accessible way
- * to target them individually — falling back to `input[type=...]` + document
- * order (text, email, password, password) is the only reliable selector.
+ * Creates a brand-new plain user the way the app does it now that there is
+ * no self-registration: the developer creates the account through the admin
+ * API (POST /api/admin/users), then the user logs in through the UI. Unique
+ * email per call so repeat runs against the same long-lived e2e database
+ * don't collide — mirrors the crypto.randomUUID() discipline used in
+ * server/auth/service.test.mjs.
  */
-async function registerUser(page) {
+async function createPlainUserAndLogin(page) {
   const uid = crypto.randomUUID();
   const email = `e2e-${uid}@example.com`;
   const fullName = `E2E User ${uid.slice(0, 8)}`;
 
-  await page.goto('/#/register');
-  await page.locator('input[type="text"]').fill(fullName);
-  await page.locator('input[type="email"]').fill(email);
-  const passwordInputs = page.locator('input[type="password"]');
-  await passwordInputs.nth(0).fill(TEST_PASSWORD);
-  await passwordInputs.nth(1).fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: 'Criar minha conta' }).click();
+  const loginResponse = await page.request.post('/api/auth/login', {
+    data: { email: DEVELOPER_EMAIL, password: DEVELOPER_PASSWORD },
+  });
+  expect(loginResponse.status()).toBe(200);
+  const { token } = await loginResponse.json();
 
-  // Successful registration auto-logs-in (AuthContext.register sets user)
-  // and App.tsx navigates away from /register once `user` is set, through
-  // the same "/" -> "/dashboard" redirect chain login() waits out below.
-  await expect(page.getByRole('button', { name: 'Sair' })).toBeVisible();
-  await page.waitForURL(/#\/dashboard/);
+  const createResponse = await page.request.post('/api/admin/users', {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { email, full_name: fullName, role: 'user', password: TEST_PASSWORD },
+  });
+  expect(createResponse.status()).toBe(201);
+
+  await login(page, email, TEST_PASSWORD);
   return { email, fullName };
 }
 
@@ -140,7 +138,7 @@ function confirmDialog(page, title) {
 
 test.describe('Submission review flow', () => {
   test('a plain user requests a badge and the developer approves it', async ({ page }) => {
-    const { fullName } = await registerUser(page);
+    const { fullName } = await createPlainUserAndLogin(page);
 
     const description = `E2E approval proof ${crypto.randomUUID()}`;
     await submitBadgeRequest(page, BADGE_PROCESSOS, description);
@@ -168,7 +166,7 @@ test.describe('Submission review flow', () => {
 
 test.describe('Submission rejection flow', () => {
   test('the developer rejects a submission, distinctly from approval', async ({ page }) => {
-    const { fullName } = await registerUser(page);
+    const { fullName } = await createPlainUserAndLogin(page);
 
     const description = `E2E rejection proof ${crypto.randomUUID()}`;
     await submitBadgeRequest(page, BADGE_SEGURANCA, description);

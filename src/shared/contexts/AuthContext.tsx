@@ -1,13 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Profile } from '@/shared/types';
-import { loginWithApi, registerWithApi, logoutWithApi, fetchCurrentUser } from '@/shared/api';
+import { loginWithApi, logoutWithApi, fetchCurrentUser } from '@/shared/api';
 
 interface AuthContextType {
   user: Profile | null;
   setUser: React.Dispatch<React.SetStateAction<Profile | null>>;
   isAuthLoading: boolean;
   login: (email: string, password: string) => Promise<Profile>;
-  register: (email: string, password: string, fullName: string) => Promise<Profile>;
   logout: () => Promise<void>;
 }
 
@@ -37,19 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return loggedInUser;
   };
 
-  const register = async (email: string, password: string, fullName: string): Promise<Profile> => {
-    const newUser = await registerWithApi(email, password, fullName);
-    setUser(newUser);
-    return newUser;
-  };
-
   const logout = async (): Promise<void> => {
     await logoutWithApi();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, setUser, isAuthLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, setUser, isAuthLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

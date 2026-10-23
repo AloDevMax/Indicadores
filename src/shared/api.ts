@@ -49,17 +49,6 @@ export const clearStoredAuthToken = () => {
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
 };
 
-export const registerWithApi = async (email: string, password: string, fullName: string) => {
-  const payload = await postJson<{ token: string; user: Profile }>('/api/auth/register', {
-    email,
-    password,
-    full_name: fullName,
-  });
-
-  storeAuthToken(payload.token);
-  return payload.user;
-};
-
 export const loginWithApi = async (email: string, password: string) => {
   const payload = await postJson<{ token: string; user: Profile }>('/api/auth/login', {
     email,

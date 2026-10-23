@@ -96,11 +96,11 @@ Full-stack monolith: Express serves both the REST API and the static React bundl
 src/
 ├── App.tsx              # Global state, routes, event handlers
 ├── features/
-│   ├── auth/            # Login, Register, Landing
-│   ├── admin/           # AdminPanel, AwardBadges, Requests, Explorers, Library, UnitsPage
+│   ├── auth/            # Login (no self-registration: admins create accounts)
+│   ├── admin/           # AdminPanel (award, submissions, users, units, library, Excel import)
 │   ├── badges/          # UserBadgesPage, SolicitationModal
-│   ├── dashboard/       # Dashboard, Overview
-│   ├── ranking/         # Ranking, GlobalRanking
+│   ├── dashboard/       # Dashboard
+│   ├── ranking/         # Ranking
 │   └── settings/        # Settings
 └── shared/
     ├── api.ts           # All fetch calls to the backend
@@ -110,7 +110,7 @@ src/
 
 server/
 ├── index.mjs            # Express entry: routes, middleware
-├── auth/                # Login/register/session service + repository + crypto
+├── auth/                # Login/logout/session service + repository + crypto
 ├── admin/               # CRUD for badges, users, units
 ├── operations/          # awardBadges, reviewSubmission, importMonthlyBadges
 ├── db/                  # resource listings, seed

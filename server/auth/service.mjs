@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import {
   createSession,
-  createUser,
   findActiveSession,
   findUserByEmail,
   findUserById,
@@ -11,16 +10,9 @@ import {
 import {
   createSessionToken,
   generateSessionId,
-  hashPassword,
   verifyPassword,
   verifySessionToken,
 } from './crypto.mjs';
-
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6).max(128),
-  full_name: z.string().trim().min(2).max(120),
-});
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -28,48 +20,6 @@ const loginSchema = z.object({
 });
 
 const getExpirationTimestamp = () => Date.now() + 1000 * 60 * 60 * 24 * 7;
-
-export const registerUser = async (input) => {
-  const parsed = registerSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: 400, body: { error: 'Dados inválidos.', details: parsed.error.errors } };
-  }
-  const payload = parsed.data;
-  const existingUser = await findUserByEmail(payload.email);
-
-  if (existingUser) {
-    return {
-      status: 409,
-      body: { error: 'Email já cadastrado.' },
-    };
-  }
-
-  const passwordHash = await hashPassword(payload.password);
-  const user = await createUser({
-    email: payload.email,
-    passwordHash,
-    fullName: payload.full_name,
-  });
-
-  if (!user) {
-    return {
-      status: 500,
-      body: { error: 'Não foi possível criar o usuário.' },
-    };
-  }
-
-  const sessionId = generateSessionId();
-  const expiresAt = getExpirationTimestamp();
-  await createSession({ sessionId, userId: user.id, expiresAt });
-
-  return {
-    status: 201,
-    body: {
-      token: createSessionToken({ sessionId, userId: user.id, role: user.role }),
-      user,
-    },
-  };
-};
 
 export const loginUser = async (input) => {
   const parsed = loginSchema.safeParse(input);
