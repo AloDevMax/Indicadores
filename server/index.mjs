@@ -14,6 +14,7 @@ import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
 import { listBadges, listProductiveUnits, listUserBadges, listSubmissions, getBadgeLegends, listMonthlyRanking } from './db/resourceRepository.mjs';
 import { prisma } from './shared/db/prisma.mjs';
+import { securityHeaders } from './securityHeaders.mjs';
 
 
 const port = env.PORT;
@@ -118,9 +119,14 @@ const isAcceptableAvatarUrl = async ({ id, avatar_url: avatarUrl }) => {
   return avatarUrl === await findUserAvatarUrl(id);
 };
 
-export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
+export function createApp({
+  storageDriver = env.STORAGE_DRIVER,
+  clientDir = frontendPath,
+  isProduction = env.NODE_ENV === 'production',
+} = {}) {
   const app = express();
 
+  app.use(securityHeaders({ clientDir, isProduction }));
   app.use(express.json());
 
   const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
@@ -136,7 +142,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     next();
   });
 
-  app.use(express.static(frontendPath, {
+  app.use(express.static(clientDir, {
     setHeaders(res, filePath) {
       if (filePath.endsWith('index.html')) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -439,7 +445,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
 
   app.get('*', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(clientDir, 'index.html'));
   });
 
   return app;
