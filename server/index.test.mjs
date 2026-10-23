@@ -1121,3 +1121,57 @@ describe('POST /api/admin/users — the developer role does not come from the e-
     expect(response.body.user.email).toBe(email);
   });
 });
+
+describe('security headers', () => {
+  const inlineConfig = 'tailwind.config = {}';
+  const clientDir = fs.mkdtempSync(path.join(os.tmpdir(), 'labquest-headers-'));
+  fs.writeFileSync(path.join(clientDir, 'index.html'), `<html><head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>${inlineConfig}</script>
+  </head><body>SPA</body></html>`);
+  const inlineConfigHash = `'sha256-${crypto.createHash('sha256').update(inlineConfig).digest('base64')}'`;
+
+  afterAll(() => fs.rmSync(clientDir, { recursive: true, force: true }));
+
+  const cspOf = (response) => Object.fromEntries(
+    response.headers['content-security-policy'].split(';').map((directive) => {
+      const [name, ...values] = directive.trim().split(/\s+/);
+      return [name, values];
+    }),
+  );
+
+  it('sends the hardening headers on API responses and drops X-Powered-By', async () => {
+    const response = await request(createApp({ clientDir })).get('/api/badge-legends');
+
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(response.headers['x-frame-options']).toBe('DENY');
+    expect(response.headers['referrer-policy']).toBe('strict-origin-when-cross-origin');
+    expect(response.headers['cross-origin-opener-policy']).toBe('same-origin');
+    expect(response.headers['x-powered-by']).toBeUndefined();
+  });
+
+  it('allows only the app, the Tailwind CDN and the hashed inline config to run scripts', async () => {
+    const csp = cspOf(await request(createApp({ clientDir })).get('/'));
+
+    expect(csp['script-src']).toEqual(["'self'", 'https://cdn.tailwindcss.com', inlineConfigHash]);
+    expect(csp['script-src-attr']).toEqual(["'none'"]);
+    expect(csp['object-src']).toEqual(["'none'"]);
+    expect(csp['frame-ancestors']).toEqual(["'none'"]);
+    expect(csp['connect-src']).toEqual(["'self'"]);
+    expect(csp['font-src']).toEqual(["'self'", 'https://fonts.gstatic.com', 'data:']);
+  });
+
+  it('leaves HSTS and upgrade-insecure-requests out of development, so http://localhost keeps working', async () => {
+    const response = await request(createApp({ clientDir, isProduction: false })).get('/');
+
+    expect(response.headers['strict-transport-security']).toBeUndefined();
+    expect(cspOf(response)).not.toHaveProperty('upgrade-insecure-requests');
+  });
+
+  it('sends HSTS and upgrade-insecure-requests in production', async () => {
+    const response = await request(createApp({ clientDir, isProduction: true })).get('/');
+
+    expect(response.headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
+    expect(cspOf(response)).toHaveProperty('upgrade-insecure-requests');
+  });
+});
