@@ -187,6 +187,17 @@ describe('updateUserProfile', () => {
     expect(await verifyPassword('nova-senha', stored.password_hash)).toBe(true);
   });
 
+  it('clears the change-password flag when the user sets a new password, and only then', async () => {
+    const ana = await insertUser();
+    await prisma.user.update({ where: { id: ana.id }, data: { must_change_password: true } });
+
+    await updateUserProfile(ana.id, { full_name: 'Ana Maria' });
+    expect((await prisma.user.findUnique({ where: { id: ana.id } })).must_change_password).toBe(true);
+
+    await updateUserProfile(ana.id, { password: 'minha-senha-nova' });
+    expect((await prisma.user.findUnique({ where: { id: ana.id } })).must_change_password).toBe(false);
+  });
+
   it('bumps updated_at even with no fields to change', async () => {
     const ana = await insertUser({ updated_at: new Date('2020-01-01T00:00:00.000Z') });
 
@@ -220,13 +231,35 @@ describe('saveUser', () => {
     expect(await verifyPassword('senha123', stored.password_hash)).toBe(true);
   });
 
-  it('uses changeme123 when no password is given, and stores an empty unit as null', async () => {
+  it('generates a temporary password when none is given, returns it once, and stores an empty unit as null', async () => {
     const user = await saveUser({ email: 'cid@example.com', full_name: 'Cid', role: 'user', productive_unit_id: '', is_active: false });
 
     expect(user.productive_unit_id).toBeNull();
     expect(user.is_active).toBe(false);
+    expect(user.temporary_password).toMatch(/^[A-HJ-NP-Za-km-z2-9]{12}$/);
     const stored = await prisma.user.findUnique({ where: { id: user.id } });
-    expect(await verifyPassword('changeme123', stored.password_hash)).toBe(true);
+    expect(await verifyPassword(user.temporary_password, stored.password_hash)).toBe(true);
+    expect(await verifyPassword('changeme123', stored.password_hash)).toBe(false);
+  });
+
+  it('flags every admin-created user to change the password, even when the admin chose it', async () => {
+    const generated = await saveUser({ email: 'gen@example.com', full_name: 'Gen', role: 'user' });
+    const chosen = await saveUser({ email: 'chosen@example.com', full_name: 'Chosen', role: 'user' }, 'senha123');
+
+    expect(chosen.temporary_password).toBeUndefined();
+    const stored = await prisma.user.findMany({ where: { id: { in: [generated.id, chosen.id] } } });
+    expect(stored.map((user) => user.must_change_password)).toEqual([true, true]);
+  });
+
+  it('flags the user to change the password when an admin resets it, but not on other edits', async () => {
+    const ana = await insertUser();
+    const bia = await insertUser({ email: 'bia@example.com' });
+
+    await saveUser({ id: ana.id, email: 'ana@example.com', full_name: 'Ana', role: 'user' }, 'resetada1');
+    await saveUser({ id: bia.id, email: 'bia@example.com', full_name: 'Bia Renomeada', role: 'user' });
+
+    expect((await prisma.user.findUnique({ where: { id: ana.id } })).must_change_password).toBe(true);
+    expect((await prisma.user.findUnique({ where: { id: bia.id } })).must_change_password).toBe(false);
   });
 
   it('updates an existing user by id, keeping the password when none is given', async () => {
@@ -335,8 +368,22 @@ describe('bulkInviteUsers', () => {
       },
       expect.objectContaining({ email: 'cid@example.com', full_name: 'cid', productive_unit_id: 'pu1' }),
     ]);
-    const stored = await prisma.user.findUnique({ where: { email: 'bia@example.com' } });
-    expect(await verifyPassword('changeme123', stored.password_hash)).toBe(true);
+  });
+
+  it('gives each invited user their own temporary password and flags them to change it', async () => {
+    const result = await bulkInviteUsers({ emails: ['bia@example.com', 'cid@example.com'], productiveUnitId: 'pu1' });
+
+    const passwords = result.temporaryPasswords;
+    expect(passwords).toEqual([
+      { email: 'bia@example.com', temporary_password: expect.stringMatching(/^[A-HJ-NP-Za-km-z2-9]{12}$/) },
+      { email: 'cid@example.com', temporary_password: expect.stringMatching(/^[A-HJ-NP-Za-km-z2-9]{12}$/) },
+    ]);
+    expect(passwords[0].temporary_password).not.toBe(passwords[1].temporary_password);
+
+    const bia = await prisma.user.findUnique({ where: { email: 'bia@example.com' } });
+    expect(await verifyPassword(passwords[0].temporary_password, bia.password_hash)).toBe(true);
+    expect(await verifyPassword('changeme123', bia.password_hash)).toBe(false);
+    expect(bia.must_change_password).toBe(true);
   });
 
   it('stores a missing unit as null', async () => {

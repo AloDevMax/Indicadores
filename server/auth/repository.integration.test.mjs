@@ -50,6 +50,7 @@ describe('findUserByEmail', () => {
       role: 'user',
       productive_unit_id: 'pu1',
       email_verified: true,
+      must_change_password: false,
       is_active: true,
       created_at: expect.any(Date),
     });
@@ -83,6 +84,7 @@ describe('findUserById', () => {
       role: 'user',
       productive_unit_id: null,
       email_verified: false,
+      must_change_password: false,
       is_active: false,
       created_at: expect.any(Date),
     });
@@ -107,6 +109,7 @@ describe('ensureBuiltInDeveloper', () => {
       role: 'developer',
       productive_unit_id: null,
       email_verified: true,
+      must_change_password: false,
       created_at: expect.any(Date),
     });
     expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
@@ -135,6 +138,7 @@ describe('ensureBuiltInDeveloper', () => {
       role: 'developer',
       productive_unit_id: null,
       email_verified: true,
+      must_change_password: false,
       is_active: false,
       created_at: expect.any(Date),
     });
@@ -212,6 +216,7 @@ describe('listUsers', () => {
       role: 'user',
       productive_unit_id: null,
       email_verified: false,
+      must_change_password: false,
       is_active: true,
       created_at: expect.any(Date),
     });

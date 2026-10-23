@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { prisma } from '../shared/db/prisma.mjs';
-import { hashPassword } from '../auth/crypto.mjs';
+import { generateTemporaryPassword, hashPassword } from '../auth/crypto.mjs';
 import { deleteUploadedFile } from '../uploads/uploadService.mjs';
 
 const randomId = () => crypto.randomUUID().slice(0, 8);
@@ -114,7 +114,11 @@ export const updateUserProfile = async (userId, updates) => {
   if (updates.full_name !== undefined) data.full_name = updates.full_name;
   if (updates.email !== undefined) data.email = updates.email;
   if (updates.avatar_url !== undefined) data.avatar_url = updates.avatar_url;
-  if (updates.password !== undefined) data.password_hash = await hashPassword(updates.password);
+  if (updates.password !== undefined) {
+    // O próprio usuário escolheu a senha: a troca obrigatória está cumprida.
+    data.password_hash = await hashPassword(updates.password);
+    data.must_change_password = false;
+  }
 
   try {
     return await prisma.user.update({ where: { id: userId }, data, select: PROFILE_SELECT });
@@ -135,7 +139,11 @@ const updateExistingUser = async (user, password) => {
 
   if (user.avatar_url !== undefined) data.avatar_url = user.avatar_url;
   if (user.is_active !== undefined) data.is_active = user.is_active;
-  if (password) data.password_hash = await hashPassword(password);
+  if (password) {
+    // Senha redefinida pelo admin: o colaborador precisa trocá-la no próximo login.
+    data.password_hash = await hashPassword(password);
+    data.must_change_password = true;
+  }
 
   try {
     return await prisma.user.update({ where: { id: user.id }, data, select: USER_SELECT });
@@ -152,20 +160,25 @@ export const saveUser = async (user, password) => {
     // Sem usuário com esse id: cria um novo, com id novo.
   }
 
-  return prisma.user.create({
+  // Sem senha informada, gera uma temporária e a devolve uma única vez para o admin repassar.
+  const temporaryPassword = password ? undefined : generateTemporaryPassword();
+  const createdUser = await prisma.user.create({
     data: {
       id: crypto.randomUUID(),
       email: user.email,
-      password_hash: await hashPassword(password || 'changeme123'),
+      password_hash: await hashPassword(password || temporaryPassword),
       full_name: user.full_name,
       avatar_url: user.avatar_url || null,
       role: user.role,
       productive_unit_id: user.productive_unit_id || null,
       email_verified: false,
       is_active: user.is_active ?? true,
+      must_change_password: true,
     },
     select: USER_SELECT,
   });
+
+  return temporaryPassword ? { ...createdUser, temporary_password: temporaryPassword } : createdUser;
 };
 
 export const findUserAvatarUrl = async (userId) => {
@@ -189,27 +202,33 @@ export const bulkInviteUsers = async ({ emails, productiveUnitId }) => {
       .map((email) => email.toLowerCase().trim())
       .filter(Boolean),
   )];
-  const passwordHash = await hashPassword('changeme123');
+  // Cada convidado recebe a própria senha temporária (hash calculado antes da transação).
+  const invites = await Promise.all(normalizedEmails.map(async (email) => {
+    const temporaryPassword = generateTemporaryPassword();
+    return { email, temporaryPassword, passwordHash: await hashPassword(temporaryPassword) };
+  }));
 
   return prisma.$transaction(async (tx) => {
     const createdUsers = [];
     const skippedEmails = [];
+    const temporaryPasswords = [];
 
-    for (const email of normalizedEmails) {
+    for (const { email, temporaryPassword, passwordHash } of invites) {
       // on conflict (email) do nothing: e-mails já cadastrados são pulados.
       const rows = await tx.$queryRaw`
-        insert into users (id, email, password_hash, full_name, role, productive_unit_id, email_verified)
-        values (${crypto.randomUUID()}::uuid, ${email}, ${passwordHash}, ${email.split('@')[0]}, 'user', ${productiveUnitId || null}, false)
+        insert into users (id, email, password_hash, full_name, role, productive_unit_id, email_verified, must_change_password)
+        values (${crypto.randomUUID()}::uuid, ${email}, ${passwordHash}, ${email.split('@')[0]}, 'user', ${productiveUnitId || null}, false, true)
         on conflict (email) do nothing
         returning id, email, full_name, role::text as role, productive_unit_id, email_verified, created_at`;
 
       if (rows[0]) {
         createdUsers.push(rows[0]);
+        temporaryPasswords.push({ email, temporary_password: temporaryPassword });
       } else {
         skippedEmails.push(email);
       }
     }
 
-    return { createdUsers, skippedEmails };
+    return { createdUsers, skippedEmails, temporaryPasswords };
   }, { maxWait: 10_000, timeout: 60_000 });
 };

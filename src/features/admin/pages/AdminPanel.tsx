@@ -3,8 +3,9 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award, ChevronLeft, ChevronRight, Power } from 'lucide-react';
-import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult, DEFAULT_BADGE_LEGENDS } from '@/shared/types';
+import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult, DEFAULT_BADGE_LEGENDS, IssuedPassword } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
+import TemporaryPasswordsDialog from '@/features/admin/components/TemporaryPasswordsDialog';
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
@@ -138,6 +139,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isAwardingBadges, setIsAwardingBadges] = useState(false);
 
   const [bulkInviteEmails, setBulkInviteEmails] = useState('');
+  const [issuedPasswords, setIssuedPasswords] = useState<IssuedPassword[]>([]);
   const [bulkInviteProductiveUnitId, setBulkInviteProductiveUnitId] = useState('');
 
   const [viewingUserBadges, setViewingUserBadges] = useState<Profile | null>(null);
@@ -363,7 +365,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     const password = (formData.get('password') as string)?.trim();
 
     try {
-      await saveUserWithApi(userData, password);
+      const { temporaryPassword } = await saveUserWithApi(userData, password);
+      if (temporaryPassword) setIssuedPasswords([{ email: userData.email, temporary_password: temporaryPassword }]);
       invalidateCache('users');
       await refreshUsers();
       setIsUserModalOpen(false);
@@ -402,6 +405,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
     try {
       const result = await bulkInviteUsersWithApi(emails, validProductiveUnitId);
+      setIssuedPasswords(result.temporaryPasswords);
       invalidateCache('users');
       await refreshUsers();
       toast.success(
@@ -1437,8 +1441,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <input name="email" type="email" defaultValue={editingUser?.email} style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder="Ex: joao@empresa.com" required />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Senha de Acesso {!editingUser && '(Opcional - padrão: changeme123)'}</label>
-                <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder={editingUser ? "Deixe vazio para manter atual" : "Digite uma senha"} />
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{editingUser ? 'Redefinir Senha' : 'Senha Inicial'} (Opcional)</label>
+                <input name="password" type="password" style={{ textTransform: 'none' }} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900" placeholder={editingUser ? "Deixe vazio para manter a atual" : "Vazio: o sistema gera uma senha temporária"} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1612,6 +1616,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
         );
       })()}
 
+      <TemporaryPasswordsDialog passwords={issuedPasswords} onClose={() => setIssuedPasswords([])} />
     </div>
   );
 };

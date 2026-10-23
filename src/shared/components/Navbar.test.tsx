@@ -26,6 +26,7 @@ function renderNavbar(user: Profile, onLogout = vi.fn()) {
         />
         <Route path="/admin" element={<Navbar user={user} userBadges={[]} onLogout={onLogout} onToggleSidebar={vi.fn()} />} />
         <Route path="/" element={<div>Home Page</div>} />
+        <Route path="/settings" element={<div>Settings Page</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -77,6 +78,15 @@ describe('Navbar', () => {
 
     expect(onLogout).toHaveBeenCalledTimes(1);
     expect(screen.getByText('Home Page')).toBeInTheDocument();
+  });
+
+  it('opens "Meu perfil" (/settings) from the user chip', async () => {
+    const user = userEvent.setup();
+    renderNavbar(makeProfile({ role: 'user' }));
+
+    await user.click(screen.getByRole('link', { name: 'Meu perfil' }));
+
+    expect(screen.getByText('Settings Page')).toBeInTheDocument();
   });
 
   it('calls onToggleSidebar when the mobile menu button is clicked', async () => {

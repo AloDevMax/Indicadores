@@ -65,7 +65,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges = [], onLogout, onTogg
 
         {/* Direita: usuário + logout */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-lg bg-slate-50 border border-slate-100">
+          <Link
+            to="/settings"
+            aria-label="Meu perfil"
+            title="Meu perfil"
+            className="flex items-center gap-3 pl-3 pr-4 py-2 rounded-lg bg-slate-50 border border-slate-100 hover:border-brand-primary/40 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors"
+          >
             {/* Avatar com iniciais */}
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0 shadow-sm ${rolePill?.bg ?? 'bg-slate-400'}`}>
               {getInitials(user.full_name)}
@@ -76,7 +81,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, userBadges = [], onLogout, onTogg
               <span className="text-xs font-black text-slate-900">{user.full_name.split(' ')[0]}</span>
               <span className="text-[10px] font-semibold text-slate-400 mt-0.5">{roleSubtitle}</span>
             </div>
-          </div>
+          </Link>
 
           {/* Logout */}
           <button

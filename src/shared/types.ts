@@ -21,7 +21,15 @@ export interface Profile {
   created_at: string;
   email_verified?: boolean;
   is_active?: boolean;
+  /** Password was issued by an admin; the API stays locked until the user changes it. */
+  must_change_password?: boolean;
   notifications?: Notification[];
+}
+
+/** One-time password the server generated for an account an admin created. */
+export interface IssuedPassword {
+  email: string;
+  temporary_password: string;
 }
 
 export interface ProductiveUnit {

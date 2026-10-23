@@ -49,13 +49,17 @@ const App: React.FC = () => {
     );
   }
 
+  // Senha emitida pelo admin: até ser trocada, só a página Meu perfil fica disponível.
+  const isPasswordChangeRequired = Boolean(user?.must_change_password);
+  const hasFullAccess = Boolean(user) && !isPasswordChangeRequired;
+
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-50 flex flex-col">
         {user && <Navbar user={user} onLogout={handleLogout} onToggleSidebar={toggleSidebar} />}
 
         <div className="flex flex-1 overflow-hidden relative">
-          {user && (
+          {user && hasFullAccess && (
             <Sidebar
               user={user}
               isOpen={isSidebarOpen}
@@ -65,7 +69,13 @@ const App: React.FC = () => {
             />
           )}
 
-          <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-300 ${user ? 'md:ml-64 pb-24 md:pb-8' : ''}`}>
+          <main className={`flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-300 ${hasFullAccess ? 'md:ml-64 pb-24 md:pb-8' : ''}`}>
+            {user && isPasswordChangeRequired ? (
+              <Routes>
+                <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
+                <Route path="*" element={<Navigate to="/settings" replace />} />
+              </Routes>
+            ) : (
             <Routes>
               <Route
                 path="/"
@@ -116,9 +126,10 @@ const App: React.FC = () => {
               />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
+            )}
           </main>
 
-          {user && (
+          {user && hasFullAccess && (
             <BottomNav
               user={user}
               adminViewMode={adminViewMode}
@@ -126,7 +137,7 @@ const App: React.FC = () => {
             />
           )}
 
-          {user && (
+          {user && hasFullAccess && (
             <SolicitationModal
               isOpen={isSolicitationOpen}
               onClose={() => setIsSolicitationOpen(false)}

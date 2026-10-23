@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
-import { loginUser, getAuthenticatedUser, logoutUser } from './service.mjs';
+import { loginUser, getAuthenticatedUser, logoutUser, requireAuthenticatedUser } from './service.mjs';
 import { createSession } from './repository.mjs';
 import { createSessionToken, generateSessionId, hashPassword } from './crypto.mjs';
 import { resetDatabase } from '../test/db.mjs';
@@ -139,5 +139,49 @@ describe('logoutUser', () => {
 
     const afterLogout = await getAuthenticatedUser(`Bearer ${token}`);
     expect(afterLogout.status).toBe(401);
+  });
+});
+
+describe('pending password change', () => {
+  const loginFlaggedUser = async () => {
+    const email = uniqueEmail();
+    await createTestUser({ email, password: 'temporaria1', full_name: 'Flagged User', role: 'user', must_change_password: true });
+    const result = await loginUser({ email, password: 'temporaria1' });
+    return { result, header: `Bearer ${result.body.token}` };
+  };
+
+  it('loginUser still succeeds and tells the client the password must be changed', async () => {
+    const { result } = await loginFlaggedUser();
+
+    expect(result.status).toBe(200);
+    expect(result.body.user.must_change_password).toBe(true);
+  });
+
+  it('loginUser reports must_change_password: false for a regular user', async () => {
+    const { email, token } = await loginNewUser();
+
+    const result = await getAuthenticatedUser(`Bearer ${token}`);
+
+    expect(result.body.user).toMatchObject({ email, must_change_password: false });
+  });
+
+  it('getAuthenticatedUser accepts the session (used by /me, logout and the password change itself)', async () => {
+    const { header } = await loginFlaggedUser();
+
+    const result = await getAuthenticatedUser(header);
+
+    expect(result.status).toBe(200);
+    expect(result.body.user.must_change_password).toBe(true);
+  });
+
+  it('requireAuthenticatedUser blocks every other route with 403 PASSWORD_CHANGE_REQUIRED', async () => {
+    const { header } = await loginFlaggedUser();
+
+    const result = await requireAuthenticatedUser(header);
+
+    expect(result).toEqual({
+      status: 403,
+      body: { error: 'Troque sua senha antes de continuar.', code: 'PASSWORD_CHANGE_REQUIRED' },
+    });
   });
 });
