@@ -5,7 +5,6 @@ import { resetDatabase } from '../test/db.mjs';
 import { verifyPassword } from './crypto.mjs';
 import {
   createSession,
-  createUser,
   ensureBuiltInDeveloper,
   findActiveSession,
   findUserByEmail,
@@ -143,46 +142,6 @@ describe('ensureBuiltInDeveloper', () => {
 
     const stored = await prisma.user.findUnique({ where: { id: existing.id } });
     expect(stored.role).toBe('admin');
-    expect(await prisma.user.count()).toBe(1);
-  });
-});
-
-describe('createUser', () => {
-  it('creates a user with a normalized email and returns it without the password hash', async () => {
-    const user = await createUser({ email: '  Bia@Example.COM ', passwordHash: 'hash-bia', fullName: 'Bia Lima' });
-
-    expect(user).toEqual({
-      id: expect.stringMatching(/^[0-9a-f-]{36}$/),
-      email: 'bia@example.com',
-      full_name: 'Bia Lima',
-      role: 'user',
-      productive_unit_id: null,
-      email_verified: false,
-      is_active: true,
-      created_at: expect.any(Date),
-    });
-
-    const stored = await prisma.user.findUnique({ where: { id: user.id } });
-    expect(stored.password_hash).toBe('hash-bia');
-  });
-
-  it('marks admins as verified', async () => {
-    const user = await createUser({ email: 'admin2@example.com', passwordHash: 'h', fullName: 'Admin', role: 'admin' });
-
-    expect(user.role).toBe('admin');
-    expect(user.email_verified).toBe(true);
-  });
-
-  it('never creates a developer: the role is downgraded to user', async () => {
-    const user = await createUser({ email: 'dev2@example.com', passwordHash: 'h', fullName: 'Dev', role: 'developer' });
-
-    expect(user.role).toBe('user');
-  });
-
-  it('rejects a duplicate email', async () => {
-    await insertUser({ email: 'ana@example.com' });
-
-    await expect(createUser({ email: 'ana@example.com', passwordHash: 'h', fullName: 'Ana 2' })).rejects.toThrow();
     expect(await prisma.user.count()).toBe(1);
   });
 });

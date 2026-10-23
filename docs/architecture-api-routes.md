@@ -1,7 +1,7 @@
 # Key API Routes
 
 ```
-POST /api/auth/login|register|logout
+POST /api/auth/login|logout                # no self-registration: accounts come from POST /api/admin/users
 GET  /api/auth/me
 GET  /api/health
 

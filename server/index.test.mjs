@@ -42,9 +42,8 @@ const uniqueEmail = (label) => `${label}-${crypto.randomUUID()}@example.com`;
 /**
  * Builds a real Bearer token for an arbitrary role, following the same
  * session-minting steps as service.test.mjs's "returns 200 with the user on
- * a valid session" case (registerUser only ever creates role: 'user', so
- * admin/supervisor/developer sessions are built directly against the
- * repository + crypto layers instead).
+ * a valid session" case: sessions are built directly against the
+ * repository + crypto layers for any role.
  */
 const authHeaderFor = async (role, overrides = {}) => {
   if (overrides.productive_unit_id) {
@@ -66,6 +65,14 @@ const authHeaderFor = async (role, overrides = {}) => {
   const token = createSessionToken({ sessionId, userId: user.id, role });
 
   return { header: `Bearer ${token}`, user };
+};
+
+/** Creates a plain user and logs in over HTTP, returning the real token. */
+const loginOverHttp = async (label, password = 'password1') => {
+  const email = uniqueEmail(label);
+  await createTestUser({ email, password, full_name: `HTTP ${label}`, role: 'user' });
+  const response = await request(app).post('/api/auth/login').send({ email, password });
+  return { email, token: response.body.token };
 };
 
 const MALFORMED_HEADER = 'Bearer not-a-real-token';
@@ -217,12 +224,9 @@ describe('read routes that require a session', () => {
     );
   });
 
-  it('GET /api/users includes a user registered via POST /api/auth/register (regression test for the listUsers wrong-import bug)', async () => {
+  it('GET /api/users includes a user created after startup (regression test for the listUsers wrong-import bug)', async () => {
     const email = uniqueEmail('users-list-visibility');
-    const registerResponse = await request(app)
-      .post('/api/auth/register')
-      .send({ email, password: 'password1', full_name: 'Users List Visibility' });
-    expect(registerResponse.status).toBe(201);
+    await createTestUser({ email, full_name: 'Users List Visibility', role: 'user' });
     const { header } = await authHeaderFor('admin');
 
     const response = await request(app).get('/api/users').set('Authorization', header);
@@ -446,30 +450,20 @@ describe('auth flow routes (HTTP layer over the real service functions)', () => 
   // Exact status/body shapes for these are already characterized by
   // server/auth/service.test.mjs; this only confirms the HTTP wiring.
 
-  it('POST /api/auth/register returns 201 with a token and user on success', async () => {
-    const email = uniqueEmail('register-http');
+  it('POST /api/auth/register no longer exists: self-registration is disabled', async () => {
+    const email = uniqueEmail('register-disabled');
 
     const response = await request(app)
       .post('/api/auth/register')
-      .send({ email, password: 'password1', full_name: 'HTTP Register' });
+      .send({ email, password: 'password1', full_name: 'Should Not Exist' });
 
-    expect(response.status).toBe(201);
-    expect(response.body.user).toMatchObject({ email, full_name: 'HTTP Register', role: 'user' });
-    expect(typeof response.body.token).toBe('string');
-  });
-
-  it('POST /api/auth/register returns 400 for an invalid email', async () => {
-    const response = await request(app)
-      .post('/api/auth/register')
-      .send({ email: 'not-an-email', password: 'password1', full_name: 'X' });
-
-    expect(response.status).toBe(400);
-    expect(response.body.error).toBe('Dados inválidos.');
+    expect(response.status).toBe(404);
+    expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
   });
 
   it('POST /api/auth/login returns 200 with a token on valid credentials', async () => {
     const email = uniqueEmail('login-http');
-    await request(app).post('/api/auth/register').send({ email, password: 'correct-password', full_name: 'HTTP Login' });
+    await createTestUser({ email, password: 'correct-password', full_name: 'HTTP Login', role: 'user' });
 
     const response = await request(app).post('/api/auth/login').send({ email, password: 'correct-password' });
 
@@ -488,14 +482,11 @@ describe('auth flow routes (HTTP layer over the real service functions)', () => 
   });
 
   it('GET /api/auth/me returns 200 with the user on a valid session', async () => {
-    const email = uniqueEmail('me-http');
-    const registerResponse = await request(app)
-      .post('/api/auth/register')
-      .send({ email, password: 'password1', full_name: 'HTTP Me' });
+    const { email, token } = await loginOverHttp('me-http');
 
     const response = await request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${registerResponse.body.token}`);
+      .set('Authorization', `Bearer ${token}`);
 
     expect(response.status).toBe(200);
     expect(response.body.user).toMatchObject({ email });
@@ -509,11 +500,8 @@ describe('auth flow routes (HTTP layer over the real service functions)', () => 
   });
 
   it('POST /api/auth/logout revokes the session and returns { success: true }', async () => {
-    const email = uniqueEmail('logout-http');
-    const registerResponse = await request(app)
-      .post('/api/auth/register')
-      .send({ email, password: 'password1', full_name: 'HTTP Logout' });
-    const token = `Bearer ${registerResponse.body.token}`;
+    const { token: rawToken } = await loginOverHttp('logout-http');
+    const token = `Bearer ${rawToken}`;
 
     const logoutResponse = await request(app).post('/api/auth/logout').set('Authorization', token);
     expect(logoutResponse.status).toBe(200);

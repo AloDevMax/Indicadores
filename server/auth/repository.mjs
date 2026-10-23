@@ -118,26 +118,6 @@ export const ensureBuiltInDeveloper = async () => {
   return mapUserRow(createdUser);
 };
 
-export const createUser = async ({ email, passwordHash, fullName, role = 'user' }) => {
-  const normalizedEmail = email.toLowerCase().trim();
-  const safeRole = role === 'developer' ? 'user' : role;
-  const { avatar_url: _avatarUrl, ...createSelect } = USER_SELECT;
-
-  const user = await prisma.user.create({
-    data: {
-      id: crypto.randomUUID(),
-      email: normalizedEmail,
-      password_hash: passwordHash,
-      full_name: fullName,
-      role: safeRole,
-      email_verified: safeRole === 'admin',
-    },
-    select: createSelect,
-  });
-
-  return mapUserRow(user);
-};
-
 export const createSession = async ({ sessionId, userId, expiresAt }) => {
   await prisma.authSession.create({
     data: { id: sessionId, user_id: userId, expires_at: new Date(expiresAt) },

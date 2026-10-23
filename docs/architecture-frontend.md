@@ -23,16 +23,14 @@ src/
 │   │                        # ImageUpload, ToastContainer
 │   └── lib/                 # cn (classnames), toast
 └── features/
-    ├── auth/pages/          # Landing, Login, Register
-    ├── dashboard/pages/     # Dashboard, Overview
+    ├── auth/pages/          # Login (unauthenticated `/` redirects here)
+    ├── dashboard/pages/     # Dashboard
     ├── badges/
     │   ├── badgeMetrics.ts  # tone weights + monthly aggregation
     │   ├── components/      # BadgeCard, SolicitationModal
     │   └── pages/           # UserBadgesPage
-    ├── admin/pages/         # AdminPanel (large), AwardBadges, Requests,
-    │                        # Explorers, Library, CompaniesPage,
-    │                        # CompanyUnitsPage
-    ├── ranking/pages/       # Ranking, GlobalRanking
+    ├── admin/pages/         # AdminPanel (large; all admin views)
+    ├── ranking/pages/       # Ranking
     └── settings/pages/      # Settings
 ```
 

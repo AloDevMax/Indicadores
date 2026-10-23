@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'url';
 import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
-import { getAuthenticatedUser, loginUser, logoutUser, registerUser, requireAuthenticatedUser } from './auth/service.mjs';
+import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser } from './auth/service.mjs';
 import { listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges, updateUserProfile } from './admin/repository.mjs';
@@ -144,11 +144,6 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
 
   app.post('/api/auth/login', asyncRoute(async (req, res) => {
     const result = await loginUser(req.body);
-    res.status(result.status).json(result.body);
-  }));
-
-  app.post('/api/auth/register', asyncRoute(async (req, res) => {
-    const result = await registerUser(req.body);
     res.status(result.status).json(result.body);
   }));
 
