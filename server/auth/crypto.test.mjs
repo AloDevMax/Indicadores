@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
+  DUMMY_PASSWORD_HASH,
   createSessionToken,
   generateSessionId,
   generateTemporaryPassword,
@@ -72,5 +73,13 @@ describe('generateTemporaryPassword', () => {
     const passwords = new Set(Array.from({ length: 50 }, () => generateTemporaryPassword()));
 
     expect(passwords.size).toBe(50);
+  });
+});
+
+describe('DUMMY_PASSWORD_HASH', () => {
+  it('is a well-formed scrypt hash that no password matches, so a login for an unknown e-mail costs the same scrypt run', async () => {
+    expect(DUMMY_PASSWORD_HASH).toMatch(/^scrypt:[0-9a-f]{32}:[0-9a-f]{128}$/);
+    expect(await verifyPassword('', DUMMY_PASSWORD_HASH)).toBe(false);
+    expect(await verifyPassword('qualquer-senha', DUMMY_PASSWORD_HASH)).toBe(false);
   });
 });

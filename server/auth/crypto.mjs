@@ -43,6 +43,10 @@ export const verifyPassword = async (password, storedHash) => {
   return crypto.timingSafeEqual(expectedBuffer, actualBuffer);
 };
 
+// Hash de uma senha aleatória descartada: nenhuma senha confere. O login de um e-mail inexistente
+// verifica contra ele, para gastar o mesmo scrypt e não revelar pelo tempo de resposta quem tem conta.
+export const DUMMY_PASSWORD_HASH = 'scrypt:8d52a9d0a03302de38c3adf2055bb090:36efa9f18098eb11638445217bef0080206487bee506e1e888b1cfb01854288a6830288832803497c26f926a3b2e405a7fd5655a97c405e5ce24917d227aae30';
+
 const sign = (payload) =>
   crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('base64url');
 

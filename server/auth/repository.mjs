@@ -131,6 +131,14 @@ export const revokeSession = async (sessionId) => {
     where id = ${sessionId}::uuid`;
 };
 
+// Encerra as sessões ativas do usuário, menos a indicada (a de quem acabou de trocar a própria senha).
+export const revokeUserSessions = async (userId, { exceptSessionId = null } = {}) => {
+  await prisma.authSession.updateMany({
+    where: { user_id: userId, revoked_at: null, ...(exceptSessionId && { id: { not: exceptSessionId } }) },
+    data: { revoked_at: new Date() },
+  });
+};
+
 export const publicUser = sanitizeUser;
 
 export const listUsers = async () =>
