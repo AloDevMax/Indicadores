@@ -21,7 +21,11 @@ const port = env.PORT;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const frontendPath = path.resolve(__dirname, '..');
+// Só o build do Vite (dist/client) é público: servir a pasta acima de server/ publicava o código do
+// servidor (dist/server/*.mjs em produção; server/, prisma/ e package.json rodando do código-fonte).
+// Rodando de dist/server ou de server/, os dois caminhos levam a <repo>/dist/client.
+const isBuiltServer = path.basename(path.dirname(__dirname)) === 'dist';
+const CLIENT_BUILD_DIR = path.resolve(__dirname, isBuiltServer ? '../client' : '../dist/client');
 
 const asyncRoute = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -118,7 +122,7 @@ const isAcceptableAvatarUrl = async ({ id, avatar_url: avatarUrl }) => {
   return avatarUrl === await findUserAvatarUrl(id);
 };
 
-export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
+export function createApp({ storageDriver = env.STORAGE_DRIVER, clientDir = CLIENT_BUILD_DIR } = {}) {
   const app = express();
 
   app.use(express.json());
@@ -136,22 +140,23 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
     next();
   });
 
-  app.use(express.static(frontendPath, {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('index.html')) {
-        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-      }
-    },
-  }));
-
   // Com o driver supabase, os arquivos são servidos pelo Storage. Uma URL /uploads/ que sobrou
-  // no banco responde 404, em vez de cair no index.html da SPA.
+  // no banco responde 404, em vez de cair no index.html da SPA. Vem antes do build do cliente:
+  // o Vite copia public/ (inclusive uploads/ de dev) para dentro dele.
   if (storageDriver === 'local') {
     fs.mkdirSync(LOCAL_UPLOADS_DIR, { recursive: true });
     app.use('/uploads', express.static(LOCAL_UPLOADS_DIR));
   } else {
     app.use('/uploads', (_req, res) => res.status(404).end());
   }
+
+  app.use(express.static(clientDir, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      }
+    },
+  }));
 
   app.use('/api/upload', uploadRouter);
 
@@ -439,7 +444,7 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
 
   app.get('*', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.sendFile(path.join(frontendPath, 'index.html'));
+    res.sendFile(path.join(clientDir, 'index.html'));
   });
 
   return app;
