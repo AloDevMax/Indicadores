@@ -6,9 +6,9 @@ import { fileURLToPath } from 'url';
 import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
-import { listUsers } from './auth/repository.mjs';
+import { findUserById, listUsers } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
+import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
@@ -80,6 +80,19 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
   );
 
   return targetUserIds.every((targetUserId) => allowedUserIds.has(targetUserId));
+};
+
+// Editar uma conta exige alcançá-la como ela está no banco, não só pelos dados enviados:
+// senão um supervisor "trazia" para a própria unidade (e redefinia a senha de) qualquer conta.
+const reasonToDenyEditing = (editor, target) => {
+  if (isDeveloper(editor)) return null;
+  if (isDeveloper(target)) return 'Somente o desenvolvedor pode alterar essa conta.';
+  if (!isSupervisor(editor)) return null;
+
+  const isOwnUnitCollaborator = target.role === 'user'
+    && Boolean(editor.productive_unit_id)
+    && target.productive_unit_id === editor.productive_unit_id;
+  return isOwnUnitCollaborator ? null : 'Supervisores só podem editar colaboradores da própria unidade produtiva.';
 };
 
 const ensureSubmissionWithinScope = async (user, submissionId) => {
@@ -289,12 +302,23 @@ export function createApp({ storageDriver = env.STORAGE_DRIVER } = {}) {
       return res.status(400).json({ error: 'Você não pode desativar seu próprio usuário.' });
     }
 
+    const existingUser = req.body.id ? await findUserById(req.body.id) : null;
+    const denialReason = existingUser && reasonToDenyEditing(auth.body.user, existingUser);
+    if (denialReason) {
+      return res.status(403).json({ error: denialReason });
+    }
+
     if (!(await isAcceptableAvatarUrl(req.body))) {
       return res.status(400).json({ error: 'Avatar inválido: envie a imagem pelo upload.' });
     }
 
-    const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
-    res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
+    try {
+      const { temporary_password: temporaryPassword, ...user } = await saveUser(req.body, req.body.password);
+      res.status(201).json(temporaryPassword ? { user, temporary_password: temporaryPassword } : { user });
+    } catch (error) {
+      if (error instanceof DuplicateEmailError) return res.status(409).json({ error: error.message });
+      throw error;
+    }
   }));
 
   app.post('/api/admin/badges', asyncRoute(async (req, res) => {

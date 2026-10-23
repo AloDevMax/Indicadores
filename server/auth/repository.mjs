@@ -9,25 +9,15 @@ const BUILT_IN_DEVELOPER = {
   password: env.DEVELOPER_INITIAL_PASSWORD,
   full_name: 'Alo de Castro',
   role: 'developer',
-  persisted_role: 'admin',
   email_verified: true,
 };
-
-const normalizeSystemRole = (email, role) => (
-  email?.toLowerCase?.() === BUILT_IN_DEVELOPER.email ? 'developer' : role
-);
-
-const mapUserRow = (user) => ({
-  ...user,
-  role: normalizeSystemRole(user.email, user.role),
-});
 
 const sanitizeUser = (user) => ({
   id: user.id,
   email: user.email,
   full_name: user.full_name,
   avatar_url: user.avatar_url,
-  role: normalizeSystemRole(user.email, user.role),
+  role: user.role,
   productive_unit_id: user.productive_unit_id || undefined,
   created_at: user.created_at,
   email_verified: Boolean(user.email_verified),
@@ -74,15 +64,10 @@ const findUserRowByEmail = async (email) => {
   return rows[0] || null;
 };
 
-export const findUserByEmail = async (email) => {
-  const user = await findUserRowByEmail(email.toLowerCase().trim());
-  return user ? mapUserRow(user) : null;
-};
+export const findUserByEmail = async (email) => findUserRowByEmail(email.toLowerCase().trim());
 
-export const findUserById = async (userId) => {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
-  return user ? mapUserRow(user) : null;
-};
+export const findUserById = async (userId) =>
+  prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
 
 export const ensureBuiltInDeveloper = async () => {
   const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
@@ -94,14 +79,14 @@ export const ensureBuiltInDeveloper = async () => {
       data: {
         password_hash: passwordHash,
         full_name: BUILT_IN_DEVELOPER.full_name,
-        role: BUILT_IN_DEVELOPER.persisted_role,
+        role: BUILT_IN_DEVELOPER.role,
         email_verified: BUILT_IN_DEVELOPER.email_verified,
         updated_at: new Date(),
       },
       select: USER_WITH_PASSWORD_SELECT,
     });
 
-    return mapUserRow(updatedUser);
+    return updatedUser;
   }
 
   // O retorno da criação nunca incluiu is_active; mantido assim.
@@ -112,13 +97,13 @@ export const ensureBuiltInDeveloper = async () => {
       email: BUILT_IN_DEVELOPER.email,
       password_hash: passwordHash,
       full_name: BUILT_IN_DEVELOPER.full_name,
-      role: BUILT_IN_DEVELOPER.persisted_role,
+      role: BUILT_IN_DEVELOPER.role,
       email_verified: BUILT_IN_DEVELOPER.email_verified,
     },
     select: createSelect,
   });
 
-  return mapUserRow(createdUser);
+  return createdUser;
 };
 
 export const createSession = async ({ sessionId, userId, expiresAt }) => {
@@ -148,7 +133,5 @@ export const revokeSession = async (sessionId) => {
 
 export const publicUser = sanitizeUser;
 
-export const listUsers = async () => {
-  const users = await prisma.user.findMany({ select: USER_SELECT, orderBy: { created_at: 'asc' } });
-  return users.map(mapUserRow);
-};
+export const listUsers = async () =>
+  prisma.user.findMany({ select: USER_SELECT, orderBy: { created_at: 'asc' } });

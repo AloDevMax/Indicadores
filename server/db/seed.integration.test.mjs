@@ -24,7 +24,7 @@ describe('runSeed', () => {
 
     expect(await counts()).toEqual({ users: 1, developers: 1, badges: 0, productiveUnits: 0, importSources: 0 });
     expect(await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } })).toMatchObject({
-      full_name: 'Alo de Castro', role: 'admin', email_verified: true,
+      full_name: 'Alo de Castro', role: 'developer', email_verified: true,
     });
   });
 
