@@ -32,7 +32,8 @@ server/
 ├── test/                       # test-only helpers: globalSetup, resetDatabase, fixtures
 └── uploads/
     ├── uploadRoutes.mjs        # /api/upload router (multipart receive)
-    ├── uploadService.mjs       # validate image, name it, hand it to the storage driver
+    ├── uploadService.mjs       # validate image, optimize it, name it, hand it to the storage driver
+    ├── imageProcessing.mjs     # sharp: resize per kind (avatar 256² crop, badge/company ≤512px) → WebP, keeps GIF animation
     ├── storage/                # driver by STORAGE_DRIVER: localStorage (public/uploads) | supabaseStorage (bucket)
     └── multipartParser.mjs     # Busboy wrapper
 ```

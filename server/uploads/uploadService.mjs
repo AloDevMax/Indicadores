@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { optimizeImage } from './imageProcessing.mjs';
 import { getStorage } from './storage/index.mjs';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -13,16 +14,13 @@ export const validateImageFile = (mimeType, size) => {
   }
 };
 
-const EXT_MAP = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
-
-export const saveUploadedFile = async (buffer, mimeType, _filename) => {
+// kind: 'avatar' | 'badge' | 'company' — define o tamanho final (ver imageProcessing.mjs).
+export const saveUploadedFile = async (buffer, mimeType, kind) => {
   validateImageFile(mimeType, buffer.length);
 
-  const ext = EXT_MAP[mimeType];
-  if (!ext) throw new Error('Tipo de arquivo não suportado.');
-
-  const uniqueName = `${crypto.randomBytes(8).toString('hex')}-${Date.now()}.${ext}`;
-  return getStorage().put(uniqueName, buffer, mimeType);
+  const optimized = await optimizeImage(buffer, kind);
+  const uniqueName = `${crypto.randomBytes(8).toString('hex')}-${Date.now()}.${optimized.ext}`;
+  return getStorage().put(uniqueName, optimized.buffer, optimized.mimeType);
 };
 
 // true só para URLs que o storage atual emitiu (ex.: /uploads/<nome> ou a URL pública do bucket).

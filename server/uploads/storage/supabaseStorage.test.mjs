@@ -29,7 +29,11 @@ describe('createSupabaseStorage', () => {
     const url = await storage.put('a.png', buffer, 'image/png');
 
     expect(client.storage.from).toHaveBeenCalledWith('uploads');
-    expect(bucket.upload).toHaveBeenCalledWith('a.png', buffer, { contentType: 'image/png', upsert: false });
+    expect(bucket.upload).toHaveBeenCalledWith('a.png', buffer, {
+      contentType: 'image/png',
+      upsert: false,
+      cacheControl: '31536000',
+    });
     expect(url).toBe(PUBLIC_URL);
   });
 

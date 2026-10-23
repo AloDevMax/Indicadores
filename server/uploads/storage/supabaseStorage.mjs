@@ -1,6 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { nameFromUrl } from './localStorage.mjs';
 
+// Nomes de objeto são únicos e nunca sobrescritos (upsert: false), então o
+// navegador e a CDN podem guardar o arquivo por 1 ano — economiza egress.
+const CACHE_CONTROL_SECONDS = '31536000';
+
 export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
   const publicPrefix = `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/`;
   const objects = () => client.storage.from(bucket);
@@ -17,7 +21,11 @@ export const createSupabaseStorage = ({ client, supabaseUrl, bucket }) => {
     },
 
     async put(name, buffer, mimeType) {
-      const { error } = await objects().upload(name, buffer, { contentType: mimeType, upsert: false });
+      const { error } = await objects().upload(name, buffer, {
+        contentType: mimeType,
+        upsert: false,
+        cacheControl: CACHE_CONTROL_SECONDS,
+      });
       if (error) {
         // A mensagem original pode conter detalhes da requisição; não sai do servidor.
         console.error('Falha no upload para o Supabase Storage:', error.statusCode ?? error.name ?? 'erro');
