@@ -8,7 +8,7 @@ import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
 import { findUserById, listUsers, revokeUserSessions } from './auth/repository.mjs';
-import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionForReview, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
@@ -101,13 +101,9 @@ const reasonToDenyEditing = (editor, target) => {
   return isOwnUnitCollaborator ? null : 'Supervisores só podem editar colaboradores da própria unidade produtiva.';
 };
 
-const ensureSubmissionWithinScope = async (user, submissionId) => {
+const ensureSubmissionWithinScope = (user, submission) => {
   if (isDeveloper(user)) return true;
-
-  const owner = await findSubmissionOwnerUnit(submissionId);
-  if (!owner) return false;
-
-  return owner.productive_unit_id === user.productive_unit_id;
+  return submission.productive_unit_id === user.productive_unit_id;
 };
 
 /**
@@ -307,8 +303,18 @@ export function createApp({
     if (!canManageUnit(auth.body.user)) {
       return res.status(403).json({ error: 'Acesso restrito.' });
     }
-    if (!(await ensureSubmissionWithinScope(auth.body.user, req.params.id))) {
+    const submission = await findSubmissionForReview(req.params.id);
+    if (!submission) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' });
+    }
+    if (!ensureSubmissionWithinScope(auth.body.user, submission)) {
       return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
+    }
+    if (submission.user_id === auth.body.user.id) {
+      return res.status(403).json({ error: 'Você não pode revisar a própria solicitação.' });
+    }
+    if (submission.status !== 'pending') {
+      return res.status(409).json({ error: 'Esta solicitação já foi revisada.' });
     }
 
     const result = await reviewSubmission({

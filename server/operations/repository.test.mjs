@@ -62,7 +62,7 @@ describe('reviewSubmission', () => {
   it('throws when the submission does not exist', async () => {
     const reviewer = await makeUser({ role: 'admin' });
     await expect(reviewSubmission({ submissionId: crypto.randomUUID(), reviewerId: reviewer.id, status: 'approved' }))
-      .rejects.toThrow('Solicitação não encontrada.');
+      .rejects.toThrow('Solicitação não encontrada ou já revisada.');
   });
 
   it('approves a submission and awards the badge', async () => {
