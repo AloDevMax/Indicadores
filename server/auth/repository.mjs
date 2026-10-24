@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { env } from '../config/env.mjs';
+import { developerPasswordProblem, env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from './crypto.mjs';
 
@@ -71,14 +71,20 @@ export const findUserById = async (userId) =>
 
 // DEVELOPER_INITIAL_PASSWORD só vale na criação: o seed roda a cada release e não pode desfazer a senha
 // que o developer escolheu. resetPassword (seed --reset-developer-password) é o caminho de recuperação.
-export const ensureBuiltInDeveloper = async ({ resetPassword = false } = {}) => {
+const hashDeveloperPassword = (password) => {
+  const problem = developerPasswordProblem(password, env);
+  if (problem) throw new Error(`DEVELOPER_INITIAL_PASSWORD: ${problem}`);
+  return hashPassword(password);
+};
+
+export const ensureBuiltInDeveloper = async ({ resetPassword = false, password = BUILT_IN_DEVELOPER.password } = {}) => {
   const existingUser = await findUserRowByEmail(BUILT_IN_DEVELOPER.email);
 
   if (existingUser) {
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        ...(resetPassword && { password_hash: await hashPassword(BUILT_IN_DEVELOPER.password) }),
+        ...(resetPassword && { password_hash: await hashDeveloperPassword(password) }),
         full_name: BUILT_IN_DEVELOPER.full_name,
         role: BUILT_IN_DEVELOPER.role,
         email_verified: BUILT_IN_DEVELOPER.email_verified,
@@ -96,7 +102,7 @@ export const ensureBuiltInDeveloper = async ({ resetPassword = false } = {}) => 
     data: {
       id: crypto.randomUUID(),
       email: BUILT_IN_DEVELOPER.email,
-      password_hash: await hashPassword(BUILT_IN_DEVELOPER.password),
+      password_hash: await hashDeveloperPassword(password),
       full_name: BUILT_IN_DEVELOPER.full_name,
       role: BUILT_IN_DEVELOPER.role,
       email_verified: BUILT_IN_DEVELOPER.email_verified,
