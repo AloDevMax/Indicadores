@@ -90,7 +90,6 @@ describe('auth guard matrix', () => {
     { method: 'post', path: '/api/admin/import-monthly-badges' },
     { method: 'post', path: '/api/admin/award-badges' },
     { method: 'post', path: '/api/admin/user-badges/remove' },
-    { method: 'post', path: '/api/admin/users/delete' },
     { method: 'post', path: '/api/admin/productive-units' },
     { method: 'post', path: '/api/admin/users/bulk-invite' },
   ])('$method $path', ({ method, path }) => {
@@ -528,7 +527,7 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     // with no further ensureUsersWithinScope() call, so a plain 'admin' role
     // (not 'developer') can reach 200 here without needing a productive_unit_id
     // fixture. Several of the other guarded routes (award-badges,
-    // import-monthly-badges, user-badges/remove, users/delete) call
+    // import-monthly-badges, user-badges/remove) call
     // ensureUsersWithinScope(), which — since the listUsers() wrong-import bug
     // fix — resolves the caller's allowed user ids via real
     // productive_unit_id matching against server/auth/repository.mjs's
@@ -1453,37 +1452,15 @@ describe('escopo de unidade produtiva: admin alcança tudo, supervisor só a pr�
   });
 });
 
-describe('POST /api/admin/users/delete — quem pode excluir uma conta', () => {
-  const remove = (manager, id) => request(app).post('/api/admin/users/delete').set('Authorization', manager.header).send({ id });
-
-  it('admin não exclui a conta do developer', async () => {
+describe('contas não são excluídas, só desativadas', () => {
+  it('POST /api/admin/users/delete não existe mais e a conta continua no banco', async () => {
     const admin = await authHeaderFor('admin');
-    const developer = await authHeaderFor('developer');
+    const someone = await authHeaderFor('user');
 
-    const response = await remove(admin, developer.user.id);
+    const response = await request(app).post('/api/admin/users/delete').set('Authorization', admin.header)
+      .send({ id: someone.user.id });
 
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'Somente o desenvolvedor pode alterar essa conta.' });
-    expect(await prisma.user.findUnique({ where: { id: developer.user.id } })).not.toBeNull();
-  });
-
-  it('supervisor não exclui um admin da própria unidade', async () => {
-    const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-del-a' });
-    const admin = await authHeaderFor('admin', { productive_unit_id: 'pu-del-a' });
-
-    const response = await remove(supervisor, admin.user.id);
-
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'Supervisores só podem editar colaboradores da própria unidade produtiva.' });
-  });
-
-  it('admin exclui um colaborador de qualquer unidade', async () => {
-    const admin = await authHeaderFor('admin', { productive_unit_id: 'pu-del-a' });
-    await prisma.productiveUnit.upsert({ where: { id: 'pu-del-b' }, create: { id: 'pu-del-b', name: 'Unidade pu-del-b' }, update: {} });
-    // Sem sessão: excluir um usuário que já tem sessão esbarra na FK auth_sessions_user_id_fkey (bug à parte).
-    const someone = await createTestUser({ email: uniqueEmail('del'), full_name: 'Excluir', role: 'user', productive_unit_id: 'pu-del-b' });
-
-    expect((await remove(admin, someone.id)).status).toBe(200);
-    expect(await prisma.user.findUnique({ where: { id: someone.id } })).toBeNull();
+    expect(response.status).toBe(404);
+    expect(await prisma.user.findUnique({ where: { id: someone.user.id } })).not.toBeNull();
   });
 });

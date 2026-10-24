@@ -204,10 +204,6 @@ export const bulkInviteUsersWithApi = async (emails: string[], productiveUnitId?
   );
 };
 
-export const deleteUserWithApi = async (id: string) => {
-  await postJson('/api/admin/users/delete', { id }, requireAuthToken());
-};
-
 export const awardBadgesWithApi = async (userIds: string[], badgeId: string, tone: BadgeTone) => {
   const payload = await postJson<{ awardedBadges: UserBadge[] }>(
     '/api/admin/award-badges',

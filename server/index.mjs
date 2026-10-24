@@ -9,7 +9,7 @@ import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
 import { findUserById, listUsers, revokeUserSessions } from './auth/repository.mjs';
 import { awardBadges, createSubmission, findSubmissionForReview, SubmissionNotPendingError, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
-import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
+import { DuplicateEmailError, bulkInviteUsers, deleteBadge, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
 import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
@@ -391,21 +391,6 @@ export function createApp({
       return res.status(403).json({ error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' });
     }
     const result = await deleteBadge(req.body.id);
-    res.status(200).json(result);
-  }));
-
-  app.post('/api/admin/users/delete', asyncRoute(async (req, res) => {
-    const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
-    if (!(await ensureUsersWithinScope(auth.body.user, [req.body.id].filter(Boolean)))) {
-      return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
-    }
-    // Mesma regra da edição: sem ela, qualquer admin excluía a conta do developer.
-    const target = req.body.id ? await findUserById(req.body.id) : null;
-    const denialReason = target && reasonToDenyEditing(auth.body.user, target);
-    if (denialReason) return res.status(403).json({ error: denialReason });
-
-    const result = await deleteUser(req.body.id);
     res.status(200).json(result);
   }));
 
