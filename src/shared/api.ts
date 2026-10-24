@@ -143,6 +143,26 @@ const requireAuthToken = () => {
   return token;
 };
 
+export type UploadEndpoint = 'badge-image' | 'user-avatar';
+export type UploadField = 'image' | 'avatar';
+
+// multipart/form-data: sem Content-Type manual, o navegador define o boundary.
+export const uploadImageWithApi = async (endpoint: UploadEndpoint, fieldName: UploadField, file: File): Promise<string> => {
+  const token = requireAuthToken();
+  const formData = new FormData();
+  formData.append(fieldName, file);
+
+  const response = await fetch(`${getApiBaseUrl()}/api/upload/${endpoint}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+
+  const payload = (await response.json()) as { imageUrl?: string; avatarUrl?: string };
+  return payload.imageUrl || payload.avatarUrl || '';
+};
+
 export const saveBadgeWithApi = async (badge: Badge) => {
   const payload = await postJson<{ badge: Badge }>('/api/admin/badges', badge, requireAuthToken());
   return payload.badge;

@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
+import { uploadImageWithApi, type UploadEndpoint, type UploadField } from '@/shared/api';
 
 interface ImageUploadProps {
   label: string;
   currentImageUrl?: string;
   onImageUpload: (imageUrl: string) => void;
-  uploadEndpoint: 'badge-image' | 'company-logo' | 'user-avatar';
-  fieldName: 'image' | 'logo' | 'avatar';
+  uploadEndpoint: UploadEndpoint;
+  fieldName: UploadField;
   accepts?: string;
 }
 
@@ -35,23 +36,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setIsUploading(true);
     setError('');
 
-    const formData = new FormData();
-    formData.append(fieldName, file);
-
     try {
-      const response = await fetch(`/api/upload/${uploadEndpoint}`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Erro ao fazer upload');
-      }
-
-      const data = await response.json();
-      const imageUrl = data.imageUrl || data.logoUrl || data.avatarUrl;
-      
+      const imageUrl = await uploadImageWithApi(uploadEndpoint, fieldName, file);
       if (imageUrl) {
         onImageUpload(imageUrl);
       }

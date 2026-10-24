@@ -12,6 +12,7 @@ import {
   logoutWithApi,
   saveBadgeWithApi,
   storeAuthToken,
+  uploadImageWithApi,
 } from './api';
 
 const jsonResponse = (body: unknown, init?: Partial<{ ok: boolean; status: number }>) => ({
@@ -163,6 +164,43 @@ describe('api.ts', () => {
         'Sessão inválida ou expirada.',
       );
       expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+  describe('uploadImageWithApi', () => {
+    it('envia o arquivo com o token da sessão e devolve a URL gravada', async () => {
+      storeAuthToken('token-abc');
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(jsonResponse({ success: true, avatarUrl: '/uploads/a.webp' }));
+      const file = new File(['img'], 'avatar.png', { type: 'image/png' });
+
+      const url = await uploadImageWithApi('user-avatar', 'avatar', file);
+
+      expect(url).toBe('/uploads/a.webp');
+      const [path, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(path).toBe('/api/upload/user-avatar');
+      expect(init.method).toBe('POST');
+      expect(init.headers).toEqual({ Authorization: 'Bearer token-abc' });
+      expect((init.body as FormData).get('avatar')).toBe(file);
+    });
+
+    it('devolve a imageUrl do upload de selo', async () => {
+      storeAuthToken('token-abc');
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(jsonResponse({ success: true, imageUrl: '/uploads/s.webp' }));
+
+      expect(await uploadImageWithApi('badge-image', 'image', new File(['img'], 's.png'))).toBe('/uploads/s.webp');
+    });
+
+    it('não chama o servidor sem sessão', async () => {
+      await expect(uploadImageWithApi('user-avatar', 'avatar', new File(['img'], 'a.png'))).rejects.toThrow('Sessão inválida ou expirada.');
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it('repassa a mensagem de erro do servidor', async () => {
+      storeAuthToken('token-abc');
+      (fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        jsonResponse({ error: 'Arquivo muito grande. Máximo: 5MB' }, { ok: false, status: 413 }),
+      );
+
+      await expect(uploadImageWithApi('user-avatar', 'avatar', new File(['img'], 'a.png'))).rejects.toThrow('Arquivo muito grande. Máximo: 5MB');
     });
   });
 });

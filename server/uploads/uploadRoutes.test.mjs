@@ -38,4 +38,17 @@ describe('POST /api/uploads/badge-image', () => {
 
     expect(response.status).toBe(401);
   });
+
+  it('answers 401 without waiting for the multipart body to finish', async () => {
+    const app = buildApp();
+
+    // Corpo multipart sem o boundary final: se o parser rodasse antes da auth, a resposta nunca chegaria.
+    const response = await request(app)
+      .post('/api/uploads/badge-image')
+      .set('Content-Type', 'multipart/form-data; boundary=x')
+      .timeout(2000)
+      .send('--x\r\nContent-Disposition: form-data; name="image"; filename="a.png"\r\n\r\npartial');
+
+    expect(response.status).toBe(401);
+  });
 });
