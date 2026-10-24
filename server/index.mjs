@@ -8,7 +8,7 @@ import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
 import { findUserById, listUsers, revokeUserSessions } from './auth/repository.mjs';
-import { awardBadges, createSubmission, findSubmissionOwnerUnit, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionForReview, SubmissionNotPendingError, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
@@ -51,19 +51,17 @@ const scopeSubmissions = (viewer, submissions, users) => {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return submissions.filter((s) => unitUserIds.has(s.user_id));
   }
-  if (isSupervisor(viewer)) return submissions;
   return submissions.filter((s) => s.user_id === viewer.id);
 };
 
 // Concessões: quem tem unidade vê as da própria unidade (inclusive as próprias);
-// usuário comum sem unidade, só as próprias. O ranking entre unidades usa /api/ranking.
+// quem não tem (usuário comum ou supervisor), só as próprias. O ranking entre unidades usa /api/ranking.
 const scopeUserBadges = (viewer, userBadges, users) => {
   if (isAdminOrDeveloper(viewer)) return userBadges;
   if (viewer.productive_unit_id) {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return userBadges.filter((ub) => unitUserIds.has(ub.user_id));
   }
-  if (isSupervisor(viewer)) return userBadges;
   return userBadges.filter((ub) => ub.user_id === viewer.id);
 };
 
@@ -77,8 +75,10 @@ const ensureManagerUnitScope = (user, unitId) => {
   return true;
 };
 
+// Admin e developer alcançam todas as unidades; supervisor, só a própria (sem unidade, ninguém).
 const ensureUsersWithinScope = async (user, targetUserIds) => {
-  if (isDeveloper(user)) return true;
+  if (isAdminOrDeveloper(user)) return true;
+  if (!user.productive_unit_id) return false;
 
   const users = await listUsers();
   const allowedUserIds = new Set(
@@ -101,13 +101,9 @@ const reasonToDenyEditing = (editor, target) => {
   return isOwnUnitCollaborator ? null : 'Supervisores só podem editar colaboradores da própria unidade produtiva.';
 };
 
-const ensureSubmissionWithinScope = async (user, submissionId) => {
-  if (isDeveloper(user)) return true;
-
-  const owner = await findSubmissionOwnerUnit(submissionId);
-  if (!owner) return false;
-
-  return owner.productive_unit_id === user.productive_unit_id;
+const ensureSubmissionWithinScope = (user, submission) => {
+  if (isAdminOrDeveloper(user)) return true;
+  return Boolean(user.productive_unit_id) && submission.productive_unit_id === user.productive_unit_id;
 };
 
 /**
@@ -307,16 +303,33 @@ export function createApp({
     if (!canManageUnit(auth.body.user)) {
       return res.status(403).json({ error: 'Acesso restrito.' });
     }
-    if (!(await ensureSubmissionWithinScope(auth.body.user, req.params.id))) {
+    const submission = await findSubmissionForReview(req.params.id);
+    if (!submission) {
+      return res.status(404).json({ error: 'Solicitação não encontrada.' });
+    }
+    if (!ensureSubmissionWithinScope(auth.body.user, submission)) {
       return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
     }
+    if (submission.user_id === auth.body.user.id) {
+      return res.status(403).json({ error: 'Você não pode revisar a própria solicitação.' });
+    }
+    if (submission.status !== 'pending') {
+      return res.status(409).json({ error: 'Esta solicitação já foi revisada.' });
+    }
 
-    const result = await reviewSubmission({
-      submissionId: req.params.id,
-      reviewerId: auth.body.user.id,
-      status: req.body.status,
-    });
-    res.status(200).json(result);
+    try {
+      const result = await reviewSubmission({
+        submissionId: req.params.id,
+        reviewerId: auth.body.user.id,
+        status: req.body.status,
+      });
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof SubmissionNotPendingError) {
+        return res.status(409).json({ error: 'Esta solicitação já foi revisada.' });
+      }
+      throw error;
+    }
   }));
 
   app.post('/api/admin/users', asyncRoute(async (req, res) => {
@@ -387,6 +400,10 @@ export function createApp({
     if (!(await ensureUsersWithinScope(auth.body.user, [req.body.id].filter(Boolean)))) {
       return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
     }
+    // Mesma regra da edição: sem ela, qualquer admin excluía a conta do developer.
+    const target = req.body.id ? await findUserById(req.body.id) : null;
+    const denialReason = target && reasonToDenyEditing(auth.body.user, target);
+    if (denialReason) return res.status(403).json({ error: denialReason });
 
     const result = await deleteUser(req.body.id);
     res.status(200).json(result);
