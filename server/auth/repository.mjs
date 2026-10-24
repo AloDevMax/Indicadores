@@ -69,15 +69,16 @@ export const findUserByEmail = async (email) => findUserRowByEmail(email.toLower
 export const findUserById = async (userId) =>
   prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
 
-export const ensureBuiltInDeveloper = async () => {
-  const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
+// DEVELOPER_INITIAL_PASSWORD só vale na criação: o seed roda a cada release e não pode desfazer a senha
+// que o developer escolheu. resetPassword (seed --reset-developer-password) é o caminho de recuperação.
+export const ensureBuiltInDeveloper = async ({ resetPassword = false } = {}) => {
   const existingUser = await findUserRowByEmail(BUILT_IN_DEVELOPER.email);
 
   if (existingUser) {
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        password_hash: passwordHash,
+        ...(resetPassword && { password_hash: await hashPassword(BUILT_IN_DEVELOPER.password) }),
         full_name: BUILT_IN_DEVELOPER.full_name,
         role: BUILT_IN_DEVELOPER.role,
         email_verified: BUILT_IN_DEVELOPER.email_verified,
@@ -95,7 +96,7 @@ export const ensureBuiltInDeveloper = async () => {
     data: {
       id: crypto.randomUUID(),
       email: BUILT_IN_DEVELOPER.email,
-      password_hash: passwordHash,
+      password_hash: await hashPassword(BUILT_IN_DEVELOPER.password),
       full_name: BUILT_IN_DEVELOPER.full_name,
       role: BUILT_IN_DEVELOPER.role,
       email_verified: BUILT_IN_DEVELOPER.email_verified,
