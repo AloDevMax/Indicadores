@@ -26,7 +26,7 @@ describe('optimizeImage', () => {
     expect(meta).toMatchObject({ format: 'webp', width: 256, height: 256 });
   });
 
-  it.each(['badge', 'company'])('reduz %s para caber em 512px mantendo a proporção', async (kind) => {
+  it.each(['badge'])('reduz %s para caber em 512px mantendo a proporção', async (kind) => {
     const result = await optimizeImage(await solidImage(2000, 1000), kind);
 
     const meta = await sharp(result.buffer).metadata();

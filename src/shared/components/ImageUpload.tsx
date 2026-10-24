@@ -4,7 +4,7 @@ interface ImageUploadProps {
   label: string;
   currentImageUrl?: string;
   onImageUpload: (imageUrl: string) => void;
-  uploadEndpoint: 'badge-image' | 'company-logo' | 'user-avatar';
+  uploadEndpoint: 'badge-image' | 'user-avatar';
   fieldName: 'image' | 'logo' | 'avatar';
   accepts?: string;
 }

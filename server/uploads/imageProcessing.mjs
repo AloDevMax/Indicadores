@@ -5,7 +5,6 @@ import sharp from 'sharp';
 const PRESETS = {
   avatar: { width: 256, height: 256, fit: 'cover' },
   badge: { width: 512, height: 512, fit: 'inside' },
-  company: { width: 512, height: 512, fit: 'inside' },
 };
 
 // Bem abaixo do padrão do sharp (~268M): barra "bombas" de descompressão,
