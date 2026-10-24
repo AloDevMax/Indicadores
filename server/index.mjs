@@ -51,19 +51,17 @@ const scopeSubmissions = (viewer, submissions, users) => {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return submissions.filter((s) => unitUserIds.has(s.user_id));
   }
-  if (isSupervisor(viewer)) return submissions;
   return submissions.filter((s) => s.user_id === viewer.id);
 };
 
 // Concessões: quem tem unidade vê as da própria unidade (inclusive as próprias);
-// usuário comum sem unidade, só as próprias. O ranking entre unidades usa /api/ranking.
+// quem não tem (usuário comum ou supervisor), só as próprias. O ranking entre unidades usa /api/ranking.
 const scopeUserBadges = (viewer, userBadges, users) => {
   if (isAdminOrDeveloper(viewer)) return userBadges;
   if (viewer.productive_unit_id) {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return userBadges.filter((ub) => unitUserIds.has(ub.user_id));
   }
-  if (isSupervisor(viewer)) return userBadges;
   return userBadges.filter((ub) => ub.user_id === viewer.id);
 };
 
@@ -77,8 +75,10 @@ const ensureManagerUnitScope = (user, unitId) => {
   return true;
 };
 
+// Admin e developer alcançam todas as unidades; supervisor, só a própria (sem unidade, ninguém).
 const ensureUsersWithinScope = async (user, targetUserIds) => {
-  if (isDeveloper(user)) return true;
+  if (isAdminOrDeveloper(user)) return true;
+  if (!user.productive_unit_id) return false;
 
   const users = await listUsers();
   const allowedUserIds = new Set(
@@ -102,8 +102,8 @@ const reasonToDenyEditing = (editor, target) => {
 };
 
 const ensureSubmissionWithinScope = (user, submission) => {
-  if (isDeveloper(user)) return true;
-  return submission.productive_unit_id === user.productive_unit_id;
+  if (isAdminOrDeveloper(user)) return true;
+  return Boolean(user.productive_unit_id) && submission.productive_unit_id === user.productive_unit_id;
 };
 
 /**
@@ -393,6 +393,10 @@ export function createApp({
     if (!(await ensureUsersWithinScope(auth.body.user, [req.body.id].filter(Boolean)))) {
       return res.status(403).json({ error: 'Acesso restrito à sua empresa.' });
     }
+    // Mesma regra da edição: sem ela, qualquer admin excluía a conta do developer.
+    const target = req.body.id ? await findUserById(req.body.id) : null;
+    const denialReason = target && reasonToDenyEditing(auth.body.user, target);
+    if (denialReason) return res.status(403).json({ error: denialReason });
 
     const result = await deleteUser(req.body.id);
     res.status(200).json(result);

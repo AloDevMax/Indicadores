@@ -1375,3 +1375,114 @@ describe('POST /api/submissions/:id/review — integridade da revisão', () => {
     expect(await awardsOf(applicant.user.id)).toBe(1);
   });
 });
+
+describe('escopo de unidade produtiva: admin alcança tudo, supervisor só a própria unidade', () => {
+  const submissionOf = async (userId) => {
+    const id = crypto.randomUUID();
+    await prisma.badgeSubmission.create({ data: { id, user_id: userId, badge_id: '1', description: 'escopo' } });
+    return id;
+  };
+  const award = (manager, userId) => request(app).post('/api/admin/award-badges').set('Authorization', manager.header)
+    .send({ user_ids: [userId], badge_id: '1', tone: 'bronze' });
+  const review = (manager, id) => request(app).post(`/api/submissions/${id}/review`).set('Authorization', manager.header)
+    .send({ status: 'approved' });
+
+  it('supervisor sem unidade vê só as próprias solicitações', async () => {
+    const supervisor = await authHeaderFor('supervisor');
+    const someone = await authHeaderFor('user');
+    const mine = await submissionOf(supervisor.user.id);
+    const theirs = await submissionOf(someone.user.id);
+
+    const response = await request(app).get('/api/submissions').set('Authorization', supervisor.header);
+
+    const ids = response.body.submissions.map((s) => s.id);
+    expect(ids).toContain(mine);
+    expect(ids).not.toContain(theirs);
+  });
+
+  it('supervisor sem unidade vê só os próprios selos', async () => {
+    const supervisor = await authHeaderFor('supervisor');
+    const someone = await authHeaderFor('user');
+    const developer = await authHeaderFor('developer');
+    expect((await award(developer, someone.user.id)).status).toBe(200);
+    expect((await award(developer, supervisor.user.id)).status).toBe(200);
+
+    const response = await request(app).get('/api/user-badges').set('Authorization', supervisor.header);
+
+    const owners = new Set(response.body.userBadges.map((ub) => ub.user_id));
+    expect([...owners]).toEqual([supervisor.user.id]);
+  });
+
+  it('supervisor sem unidade não revisa a solicitação de um usuário sem unidade', async () => {
+    const supervisor = await authHeaderFor('supervisor');
+    const someone = await authHeaderFor('user');
+
+    const response = await review(supervisor, await submissionOf(someone.user.id));
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Acesso restrito à sua empresa.' });
+  });
+
+  it('supervisor sem unidade não concede selo a um usuário sem unidade', async () => {
+    const supervisor = await authHeaderFor('supervisor');
+    const someone = await authHeaderFor('user');
+
+    expect((await award(supervisor, someone.user.id)).status).toBe(403);
+  });
+
+  it('admin sem unidade aprova a solicitação de um usuário de qualquer unidade', async () => {
+    const admin = await authHeaderFor('admin');
+    const someone = await authHeaderFor('user', { productive_unit_id: 'pu-scope-b' });
+
+    expect((await review(admin, await submissionOf(someone.user.id))).status).toBe(200);
+  });
+
+  it('admin de uma unidade concede selo a um usuário de outra unidade', async () => {
+    const admin = await authHeaderFor('admin', { productive_unit_id: 'pu-scope-a' });
+    const someone = await authHeaderFor('user', { productive_unit_id: 'pu-scope-b' });
+
+    expect((await award(admin, someone.user.id)).status).toBe(200);
+  });
+
+  it('supervisor de uma unidade continua sem conceder selo a outra unidade', async () => {
+    const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-scope-a' });
+    const someone = await authHeaderFor('user', { productive_unit_id: 'pu-scope-b' });
+
+    expect((await award(supervisor, someone.user.id)).status).toBe(403);
+  });
+});
+
+describe('POST /api/admin/users/delete — quem pode excluir uma conta', () => {
+  const remove = (manager, id) => request(app).post('/api/admin/users/delete').set('Authorization', manager.header).send({ id });
+
+  it('admin não exclui a conta do developer', async () => {
+    const admin = await authHeaderFor('admin');
+    const developer = await authHeaderFor('developer');
+
+    const response = await remove(admin, developer.user.id);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Somente o desenvolvedor pode alterar essa conta.' });
+    expect(await prisma.user.findUnique({ where: { id: developer.user.id } })).not.toBeNull();
+  });
+
+  it('supervisor não exclui um admin da própria unidade', async () => {
+    const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-del-a' });
+    const admin = await authHeaderFor('admin', { productive_unit_id: 'pu-del-a' });
+
+    const response = await remove(supervisor, admin.user.id);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Supervisores só podem editar colaboradores da própria unidade produtiva.' });
+  });
+
+  it('admin exclui um colaborador de qualquer unidade', async () => {
+    const admin = await authHeaderFor('admin', { productive_unit_id: 'pu-del-a' });
+    await prisma.productiveUnit.upsert({ where: { id: 'pu-del-b' }, create: { id: 'pu-del-b', name: 'Unidade pu-del-b' }, update: {} });
+    // Sem sessão: excluir um usuário que já tem sessão esbarra na FK auth_sessions_user_id_fkey (bug à parte).
+    const someone = await createTestUser({ email: uniqueEmail('del'), full_name: 'Excluir', role: 'user', productive_unit_id: 'pu-del-b' });
+
+    expect((await remove(admin, someone.id)).status).toBe(200);
+    expect(await prisma.user.findUnique({ where: { id: someone.id } })).toBeNull();
+  });
+});
