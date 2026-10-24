@@ -3,7 +3,6 @@ import type { Badge, BadgeTone, Profile } from '@/shared/types';
 import {
   awardBadgesWithApi,
   clearStoredAuthToken,
-  deleteUserWithApi,
   fetchCurrentUser,
   fetchRankingWithApi,
   getApiBaseUrl,
@@ -148,11 +147,6 @@ describe('api.ts', () => {
       };
 
       await expect(saveBadgeWithApi(badge)).rejects.toThrow('Sessão inválida ou expirada.');
-      expect(fetch).not.toHaveBeenCalled();
-    });
-
-    it('deleteUserWithApi throws "Sessão inválida ou expirada." synchronously when no token is stored', async () => {
-      await expect(deleteUserWithApi('user-1')).rejects.toThrow('Sessão inválida ou expirada.');
       expect(fetch).not.toHaveBeenCalled();
     });
 

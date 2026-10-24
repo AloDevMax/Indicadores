@@ -7,7 +7,6 @@ import { deleteUploadedFile } from '../uploads/uploadService.mjs';
 import {
   bulkInviteUsers,
   deleteBadge,
-  deleteUser,
   saveBadge,
   saveProductiveUnit,
   saveUser,
@@ -303,46 +302,6 @@ describe('saveUser', () => {
     expect(user.id).toMatch(UUID);
     expect(user.id).not.toBe(missingId);
     expect(await prisma.user.count()).toBe(1);
-  });
-});
-
-describe('deleteUser', () => {
-  it('deletes the user and their avatar file', async () => {
-    const ana = await insertUser({ avatar_url: '/uploads/ana.png' });
-
-    expect(await deleteUser(ana.id)).toEqual({ success: true });
-
-    expect(await prisma.user.findUnique({ where: { id: ana.id } })).toBeNull();
-    expect(deleteUploadedFile).toHaveBeenCalledWith('/uploads/ana.png');
-  });
-
-  it("keeps the avatar file when another user's avatar points to it", async () => {
-    const victim = await insertUser({ email: 'vitima@example.com', avatar_url: '/uploads/vitima.png' });
-    const copycat = await insertUser({ email: 'copia@example.com', avatar_url: '/uploads/vitima.png' });
-
-    expect(await deleteUser(copycat.id)).toEqual({ success: true });
-
-    expect(await prisma.user.findUnique({ where: { id: copycat.id } })).toBeNull();
-    expect((await prisma.user.findUnique({ where: { id: victim.id } })).avatar_url).toBe('/uploads/vitima.png');
-    expect(deleteUploadedFile).not.toHaveBeenCalled();
-  });
-
-  it('keeps the avatar file when a submission proof or badge image points to it', async () => {
-    const ana = await insertUser({ avatar_url: '/uploads/shared.png' });
-    const bia = await insertUser({ email: 'bia@example.com' });
-    await saveBadge({ ...BADGE_INPUT, id: 'b1' });
-    await prisma.badgeSubmission.create({
-      data: { id: crypto.randomUUID(), user_id: bia.id, badge_id: 'b1', proof_url: '/uploads/shared.png' },
-    });
-
-    await deleteUser(ana.id);
-
-    expect(deleteUploadedFile).not.toHaveBeenCalled();
-  });
-
-  it('succeeds for an unknown user without touching files', async () => {
-    expect(await deleteUser(crypto.randomUUID())).toEqual({ success: true });
-    expect(deleteUploadedFile).not.toHaveBeenCalled();
   });
 });
 

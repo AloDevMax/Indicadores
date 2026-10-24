@@ -9,7 +9,7 @@ import TemporaryPasswordsDialog from '@/features/admin/components/TemporaryPassw
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
-import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
+import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { useConfirm } from '@/shared/contexts/ConfirmContext';
@@ -420,27 +420,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setIsBulkInviteModalOpen(false);
     setBulkInviteEmails('');
     setBulkInviteProductiveUnitId('');
-  };
-
-  const handleDeleteUser = async (targetUser: Profile) => {
-    if (targetUser.id === adminProfile.id) {
-      toast.error('Você não pode excluir seu próprio perfil administrativo.');
-      return;
-    }
-    const ok = await confirm({
-      title: 'Excluir Colaborador?',
-      message: <>Esta ação removerá <b>{targetUser.full_name}</b> e todo seu histórico de selos permanentemente.</>,
-    });
-    if (!ok) return;
-
-    try {
-      await deleteUserWithApi(targetUser.id);
-      invalidateCache('users');
-      await refreshUsers();
-      toast.success('Colaborador removido com sucesso.');
-    } catch (error) {
-      toast.error('Erro ao excluir colaborador: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
-    }
   };
 
   const handleToggleUserActive = async (targetUser: Profile) => {
@@ -994,7 +973,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                                 )}
                               ><Power size={16} /></button>
                               <button onClick={() => openUserModal(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-brand-primary hover:bg-brand-primary-light rounded-xl transition-all"><Pencil size={16} /></button>
-                              <button onClick={() => handleDeleteUser(u)} className="w-10 h-10 flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={16} /></button>
                             </div>
                           </td>
                         </tr>
