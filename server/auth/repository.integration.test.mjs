@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { resetDatabase } from '../test/db.mjs';
 import { verifyPassword } from './crypto.mjs';
@@ -118,7 +119,7 @@ describe('ensureBuiltInDeveloper', () => {
       must_change_password: false,
       created_at: expect.any(Date),
     });
-    expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
+    expect(await verifyPassword(env.DEVELOPER_INITIAL_PASSWORD, user.password_hash)).toBe(true);
 
     const stored = await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } });
     expect(stored.role).toBe('developer');
@@ -148,7 +149,7 @@ describe('ensureBuiltInDeveloper', () => {
       is_active: false,
       created_at: expect.any(Date),
     });
-    expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
+    expect(await verifyPassword(env.DEVELOPER_INITIAL_PASSWORD, user.password_hash)).toBe(true);
 
     const stored = await prisma.user.findUnique({ where: { id: existing.id } });
     expect(stored.role).toBe('developer');

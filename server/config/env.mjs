@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 // DATABASE_URL é sempre obrigatória. Os demais defaults só valem fora de produção.
 const DEV_AUTH_SECRET = 'dev-only-auth-secret-change-me';
-const DEV_DEVELOPER_PASSWORD = '2665398';
+const DEV_DEVELOPER_PASSWORD = 'dev-only-developer-password';
 const PRODUCTION_REQUIRED = ['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'];
 const SUPABASE_REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const AUTH_SECRET_MIN_LENGTH = 32;
 // Valores públicos (este arquivo e o .env.example): quem os conhece forja tokens de sessão.
 const EXAMPLE_AUTH_SECRETS = [DEV_AUTH_SECRET, 'troque-por-um-segredo-forte-em-producao'];
+const EXAMPLE_DEVELOPER_PASSWORDS = [DEV_DEVELOPER_PASSWORD, 'troque-por-uma-senha-forte'];
+const DEVELOPER_PASSWORD_MIN_LENGTH = 12;
 
 // O fallback de desenvolvimento só vale na máquina local (sem produção e com storage local). Fora dela,
 // um NODE_ENV esquecido faria o servidor assinar os tokens com o segredo público.
@@ -23,6 +25,19 @@ const checkAuthSecret = (env, ctx) => {
     addIssue('não use o valor de exemplo');
   } else if (env.AUTH_SECRET.length < AUTH_SECRET_MIN_LENGTH) {
     addIssue(`deve ter pelo menos ${AUTH_SECRET_MIN_LENGTH} caracteres`);
+  }
+};
+
+// Só em produção: a ausência já é apontada por PRODUCTION_REQUIRED.
+const checkDeveloperPassword = (env, ctx) => {
+  const password = env.DEVELOPER_INITIAL_PASSWORD;
+  if (env.NODE_ENV !== 'production' || !password) return;
+
+  const addIssue = (message) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['DEVELOPER_INITIAL_PASSWORD'], message });
+  if (EXAMPLE_DEVELOPER_PASSWORDS.includes(password)) {
+    addIssue('não use o valor de exemplo');
+  } else if (password.length < DEVELOPER_PASSWORD_MIN_LENGTH) {
+    addIssue(`deve ter pelo menos ${DEVELOPER_PASSWORD_MIN_LENGTH} caracteres`);
   }
 };
 
@@ -70,6 +85,7 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     checkAuthSecret(env, ctx);
+    checkDeveloperPassword(env, ctx);
 
     if (env.STORAGE_DRIVER === 'supabase') {
       for (const key of SUPABASE_REQUIRED) {
