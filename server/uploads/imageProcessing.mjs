@@ -11,10 +11,23 @@ const PRESETS = {
 // arquivos pequenos que declaram dimensões enormes.
 const MAX_INPUT_PIXELS = 40_000_000;
 const WEBP_QUALITY = 80;
+// Formato pelo conteúdo, não pelo MIME declarado: o sharp também decodifica SVG, TIFF, AVIF e HEIF.
+const ALLOWED_FORMATS = ['jpeg', 'png', 'webp', 'gif'];
+
+const readFormat = async (buffer) => {
+  try {
+    return (await sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS }).metadata()).format;
+  } catch {
+    throw new Error('Arquivo de imagem inválido ou corrompido.');
+  }
+};
 
 export const optimizeImage = async (buffer, kind) => {
   const preset = PRESETS[kind];
   if (!preset) throw new Error(`Tipo de upload desconhecido: ${kind}`);
+  if (!ALLOWED_FORMATS.includes(await readFormat(buffer))) {
+    throw new Error('Formato de imagem não permitido. Envie JPEG, PNG, WebP ou GIF.');
+  }
 
   try {
     const output = await sharp(buffer, { animated: true, autoOrient: true, limitInputPixels: MAX_INPUT_PIXELS })
