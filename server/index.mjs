@@ -8,7 +8,7 @@ import { z, ZodError } from 'zod';
 import { env } from './config/env.mjs';
 import { getAuthenticatedUser, loginUser, logoutUser, requireAuthenticatedUser, updateOwnProfile } from './auth/service.mjs';
 import { findUserById, listUsers, revokeUserSessions } from './auth/repository.mjs';
-import { awardBadges, createSubmission, findSubmissionForReview, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
+import { awardBadges, createSubmission, findSubmissionForReview, SubmissionNotPendingError, importMonthlyBadges, removeUserBadge, reviewSubmission } from './operations/repository.mjs';
 import { DuplicateEmailError, bulkInviteUsers, deleteBadge, deleteUser, findUserAvatarUrl, saveBadge, saveProductiveUnit, saveUser, seedIndicatorBadges } from './admin/repository.mjs';
 import { isStoredUploadUrl } from './uploads/uploadService.mjs';
 import { uploadRouter } from './uploads/uploadRoutes.mjs';
@@ -317,12 +317,19 @@ export function createApp({
       return res.status(409).json({ error: 'Esta solicitação já foi revisada.' });
     }
 
-    const result = await reviewSubmission({
-      submissionId: req.params.id,
-      reviewerId: auth.body.user.id,
-      status: req.body.status,
-    });
-    res.status(200).json(result);
+    try {
+      const result = await reviewSubmission({
+        submissionId: req.params.id,
+        reviewerId: auth.body.user.id,
+        status: req.body.status,
+      });
+      res.status(200).json(result);
+    } catch (error) {
+      if (error instanceof SubmissionNotPendingError) {
+        return res.status(409).json({ error: 'Esta solicitação já foi revisada.' });
+      }
+      throw error;
+    }
   }));
 
   app.post('/api/admin/users', asyncRoute(async (req, res) => {

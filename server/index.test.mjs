@@ -1371,7 +1371,8 @@ describe('POST /api/submissions/:id/review — integridade da revisão', () => {
 
     const responses = await Promise.all([review(developer, id), review(developer, id)]);
 
-    expect(responses.filter((r) => r.status === 200)).toHaveLength(1);
+    expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(responses.find((r) => r.status === 409).body).toEqual({ error: 'Esta solicitação já foi revisada.' });
     expect(await awardsOf(applicant.user.id)).toBe(1);
   });
 });
