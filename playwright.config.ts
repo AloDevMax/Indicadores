@@ -31,7 +31,7 @@ export default defineConfig({
   // at a backend that wasn't listening yet.
   webServer: [
     {
-      command: 'npx prisma migrate deploy && node server/db/seed.mjs --demo && node server/start.mjs',
+      command: 'npx prisma migrate deploy && node server/db/seed.mjs --demo --reset-developer-password && node server/start.mjs',
       env: { DATABASE_URL: E2E_DATABASE_URL, DIRECT_URL: E2E_DATABASE_URL, STORAGE_DRIVER: 'local', PORT: '4004' },
       port: 4004,
       reuseExistingServer: !isCI,

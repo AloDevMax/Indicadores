@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 // DATABASE_URL é sempre obrigatória. Os demais defaults só valem fora de produção.
 const DEV_AUTH_SECRET = 'dev-only-auth-secret-change-me';
-const DEV_DEVELOPER_PASSWORD = '2665398';
+const DEV_DEVELOPER_PASSWORD = 'dev-only-developer-password';
 const PRODUCTION_REQUIRED = ['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'];
 const SUPABASE_REQUIRED = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
 const AUTH_SECRET_MIN_LENGTH = 32;
 // Valores públicos (este arquivo e o .env.example): quem os conhece forja tokens de sessão.
 const EXAMPLE_AUTH_SECRETS = [DEV_AUTH_SECRET, 'troque-por-um-segredo-forte-em-producao'];
+const EXAMPLE_DEVELOPER_PASSWORDS = [DEV_DEVELOPER_PASSWORD, 'troque-por-uma-senha-forte'];
+const DEVELOPER_PASSWORD_MIN_LENGTH = 12;
 
 // O fallback de desenvolvimento só vale na máquina local (sem produção e com storage local). Fora dela,
 // um NODE_ENV esquecido faria o servidor assinar os tokens com o segredo público.
@@ -24,6 +26,16 @@ const checkAuthSecret = (env, ctx) => {
   } else if (env.AUTH_SECRET.length < AUTH_SECRET_MIN_LENGTH) {
     addIssue(`deve ter pelo menos ${AUTH_SECRET_MIN_LENGTH} caracteres`);
   }
+};
+
+// Checada no seed, ao gravar a senha (criação ou --reset-developer-password), e não no boot: o servidor não a usa,
+// e o seed do release roda no CI sem NODE_ENV=production. O valor de dev só vale na máquina local.
+export const developerPasswordProblem = (password, { NODE_ENV, STORAGE_DRIVER }) => {
+  const isLocalOnly = NODE_ENV !== 'production' && STORAGE_DRIVER === 'local';
+  if (password === DEV_DEVELOPER_PASSWORD && isLocalOnly) return null;
+  if (EXAMPLE_DEVELOPER_PASSWORDS.includes(password)) return 'não use o valor de exemplo';
+  if (password.length < DEVELOPER_PASSWORD_MIN_LENGTH) return `deve ter pelo menos ${DEVELOPER_PASSWORD_MIN_LENGTH} caracteres`;
+  return null;
 };
 
 const optionalString = z.preprocess(

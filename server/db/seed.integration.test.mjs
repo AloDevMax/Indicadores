@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { env } from '../config/env.mjs';
+import { hashPassword, verifyPassword } from '../auth/crypto.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { resetDatabase } from '../test/db.mjs';
 import { DEMO_DATA, runSeed } from './seed.mjs';
@@ -35,6 +37,18 @@ describe('runSeed', () => {
     expect(await counts()).toEqual({ users: 1, developers: 1, badges: 4, productiveUnits: 3, importSources: 0 });
     expect(await prisma.badge.findUnique({ where: { id: '1' } })).toMatchObject({ name: 'Mestre de Processos', points: 50 });
     expect(await prisma.productiveUnit.findUnique({ where: { id: 'pu1' } })).toMatchObject({ name: 'Fábrica Campinas' });
+  });
+
+  it('keeps the developer password unless resetDeveloperPassword is set', async () => {
+    await runSeed();
+    await prisma.user.update({ where: { email: DEVELOPER_EMAIL }, data: { password_hash: await hashPassword('senha-trocada-pelo-dev') } });
+    const passwordHash = async () => (await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } })).password_hash;
+
+    await runSeed();
+    expect(await verifyPassword('senha-trocada-pelo-dev', await passwordHash())).toBe(true);
+
+    await runSeed({ resetDeveloperPassword: true });
+    expect(await verifyPassword(env.DEVELOPER_INITIAL_PASSWORD, await passwordHash())).toBe(true);
   });
 
   it('exposes the demo data it writes', () => {

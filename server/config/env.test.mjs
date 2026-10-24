@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { parseEnv } from './env.mjs';
+import { developerPasswordProblem, parseEnv } from './env.mjs';
 
 const DEV_BASE = { DATABASE_URL: 'postgresql://u:p@localhost:5432/labquest' };
 
@@ -8,7 +8,7 @@ const PROD_BASE = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://u:p@db:5432/labquest',
   AUTH_SECRET: 'segredo-de-producao-com-32-caracteres-ou-mais',
-  DEVELOPER_INITIAL_PASSWORD: 'senha-forte',
+  DEVELOPER_INITIAL_PASSWORD: 'senha-forte-de-producao',
   STORAGE_DRIVER: 'supabase',
   SUPABASE_URL: 'https://ref.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
@@ -26,7 +26,7 @@ describe('parseEnv', () => {
     expect(env.DATABASE_URL).toBe('postgresql://u:p@localhost:5432/labquest');
     expect(env.ALLOWED_ORIGINS).toEqual(['http://localhost:3000']);
     expect(env.AUTH_SECRET).toBe('dev-only-auth-secret-change-me');
-    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('2665398');
+    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('dev-only-developer-password');
     expect(env.STORAGE_DRIVER).toBe('local');
     expect(env.SUPABASE_STORAGE_BUCKET).toBe('uploads');
   });
@@ -48,7 +48,7 @@ describe('parseEnv', () => {
   it('aceita uma configuração de produção completa sem aplicar defaults de dev', () => {
     const env = parseEnv(PROD_BASE);
     expect(env.AUTH_SECRET).toBe('segredo-de-producao-com-32-caracteres-ou-mais');
-    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte');
+    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte-de-producao');
   });
 
   it.each(['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'])(
@@ -161,5 +161,33 @@ describe('parseEnv — TRUST_PROXY', () => {
 
   it('recusa um TRUST_PROXY que não seja inteiro não negativo', () => {
     expect(() => parseEnv({ ...DEV_BASE, TRUST_PROXY: 'sim' })).toThrow('TRUST_PROXY');
+  });
+});
+
+describe('developerPasswordProblem', () => {
+  const LOCAL = { NODE_ENV: 'development', STORAGE_DRIVER: 'local' };
+
+  it('aceita o valor de dev só no ambiente local', () => {
+    expect(developerPasswordProblem('dev-only-developer-password', LOCAL)).toBeNull();
+    expect(developerPasswordProblem('dev-only-developer-password', { NODE_ENV: 'development', STORAGE_DRIVER: 'supabase' }))
+      .toBe('não use o valor de exemplo');
+    expect(developerPasswordProblem('dev-only-developer-password', { NODE_ENV: 'production', STORAGE_DRIVER: 'supabase' }))
+      .toBe('não use o valor de exemplo');
+  });
+
+  it('recusa o valor do .env.example em qualquer ambiente', () => {
+    expect(developerPasswordProblem('troque-por-uma-senha-forte', LOCAL)).toBe('não use o valor de exemplo');
+  });
+
+  it('recusa senha com menos de 12 caracteres em qualquer ambiente', () => {
+    expect(developerPasswordProblem('curta123', LOCAL)).toBe('deve ter pelo menos 12 caracteres');
+  });
+
+  it('aceita uma senha forte', () => {
+    expect(developerPasswordProblem('senha-forte-de-producao', { NODE_ENV: 'production', STORAGE_DRIVER: 'supabase' })).toBeNull();
+  });
+
+  it('não barra o boot do servidor, que não usa essa senha', () => {
+    expect(() => parseEnv({ ...PROD_BASE, DEVELOPER_INITIAL_PASSWORD: 'curta123' })).not.toThrow();
   });
 });

@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 
 const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
 // eslint-disable-next-line no-undef -- process.env is a Node global in a Playwright spec, not a browser one
-const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
+const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || 'dev-only-developer-password';
 const NEW_PASSWORD = 'MinhaSenha123';
 
 async function submitLogin(page, email, password) {
