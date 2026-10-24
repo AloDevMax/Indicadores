@@ -27,12 +27,12 @@ const TONE_STYLES: Record<BadgeTone, { card: string; icon: string; chip: string 
     chip: 'bg-amber-100 text-amber-700',
   },
   loss_1: {
-    card: 'border-rose-300 bg-rose-50',
+    card: 'border-rose-300 bg-rose-50 shadow-xl',
     icon: 'bg-rose-400 text-white',
     chip: 'bg-rose-100 text-rose-700',
   },
   loss_2: {
-    card: 'border-rose-500 bg-rose-100',
+    card: 'border-rose-500 bg-rose-100 shadow-xl',
     icon: 'bg-rose-600 text-white',
     chip: 'bg-rose-200 text-rose-800',
   },
@@ -58,7 +58,7 @@ const BadgeCard: React.FC<BadgeCardProps> = ({ badge, unlocked = false, date, to
     <div className={`
       relative group overflow-hidden rounded-xl p-6 transition-all duration-300
       ${unlocked
-        ? `bg-white shadow-xl border-2 scale-100 ${toneStyle.card}`
+        ? `bg-white border-2 scale-100 ${toneStyle.card}`
         : 'bg-slate-50 border-2 border-dashed border-slate-200 opacity-60 grayscale scale-95'}
     `}
     style={customBorderStyle}>

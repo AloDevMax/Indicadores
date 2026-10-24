@@ -157,7 +157,7 @@ export function createApp({
 
   // Atrás de proxy (Hostinger), req.ip só é o endereço do cliente com TRUST_PROXY configurado.
   app.set('trust proxy', env.TRUST_PROXY);
-  app.use(securityHeaders({ clientDir, isProduction }));
+  app.use(securityHeaders({ isProduction }));
   app.use(express.json());
 
   const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
