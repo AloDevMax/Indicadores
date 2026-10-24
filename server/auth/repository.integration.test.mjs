@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { resetDatabase } from '../test/db.mjs';
-import { verifyPassword } from './crypto.mjs';
+import { hashPassword, verifyPassword } from './crypto.mjs';
 import {
   createSession,
   ensureBuiltInDeveloper,
@@ -125,7 +125,7 @@ describe('ensureBuiltInDeveloper', () => {
     expect(stored.role).toBe('developer');
   });
 
-  it('resets password, name, role and verification of an existing developer account, keeping its id', async () => {
+  it('restores name, role and verification of an existing developer account, keeping its id', async () => {
     const existing = await insertUser({
       email: DEVELOPER_EMAIL,
       full_name: 'Outro Nome',
@@ -149,11 +149,31 @@ describe('ensureBuiltInDeveloper', () => {
       is_active: false,
       created_at: expect.any(Date),
     });
-    expect(await verifyPassword(env.DEVELOPER_INITIAL_PASSWORD, user.password_hash)).toBe(true);
+    expect(user.password_hash).toBe(existing.password_hash);
 
     const stored = await prisma.user.findUnique({ where: { id: existing.id } });
     expect(stored.role).toBe('developer');
     expect(await prisma.user.count()).toBe(1);
+  });
+});
+
+describe('ensureBuiltInDeveloper and the developer password', () => {
+  it('keeps the password the developer chose when the account already exists', async () => {
+    const existing = await insertUser({ email: DEVELOPER_EMAIL, full_name: 'Alo de Castro', role: 'user', password_hash: await hashPassword('senha-trocada-pelo-dev') });
+
+    const user = await ensureBuiltInDeveloper();
+
+    expect(user.id).toBe(existing.id);
+    expect(user.role).toBe('developer');
+    expect(await verifyPassword('senha-trocada-pelo-dev', user.password_hash)).toBe(true);
+  });
+
+  it('writes DEVELOPER_INITIAL_PASSWORD again when asked to reset it', async () => {
+    await insertUser({ email: DEVELOPER_EMAIL, full_name: 'Alo de Castro', role: 'developer', password_hash: await hashPassword('senha-trocada-pelo-dev') });
+
+    const user = await ensureBuiltInDeveloper({ resetPassword: true });
+
+    expect(await verifyPassword(env.DEVELOPER_INITIAL_PASSWORD, user.password_hash)).toBe(true);
   });
 });
 
