@@ -131,6 +131,14 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
   return mapSubmission({ ...submission, user_name: user.full_name });
 };
 
+// Perdeu a corrida: outra revisão mudou o status entre a checagem da rota e o update.
+export class SubmissionNotPendingError extends Error {
+  constructor(options) {
+    super('Solicitação não encontrada ou já revisada.', options);
+    this.name = 'SubmissionNotPendingError';
+  }
+}
+
 const markSubmissionReviewed = async (tx, { submissionId, reviewerId, status }) => {
   try {
     // Condicionado a 'pending': entre duas revisões simultâneas, só a primeira atualiza.
@@ -140,7 +148,7 @@ const markSubmissionReviewed = async (tx, { submissionId, reviewerId, status }) 
       select: SUBMISSION_SELECT,
     });
   } catch (error) {
-    if (isRecordNotFound(error)) throw new Error('Solicitação não encontrada ou já revisada.', { cause: error });
+    if (isRecordNotFound(error)) throw new SubmissionNotPendingError({ cause: error });
     throw error;
   }
 };
