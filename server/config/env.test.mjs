@@ -8,7 +8,7 @@ const PROD_BASE = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://u:p@db:5432/labquest',
   AUTH_SECRET: 'segredo-de-producao-com-32-caracteres-ou-mais',
-  DEVELOPER_INITIAL_PASSWORD: 'senha-forte',
+  DEVELOPER_INITIAL_PASSWORD: 'senha-forte-de-producao',
   STORAGE_DRIVER: 'supabase',
   SUPABASE_URL: 'https://ref.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
@@ -26,7 +26,7 @@ describe('parseEnv', () => {
     expect(env.DATABASE_URL).toBe('postgresql://u:p@localhost:5432/labquest');
     expect(env.ALLOWED_ORIGINS).toEqual(['http://localhost:3000']);
     expect(env.AUTH_SECRET).toBe('dev-only-auth-secret-change-me');
-    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('2665398');
+    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('dev-only-developer-password');
     expect(env.STORAGE_DRIVER).toBe('local');
     expect(env.SUPABASE_STORAGE_BUCKET).toBe('uploads');
   });
@@ -48,7 +48,7 @@ describe('parseEnv', () => {
   it('aceita uma configuração de produção completa sem aplicar defaults de dev', () => {
     const env = parseEnv(PROD_BASE);
     expect(env.AUTH_SECRET).toBe('segredo-de-producao-com-32-caracteres-ou-mais');
-    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte');
+    expect(env.DEVELOPER_INITIAL_PASSWORD).toBe('senha-forte-de-producao');
   });
 
   it.each(['AUTH_SECRET', 'DEVELOPER_INITIAL_PASSWORD'])(
@@ -58,6 +58,21 @@ describe('parseEnv', () => {
       expect(() => parseEnv(source)).toThrow(`${key}: obrigatória em produção`);
     },
   );
+
+  it.each(['troque-por-uma-senha-forte', 'dev-only-developer-password'])(
+    'falha em produção quando DEVELOPER_INITIAL_PASSWORD é o valor de exemplo %s',
+    (value) => {
+      expect(() => parseEnv({ ...PROD_BASE, DEVELOPER_INITIAL_PASSWORD: value })).toThrow(
+        'DEVELOPER_INITIAL_PASSWORD: não use o valor de exemplo',
+      );
+    },
+  );
+
+  it('falha em produção quando DEVELOPER_INITIAL_PASSWORD tem menos de 12 caracteres', () => {
+    expect(() => parseEnv({ ...PROD_BASE, DEVELOPER_INITIAL_PASSWORD: 'curta123' })).toThrow(
+      'DEVELOPER_INITIAL_PASSWORD: deve ter pelo menos 12 caracteres',
+    );
+  });
 
   it('falha em produção quando STORAGE_DRIVER não é supabase', () => {
     expect(() => parseEnv({ ...PROD_BASE, STORAGE_DRIVER: 'local' })).toThrow(
