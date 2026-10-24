@@ -158,6 +158,27 @@ describe('ensureBuiltInDeveloper', () => {
 });
 
 describe('ensureBuiltInDeveloper and the developer password', () => {
+  it('refuses to create the account with a weak password, before writing anything', async () => {
+    await expect(ensureBuiltInDeveloper({ password: 'curta123' }))
+      .rejects.toThrow('DEVELOPER_INITIAL_PASSWORD: deve ter pelo menos 12 caracteres');
+    expect(await prisma.user.count()).toBe(0);
+  });
+
+  it('refuses to reset to a weak password, keeping the current one', async () => {
+    await insertUser({ email: DEVELOPER_EMAIL, role: 'developer', password_hash: await hashPassword('senha-trocada-pelo-dev') });
+
+    await expect(ensureBuiltInDeveloper({ resetPassword: true, password: 'troque-por-uma-senha-forte' }))
+      .rejects.toThrow('DEVELOPER_INITIAL_PASSWORD: não use o valor de exemplo');
+    const stored = await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } });
+    expect(await verifyPassword('senha-trocada-pelo-dev', stored.password_hash)).toBe(true);
+  });
+
+  it('does not check the password when it is not written', async () => {
+    await insertUser({ email: DEVELOPER_EMAIL, role: 'developer' });
+
+    await expect(ensureBuiltInDeveloper({ password: 'curta123' })).resolves.toMatchObject({ role: 'developer' });
+  });
+
   it('keeps the password the developer chose when the account already exists', async () => {
     const existing = await insertUser({ email: DEVELOPER_EMAIL, full_name: 'Alo de Castro', role: 'user', password_hash: await hashPassword('senha-trocada-pelo-dev') });
 

@@ -28,17 +28,14 @@ const checkAuthSecret = (env, ctx) => {
   }
 };
 
-// Só em produção: a ausência já é apontada por PRODUCTION_REQUIRED.
-const checkDeveloperPassword = (env, ctx) => {
-  const password = env.DEVELOPER_INITIAL_PASSWORD;
-  if (env.NODE_ENV !== 'production' || !password) return;
-
-  const addIssue = (message) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['DEVELOPER_INITIAL_PASSWORD'], message });
-  if (EXAMPLE_DEVELOPER_PASSWORDS.includes(password)) {
-    addIssue('não use o valor de exemplo');
-  } else if (password.length < DEVELOPER_PASSWORD_MIN_LENGTH) {
-    addIssue(`deve ter pelo menos ${DEVELOPER_PASSWORD_MIN_LENGTH} caracteres`);
-  }
+// Checada no seed, ao gravar a senha (criação ou --reset-developer-password), e não no boot: o servidor não a usa,
+// e o seed do release roda no CI sem NODE_ENV=production. O valor de dev só vale na máquina local.
+export const developerPasswordProblem = (password, { NODE_ENV, STORAGE_DRIVER }) => {
+  const isLocalOnly = NODE_ENV !== 'production' && STORAGE_DRIVER === 'local';
+  if (password === DEV_DEVELOPER_PASSWORD && isLocalOnly) return null;
+  if (EXAMPLE_DEVELOPER_PASSWORDS.includes(password)) return 'não use o valor de exemplo';
+  if (password.length < DEVELOPER_PASSWORD_MIN_LENGTH) return `deve ter pelo menos ${DEVELOPER_PASSWORD_MIN_LENGTH} caracteres`;
+  return null;
 };
 
 const optionalString = z.preprocess(
@@ -85,7 +82,6 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     checkAuthSecret(env, ctx);
-    checkDeveloperPassword(env, ctx);
 
     if (env.STORAGE_DRIVER === 'supabase') {
       for (const key of SUPABASE_REQUIRED) {

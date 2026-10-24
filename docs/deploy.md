@@ -52,7 +52,7 @@ do deploy a linha `Entry file:` (`dist/server/start.mjs`).
 | `DATABASE_URL` | pooler de transação do Supabase, porta 6543, com `?pgbouncer=true&connection_limit=1` |
 | `DIRECT_URL` | session pooler do Supabase, porta 5432 |
 | `AUTH_SECRET` | segredo das sessões, com pelo menos 32 caracteres e diferente do `.env.example` (trocá-lo derruba as sessões ativas). Gere com `openssl rand -hex 32` |
-| `DEVELOPER_INITIAL_PASSWORD` | senha da conta developer **só na criação** (o seed não regrava a senha de uma conta que já existe). Em produção, pelo menos 12 caracteres e diferente do `.env.example`, senão o boot falha |
+| `DEVELOPER_INITIAL_PASSWORD` | senha da conta developer **só na criação** (o seed não regrava a senha de uma conta que já existe). Pelo menos 12 caracteres e diferente do `.env.example`: o seed (release do CI ou `--reset-developer-password`) se recusa a gravar uma senha fraca |
 | `STORAGE_DRIVER` | `supabase` (o boot recusa `local` em produção) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | chave service role. Só no servidor: nunca com prefixo `VITE_`, nunca no frontend |
