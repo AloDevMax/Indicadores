@@ -1252,7 +1252,6 @@ describe('security headers', () => {
     <script src="https://cdn.tailwindcss.com"></script>
     <script>${inlineConfig}</script>
   </head><body>SPA</body></html>`);
-  const inlineConfigHash = `'sha256-${crypto.createHash('sha256').update(inlineConfig).digest('base64')}'`;
 
   afterAll(() => fs.rmSync(clientDir, { recursive: true, force: true }));
 
@@ -1273,10 +1272,10 @@ describe('security headers', () => {
     expect(response.headers['x-powered-by']).toBeUndefined();
   });
 
-  it('allows only the app, the Tailwind CDN and the hashed inline config to run scripts', async () => {
+  it('allows only the app itself to run scripts, not CDNs nor inline scripts in the page', async () => {
     const csp = cspOf(await request(createApp({ clientDir })).get('/'));
 
-    expect(csp['script-src']).toEqual(["'self'", 'https://cdn.tailwindcss.com', inlineConfigHash]);
+    expect(csp['script-src']).toEqual(["'self'"]);
     expect(csp['script-src-attr']).toEqual(["'none'"]);
     expect(csp['object-src']).toEqual(["'none'"]);
     expect(csp['frame-ancestors']).toEqual(["'none'"]);
