@@ -654,18 +654,16 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     expect(reviewResponse.body.awardedBadge).toMatchObject({ user_id: applicant.user.id, badge_id: '1', tone: 'bronze' });
   });
 
-  it('a fake submission id 403s the review route even for a developer-equivalent supervisor within scope', async () => {
+  it('a fake submission id 404s the review route', async () => {
     const reviewer = await authHeaderFor('admin');
 
-    // Submission ids are UUIDs: a non-UUID id currently 500s on the database
-    // (invalid uuid syntax), a known gap tracked outside Fase 2.
     const response = await request(app)
       .post(`/api/submissions/${crypto.randomUUID()}/review`)
       .set('Authorization', reviewer.header)
       .send({ status: 'approved' });
 
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'Acesso restrito à sua empresa.' });
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Solicitação não encontrada.' });
   });
 
   it('PUT /api/user/profile updates the authenticated user\'s own name without asking for the password', async () => {
@@ -1296,5 +1294,84 @@ describe('security headers', () => {
 
     expect(response.headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
     expect(cspOf(response)).toHaveProperty('upgrade-insecure-requests');
+  });
+});
+
+describe('POST /api/submissions/:id/review — integridade da revisão', () => {
+  const submitAs = async (applicant) => {
+    const response = await request(app).post('/api/submissions').set('Authorization', applicant.header)
+      .send({ badge_id: '1', description: 'Evidência' });
+    expect(response.status).toBe(201);
+    return response.body.id;
+  };
+  const review = (reviewer, id, status = 'approved') =>
+    request(app).post(`/api/submissions/${id}/review`).set('Authorization', reviewer.header).send({ status });
+  const awardsOf = (userId) => prisma.userBadge.count({ where: { user_id: userId, badge_id: '1' } });
+
+  it('um supervisor não aprova a própria solicitação', async () => {
+    const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu-self-review' });
+    const id = await submitAs(supervisor);
+
+    const response = await review(supervisor, id);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Você não pode revisar a própria solicitação.' });
+    expect((await prisma.badgeSubmission.findUnique({ where: { id } })).status).toBe('pending');
+    expect(await awardsOf(supervisor.user.id)).toBe(0);
+  });
+
+  it('nem o developer revisa a própria solicitação', async () => {
+    const developer = await authHeaderFor('developer');
+    const id = await submitAs(developer);
+
+    const response = await review(developer, id);
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Você não pode revisar a própria solicitação.' });
+  });
+
+  it('uma solicitação aprovada não é aprovada de novo, e o selo não é recriado', async () => {
+    const applicant = await authHeaderFor('user');
+    const developer = await authHeaderFor('developer');
+    const id = await submitAs(applicant);
+    expect((await review(developer, id)).status).toBe(200);
+
+    const again = await review(developer, id);
+
+    expect(again.status).toBe(409);
+    expect(again.body).toEqual({ error: 'Esta solicitação já foi revisada.' });
+    expect(await awardsOf(applicant.user.id)).toBe(1);
+  });
+
+  it('uma solicitação aprovada não pode ser rejeitada depois', async () => {
+    const applicant = await authHeaderFor('user');
+    const developer = await authHeaderFor('developer');
+    const id = await submitAs(applicant);
+    expect((await review(developer, id)).status).toBe(200);
+
+    const reject = await review(developer, id, 'rejected');
+
+    expect(reject.status).toBe(409);
+    expect((await prisma.badgeSubmission.findUnique({ where: { id } })).status).toBe('approved');
+  });
+
+  it('responde 404 para uma solicitação que não existe', async () => {
+    const developer = await authHeaderFor('developer');
+
+    const response = await review(developer, crypto.randomUUID());
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ error: 'Solicitação não encontrada.' });
+  });
+
+  it('com duas aprovações simultâneas, só uma vence e existe um único selo', async () => {
+    const applicant = await authHeaderFor('user');
+    const developer = await authHeaderFor('developer');
+    const id = await submitAs(applicant);
+
+    const responses = await Promise.all([review(developer, id), review(developer, id)]);
+
+    expect(responses.filter((r) => r.status === 200)).toHaveLength(1);
+    expect(await awardsOf(applicant.user.id)).toBe(1);
   });
 });

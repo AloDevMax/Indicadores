@@ -5,7 +5,7 @@ import { resetDatabase } from '../test/db.mjs';
 import {
   awardBadges,
   createSubmission,
-  findSubmissionOwnerUnit,
+  findSubmissionForReview,
   importMonthlyBadges,
   removeUserBadge,
   reviewSubmission,
@@ -122,7 +122,17 @@ describe('reviewSubmission', () => {
 
   it('throws for an unknown submission', async () => {
     await expect(reviewSubmission({ submissionId: crypto.randomUUID(), reviewerId: ADMIN_ID, status: 'approved' }))
-      .rejects.toThrow('Solicitação não encontrada.');
+      .rejects.toThrow('Solicitação não encontrada ou já revisada.');
+  });
+
+  it('throws for a submission that was already reviewed, without awarding again', async () => {
+    const { id } = await createSubmission({ userId: BIA_ID, badgeId: 'b1', description: 'x' });
+    await reviewSubmission({ submissionId: id, reviewerId: ADMIN_ID, status: 'approved' });
+
+    await expect(reviewSubmission({ submissionId: id, reviewerId: ADMIN_ID, status: 'rejected' }))
+      .rejects.toThrow('Solicitação não encontrada ou já revisada.');
+    expect((await prisma.badgeSubmission.findUnique({ where: { id } })).status).toBe('approved');
+    expect(await prisma.userBadge.count({ where: { user_id: BIA_ID, badge_id: 'b1' } })).toBe(1);
   });
 
   it('refuses reviewers without permission', async () => {
@@ -273,20 +283,20 @@ describe('importMonthlyBadges', () => {
   });
 });
 
-describe('findSubmissionOwnerUnit', () => {
-  it("returns the submission owner's productive unit", async () => {
+describe('findSubmissionForReview', () => {
+  it("returns the owner, the owner's productive unit and the status", async () => {
     const { id } = await createSubmission({ userId: ANA_ID, badgeId: 'b1', description: 'x' });
 
-    expect(await findSubmissionOwnerUnit(id)).toEqual({ productive_unit_id: 'pu1' });
+    expect(await findSubmissionForReview(id)).toEqual({ user_id: ANA_ID, productive_unit_id: 'pu1', status: 'pending' });
   });
 
   it('returns a null unit when the owner has none', async () => {
     const { id } = await createSubmission({ userId: BIA_ID, badgeId: 'b1', description: 'x' });
 
-    expect(await findSubmissionOwnerUnit(id)).toEqual({ productive_unit_id: null });
+    expect(await findSubmissionForReview(id)).toEqual({ user_id: BIA_ID, productive_unit_id: null, status: 'pending' });
   });
 
   it('returns null for an unknown submission', async () => {
-    expect(await findSubmissionOwnerUnit(crypto.randomUUID())).toBeNull();
+    expect(await findSubmissionForReview(crypto.randomUUID())).toBeNull();
   });
 });
