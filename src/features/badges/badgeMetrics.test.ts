@@ -36,7 +36,7 @@ describe('canSeeAwardDetails', () => {
     expect(canSeeAwardDetails(profile({ role: 'supervisor', productive_unit_id: undefined }), target)).toBe(true);
   });
 
-  it.each(['admin', 'developer'] as const)('lets a %s see everyone', (role) => {
-    expect(canSeeAwardDetails(profile({ role, productive_unit_id: 'pu-b' }), target)).toBe(true);
+  it('lets an admin from another unit see everyone', () => {
+    expect(canSeeAwardDetails(profile({ role: 'admin', productive_unit_id: 'pu-b' }), target)).toBe(true);
   });
 });

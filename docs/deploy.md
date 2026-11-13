@@ -52,7 +52,7 @@ do deploy a linha `Entry file:` (`dist/server/start.mjs`).
 | `DATABASE_URL` | pooler de transação do Supabase, porta 6543, com `?pgbouncer=true&connection_limit=1` |
 | `DIRECT_URL` | session pooler do Supabase, porta 5432 |
 | `AUTH_SECRET` | segredo das sessões, com pelo menos 32 caracteres e diferente do `.env.example` (trocá-lo derruba as sessões ativas). Gere com `openssl rand -hex 32` |
-| `DEVELOPER_INITIAL_PASSWORD` | senha da conta developer **só na criação** (o seed não regrava a senha de uma conta que já existe). Pelo menos 12 caracteres e diferente do `.env.example`: o seed (release do CI ou `--reset-developer-password`) se recusa a gravar uma senha fraca |
+| `DEVELOPER_INITIAL_PASSWORD` | senha da conta admin embutida **só na criação** (o seed não regrava a senha de uma conta que já existe). Pelo menos 12 caracteres e diferente do `.env.example`: o seed (release do CI ou `--reset-admin-password`) se recusa a gravar uma senha fraca |
 | `STORAGE_DRIVER` | `supabase` (o boot recusa `local` em produção) |
 | `SUPABASE_URL` | `https://<ref>.supabase.co` |
 | `SUPABASE_SERVICE_ROLE_KEY` | chave service role. Só no servidor: nunca com prefixo `VITE_`, nunca no frontend |
@@ -70,13 +70,13 @@ Se faltar alguma variável obrigatória, o processo termina no boot com `Variáv
   `pgbouncer=true` na `DATABASE_URL`, o Prisma usa prepared statements e falha no pooler (ver
   [DATABASE_PERSISTENCE.md](DATABASE_PERSISTENCE.md)).
 
-## Recuperar a conta developer
+## Recuperar a conta admin embutida
 
-O seed preserva a senha que o developer escolheu. Para voltar à `DEVELOPER_INITIAL_PASSWORD`, rode uma vez,
+O seed preserva a senha que o admin embutido escolheu. Para voltar à `DEVELOPER_INITIAL_PASSWORD`, rode uma vez,
 com as variáveis do banco de produção:
 
 ```bash
-node dist/server/db/seed.mjs --reset-developer-password
+node dist/server/db/seed.mjs --reset-admin-password
 ```
 
 ## Rollback

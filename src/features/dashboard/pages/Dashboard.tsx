@@ -25,7 +25,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const { data: productiveUnits = [] } = useRouteData('units', fetchProductiveUnitsWithApi, []);
 
   // Call all hooks before any conditionals
-  const isAdmin = user ? ['admin', 'developer'].includes(user.role) : false;
+  const isAdmin = user?.role === 'admin';
 
   const mySubmissions = useMemo(() => {
     if (!user) return [];

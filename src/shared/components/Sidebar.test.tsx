@@ -51,15 +51,15 @@ describe('Sidebar', () => {
     expect(screen.queryByText('Gestão Operacional')).not.toBeInTheDocument();
   });
 
-  it('shows "Ranking Global" for a developer viewing their personal menu', () => {
+  it('shows the personal menu with "Ranking da Empresa" for an admin in personal view', () => {
     renderSidebar({
-      user: makeProfile({ role: 'developer' }),
+      user: makeProfile({ role: 'admin' }),
       adminViewMode: 'personal',
       setAdminViewMode: vi.fn(),
     });
 
     expect(screen.getByText('Menu do Colaborador')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Ranking Global/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Ranking da Empresa/ })).toBeInTheDocument();
   });
 
   it('renders the operational management menu for an admin by default', () => {
@@ -74,7 +74,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /Solicitações/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Colaboradores/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ranking da Empresa/ })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Biblioteca/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Biblioteca/ })).toBeInTheDocument();
   });
 
   it('shows the ranking label scoped to a supervisor\'s unit', () => {
@@ -86,15 +86,14 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /Ranking da Unidade/ })).toBeInTheDocument();
   });
 
-  it('includes "Biblioteca" in the management menu only for a developer', () => {
+  it('leaves "Biblioteca" out of the management menu for a supervisor', () => {
     renderSidebar({
-      user: makeProfile({ role: 'developer' }),
+      user: makeProfile({ role: 'supervisor' }),
       setAdminViewMode: vi.fn(),
     });
 
     expect(screen.getByText('Gestão Operacional')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Biblioteca/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Ranking Global/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Biblioteca/ })).not.toBeInTheDocument();
   });
 
   it('calls onClose when the mobile backdrop overlay is clicked', async () => {

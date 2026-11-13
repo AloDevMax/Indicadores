@@ -28,7 +28,7 @@ const checkAuthSecret = (env, ctx) => {
   }
 };
 
-// Checada no seed, ao gravar a senha (criação ou --reset-developer-password), e não no boot: o servidor não a usa,
+// Checada no seed, ao gravar a senha (criação ou --reset-admin-password), e não no boot: o servidor não a usa,
 // e o seed do release roda no CI sem NODE_ENV=production. O valor de dev só vale na máquina local.
 export const developerPasswordProblem = (password, { NODE_ENV, STORAGE_DRIVER }) => {
   const isLocalOnly = NODE_ENV !== 'production' && STORAGE_DRIVER === 'local';
