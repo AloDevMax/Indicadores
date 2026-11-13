@@ -15,27 +15,22 @@ const getInitials = (name: string) =>
 
 const Navbar: React.FC<NavbarProps> = ({ user, userBadges = [], onLogout, onToggleSidebar }) => {
   const navigate = useNavigate();
-  const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
+  const isAdmin = ['admin', 'supervisor'].includes(user.role);
   const isSupervisor = user.role === 'supervisor';
-  const isDeveloper = user.role === 'developer';
   const monthlyMetrics = getUserMonthlyBadgeMetrics(user.id, userBadges);
   const homeRoute = isAdmin ? '/admin' : '/dashboard';
 
-  const rolePill = isDeveloper
-    ? { label: 'Dev', bg: 'bg-brand-secondary' }
-    : isSupervisor
-      ? { label: 'Supervisor', bg: 'bg-brand-accent' }
-      : isAdmin
-        ? { label: 'Admin', bg: 'bg-brand-primary' }
-        : null;
+  const rolePill = isSupervisor
+    ? { label: 'Supervisor', bg: 'bg-brand-accent' }
+    : isAdmin
+      ? { label: 'Admin', bg: 'bg-brand-primary' }
+      : null;
 
-  const roleSubtitle = isDeveloper
-    ? 'Desenvolvedor'
-    : isSupervisor
-      ? 'Supervisor de Unidade'
-      : isAdmin
-        ? 'Gestor'
-        : `+${monthlyMetrics.monthlyScore} pts este mês`;
+  const roleSubtitle = isSupervisor
+    ? 'Supervisor de Unidade'
+    : isAdmin
+      ? 'Gestor'
+      : `+${monthlyMetrics.monthlyScore} pts este mês`;
 
   return (
     <nav className="bg-white/80 backdrop-blur-md border-b border-slate-100 h-16 sticky top-0 z-[60] flex items-center shadow-sm">

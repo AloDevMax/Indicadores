@@ -1,5 +1,5 @@
 
-export type Role = 'admin' | 'user' | 'developer' | 'supervisor';
+export type Role = 'admin' | 'user' | 'supervisor';
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 export type BadgeTone = 'bronze' | 'silver' | 'gold' | 'loss_1' | 'loss_2';
 

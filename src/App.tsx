@@ -81,7 +81,7 @@ const App: React.FC = () => {
                 path="/"
                 element={
                   user
-                    ? (['admin', 'developer', 'supervisor'].includes(user.role) ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
+                    ? (['admin', 'supervisor'].includes(user.role) ? <Navigate to="/admin" /> : <Navigate to="/dashboard" />)
                     : <Navigate to="/login" />
                 }
               />
@@ -115,7 +115,7 @@ const App: React.FC = () => {
               <Route
                 path="/admin/*"
                 element={
-                  user?.role && ['admin', 'developer', 'supervisor'].includes(user.role) ? (
+                  user?.role && ['admin', 'supervisor'].includes(user.role) ? (
                     <AdminPanel
                       activeMode={adminViewMode}
                       setActiveMode={setAdminViewMode}

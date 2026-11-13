@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { prisma } from '../shared/db/prisma.mjs';
 import { findUserById } from '../auth/repository.mjs';
 
-const REVIEWER_ROLES = ['admin', 'developer', 'supervisor'];
+const REVIEWER_ROLES = ['admin', 'supervisor'];
 
 const SUBMISSION_SELECT = {
   id: true,

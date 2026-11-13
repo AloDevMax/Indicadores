@@ -15,14 +15,14 @@ import * as XLSX from 'xlsx';
 //
 // Runs against the dedicated e2e database (see playwright.config.ts), which
 // the backend migrates and seeds with `--demo` on startup: the built-in
-// developer account plus the demo badge catalog (server/db/seed.mjs) that
+// built-in admin account plus the demo badge catalog (server/db/seed.mjs) that
 // these tests rely on directly instead of creating their own fixtures.
 
-const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
+const ADMIN_EMAIL = 'alo.de.castro@hotmail.com';
 // Mirrors server/config/env.mjs — env var wins if set, otherwise the same
 // dev-only default the seed uses outside production.
 // eslint-disable-next-line no-undef -- process.env is a Node global in a Playwright spec, not a browser one
-const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
+const ADMIN_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
 const TEST_PASSWORD = 'Senha123!';
 
 // Real badges from the demo seed (server/db/seed.mjs) — used
@@ -65,7 +65,7 @@ async function logout(page) {
 
 /**
  * Creates a brand-new plain user the way the app does it now that there is
- * no self-registration: the developer creates the account through the admin
+ * no self-registration: the admin creates the account through the admin
  * API (POST /api/admin/users), which issues a one-time temporary password.
  * The user must change it before using the app, so this helper does that
  * over the API too (the UI flow itself is covered by
@@ -78,14 +78,14 @@ async function createPlainUserAndLogin(page) {
   const email = `e2e-${uid}@example.com`;
   const fullName = `E2E User ${uid.slice(0, 8)}`;
 
-  const developerLogin = await page.request.post('/api/auth/login', {
-    data: { email: DEVELOPER_EMAIL, password: DEVELOPER_PASSWORD },
+  const adminLogin = await page.request.post('/api/auth/login', {
+    data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
   });
-  expect(developerLogin.status()).toBe(200);
-  const { token: developerToken } = await developerLogin.json();
+  expect(adminLogin.status()).toBe(200);
+  const { token: adminToken } = await adminLogin.json();
 
   const createResponse = await page.request.post('/api/admin/users', {
-    headers: { Authorization: `Bearer ${developerToken}` },
+    headers: { Authorization: `Bearer ${adminToken}` },
     data: { email, full_name: fullName, role: 'user' },
   });
   expect(createResponse.status()).toBe(201);
@@ -148,14 +148,14 @@ function confirmDialog(page, title) {
 }
 
 test.describe('Submission review flow', () => {
-  test('a plain user requests a badge and the developer approves it', async ({ page }) => {
+  test('a plain user requests a badge and the admin approves it', async ({ page }) => {
     const { fullName } = await createPlainUserAndLogin(page);
 
     const description = `E2E approval proof ${crypto.randomUUID()}`;
     await submitBadgeRequest(page, BADGE_PROCESSOS, description);
 
     await logout(page);
-    await login(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     await page.goto('/#/admin/submissions');
     const card = submissionCard(page, BADGE_PROCESSOS, fullName);
@@ -176,14 +176,14 @@ test.describe('Submission review flow', () => {
 });
 
 test.describe('Submission rejection flow', () => {
-  test('the developer rejects a submission, distinctly from approval', async ({ page }) => {
+  test('the admin rejects a submission, distinctly from approval', async ({ page }) => {
     const { fullName } = await createPlainUserAndLogin(page);
 
     const description = `E2E rejection proof ${crypto.randomUUID()}`;
     await submitBadgeRequest(page, BADGE_SEGURANCA, description);
 
     await logout(page);
-    await login(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
 
     await page.goto('/#/admin/submissions');
     const card = submissionCard(page, BADGE_SEGURANCA, fullName);
@@ -203,11 +203,11 @@ test.describe('Submission rejection flow', () => {
 });
 
 test.describe('Award flow', () => {
-  test('the developer awards a badge directly to a user', async ({ page }) => {
-    await login(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+  test('the admin awards a badge directly to a user', async ({ page }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/#/admin/award');
 
-    // Awarding to the developer's own seeded account keeps this test
+    // Awarding to the built-in admin's own seeded account keeps this test
     // self-contained — no second user needed, and the account is guaranteed
     // to exist without extra setup.
     await page.getByPlaceholder('Buscar colaborador...').fill('Alo de Castro');
@@ -232,7 +232,7 @@ test.describe('Award flow', () => {
 
 test.describe('Excel import — monthly badge assignment', () => {
   test('the import modal renders its entry point (month/year selects, file input)', async ({ page }) => {
-    await login(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/#/admin/award');
 
     await page.getByRole('button', { name: 'Importar Planilha Mensal', exact: true }).click();
@@ -244,7 +244,7 @@ test.describe('Excel import — monthly badge assignment', () => {
   });
 
   test('a matching .xlsx file is parsed, matched, previewed, and imported end to end', async ({ page }) => {
-    await login(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/#/admin/award');
     await page.getByRole('button', { name: 'Importar Planilha Mensal', exact: true }).click();
 
@@ -262,7 +262,7 @@ test.describe('Excel import — monthly badge assignment', () => {
     // (AdminPanel.tsx defaults `importMonth` to the current month) with a
     // header row containing a "nome" column and an indicator keyword column
     // (see EXCEL_COLUMN_TO_BADGE_ID's 'nps' -> 'ind-nps' mapping), and one
-    // data row for the developer's own seeded account so the name-matching
+    // data row for the built-in admin's own seeded account so the name-matching
     // step auto-matches with 100% confidence (stringSimilarity requires an
     // exact normalized match to auto-match).
     const sheetName = MONTH_NAMES_PT[new Date().getMonth()];
@@ -280,7 +280,7 @@ test.describe('Excel import — monthly badge assignment', () => {
       buffer: fileBuffer,
     });
 
-    // Matching step: exactly one row, auto-matched to the developer account.
+    // Matching step: exactly one row, auto-matched to the admin account.
     // (Scoped to the truncated name cell specifically — "Alo de Castro" also
     // appears in the still-mounted award-page user list behind the modal and
     // in the row's manual-reassign <select>'s option, so an unscoped

@@ -5,7 +5,7 @@ import { resetDatabase } from '../test/db.mjs';
 import { verifyPassword } from './crypto.mjs';
 import {
   createSession,
-  ensureBuiltInDeveloper,
+  ensureBuiltInAdmin,
   findActiveSession,
   findUserByEmail,
   findUserById,
@@ -13,7 +13,7 @@ import {
   revokeSession,
 } from './repository.mjs';
 
-const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
+const BUILT_IN_ADMIN_EMAIL = 'alo.de.castro@hotmail.com';
 const HOUR = 60 * 60 * 1000;
 
 const insertUser = (overrides = {}) => prisma.user.create({
@@ -57,10 +57,10 @@ describe('findUserByEmail', () => {
     expect(user.created_at.toISOString()).toBe('2024-01-01T10:00:00.000Z');
   });
 
-  it('reports the stored role, without promoting the developer e-mail to developer', async () => {
-    await insertUser({ email: DEVELOPER_EMAIL, role: 'admin' });
+  it('reports the stored role of the built-in admin e-mail', async () => {
+    await insertUser({ email: BUILT_IN_ADMIN_EMAIL, role: 'admin' });
 
-    const user = await findUserByEmail(DEVELOPER_EMAIL);
+    const user = await findUserByEmail(BUILT_IN_ADMIN_EMAIL);
 
     expect(user.role).toBe('admin');
   });
@@ -102,17 +102,17 @@ describe('findUserById', () => {
   });
 });
 
-describe('ensureBuiltInDeveloper', () => {
-  it('creates the developer account (stored as developer) when it does not exist', async () => {
-    const user = await ensureBuiltInDeveloper();
+describe('ensureBuiltInAdmin', () => {
+  it('creates the built-in admin account when it does not exist', async () => {
+    const user = await ensureBuiltInAdmin();
 
     expect(user).toEqual({
       id: expect.stringMatching(/^[0-9a-f-]{36}$/),
-      email: DEVELOPER_EMAIL,
+      email: BUILT_IN_ADMIN_EMAIL,
       password_hash: expect.any(String),
       full_name: 'Alo de Castro',
       avatar_url: null,
-      role: 'developer',
+      role: 'admin',
       productive_unit_id: null,
       email_verified: true,
       must_change_password: false,
@@ -120,28 +120,28 @@ describe('ensureBuiltInDeveloper', () => {
     });
     expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
 
-    const stored = await prisma.user.findUnique({ where: { email: DEVELOPER_EMAIL } });
-    expect(stored.role).toBe('developer');
+    const stored = await prisma.user.findUnique({ where: { email: BUILT_IN_ADMIN_EMAIL } });
+    expect(stored.role).toBe('admin');
   });
 
-  it('resets password, name, role and verification of an existing developer account, keeping its id', async () => {
+  it('resets password, name, role and verification of an existing built-in admin account, keeping its id', async () => {
     const existing = await insertUser({
-      email: DEVELOPER_EMAIL,
+      email: BUILT_IN_ADMIN_EMAIL,
       full_name: 'Outro Nome',
       role: 'user',
       email_verified: false,
       is_active: false,
     });
 
-    const user = await ensureBuiltInDeveloper();
+    const user = await ensureBuiltInAdmin();
 
     expect(user).toEqual({
       id: existing.id,
-      email: DEVELOPER_EMAIL,
+      email: BUILT_IN_ADMIN_EMAIL,
       password_hash: expect.any(String),
       full_name: 'Alo de Castro',
       avatar_url: null,
-      role: 'developer',
+      role: 'admin',
       productive_unit_id: null,
       email_verified: true,
       must_change_password: false,
@@ -151,7 +151,7 @@ describe('ensureBuiltInDeveloper', () => {
     expect(await verifyPassword('2665398', user.password_hash)).toBe(true);
 
     const stored = await prisma.user.findUnique({ where: { id: existing.id } });
-    expect(stored.role).toBe('developer');
+    expect(stored.role).toBe('admin');
     expect(await prisma.user.count()).toBe(1);
   });
 });
@@ -209,11 +209,11 @@ describe('listUsers', () => {
   it('lists every user oldest first, without password hashes', async () => {
     const newer = await insertUser({ email: 'newer@example.com', created_at: new Date('2024-03-01T00:00:00.000Z') });
     const older = await insertUser({ email: 'older@example.com', created_at: new Date('2023-03-01T00:00:00.000Z') });
-    await insertUser({ email: DEVELOPER_EMAIL, role: 'admin', created_at: new Date('2024-06-01T00:00:00.000Z') });
+    await insertUser({ email: BUILT_IN_ADMIN_EMAIL, role: 'admin', created_at: new Date('2024-06-01T00:00:00.000Z') });
 
     const users = await listUsers();
 
-    expect(users.map((user) => user.email)).toEqual(['older@example.com', 'newer@example.com', DEVELOPER_EMAIL]);
+    expect(users.map((user) => user.email)).toEqual(['older@example.com', 'newer@example.com', BUILT_IN_ADMIN_EMAIL]);
     expect(users[0]).toEqual({
       id: older.id,
       email: 'older@example.com',

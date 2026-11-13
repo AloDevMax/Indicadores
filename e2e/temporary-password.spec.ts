@@ -3,9 +3,9 @@
 import { test, expect } from '@playwright/test';
 import crypto from 'node:crypto';
 
-const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
+const ADMIN_EMAIL = 'alo.de.castro@hotmail.com';
 // eslint-disable-next-line no-undef -- process.env is a Node global in a Playwright spec, not a browser one
-const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
+const ADMIN_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
 const NEW_PASSWORD = 'MinhaSenha123';
 
 async function submitLogin(page, email, password) {
@@ -27,8 +27,8 @@ test.describe('Temporary password flow', () => {
     const email = `e2e-temp-${uid}@example.com`;
     const fullName = `E2E Temp ${uid.slice(0, 8)}`;
 
-    // 1. The developer creates the account without typing a password.
-    await submitLogin(page, DEVELOPER_EMAIL, DEVELOPER_PASSWORD);
+    // 1. The built-in admin creates the account without typing a password.
+    await submitLogin(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.waitForURL(/#\/admin/);
     await page.goto('/#/admin/users');
     await page.getByRole('button', { name: '+ Novo Colaborador' }).click();

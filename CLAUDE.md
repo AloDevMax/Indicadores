@@ -23,7 +23,7 @@ npm run release:zip       # .zip of origin/production for the manual Hostinger u
 
 # Database
 npm run db:migrate        # prisma migrate dev — create/apply migrations on the local database
-npm run db:seed           # Idempotent seed: built-in developer account (add -- --demo for demo data)
+npm run db:seed           # Idempotent seed: built-in admin account (add -- --demo for demo data)
 npm run db:check          # Verify DB connection (version + tables)
 npm run db:seed:badges    # Seed indicator badges (requires prior build)
 
@@ -77,8 +77,7 @@ Full-stack monolith: Express serves both the REST API and the static React bundl
 |------|--------|
 | `user` | Personal dashboard, own badges, ranking |
 | `supervisor` | Admin access scoped to own productive unit |
-| `admin` | Full access: manage badges, users, award, Excel import |
-| `developer` | Same as admin (dev account) |
+| `admin` | Full access across all units: badge library, users, units, award, Excel import |
 
 ### Key Entry Points
 
@@ -124,7 +123,7 @@ server/
 - [Frontend](docs/architecture-frontend.md) — entry point, state, routing, auth, pages
 - [Backend](docs/architecture-backend.md) — Express server, module layout, layers
 - [Database](docs/architecture-database.md) — Prisma ORM, migrations, seed, key models
-- [Authorization](docs/architecture-authorization.md) — roles, scoping, developer account
+- [Authorization](docs/architecture-authorization.md) — roles, scoping, built-in admin account
 - [Excel Import System](docs/architecture-excel-import.md) — bulk badge assignment flow
 - [Key API Routes](docs/architecture-api-routes.md) — auth, submissions, admin endpoints
 

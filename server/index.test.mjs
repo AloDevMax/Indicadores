@@ -114,8 +114,8 @@ describe('auth guard matrix', () => {
   // an exact Portuguese message (3 routes).
   describe.each([
     { method: 'post', path: '/api/admin/users', error: 'Acesso restrito.' },
-    { method: 'post', path: '/api/admin/badges', error: 'Somente o desenvolvedor pode manter a biblioteca global de selos.' },
-    { method: 'post', path: '/api/admin/badges/delete', error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' },
+    { method: 'post', path: '/api/admin/badges', error: 'Somente administradores podem manter a biblioteca global de selos.' },
+    { method: 'post', path: '/api/admin/badges/delete', error: 'Somente administradores podem remover selos da biblioteca global.' },
   ])('$method $path', ({ method, path, error }) => {
     it('returns 403 with the exact Portuguese error message when the Authorization header is missing', async () => {
       const response = await request(app)[method](path);
@@ -441,7 +441,7 @@ describe('GET /api/health', () => {
 
 describe('removed import-source and import-run routes', () => {
   it.each(['/api/admin/import-sources', '/api/admin/import-runs'])('POST %s returns 404', async (path) => {
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post(path).set('Authorization', header).send({});
 
@@ -523,17 +523,6 @@ describe('auth flow routes (HTTP layer over the real service functions)', () => 
 
 describe('protected routes exercised end-to-end with a valid token', () => {
   it('admin action succeeding: POST /api/admin/seed-indicator-badges seeds the indicator badge set for a plain admin', async () => {
-    // Chosen deliberately over /api/admin/award-badges or similar: this is
-    // the one mutating admin route whose guard is only isAdminOrDeveloper()
-    // with no further ensureUsersWithinScope() call, so a plain 'admin' role
-    // (not 'developer') can reach 200 here without needing a productive_unit_id
-    // fixture. Several of the other guarded routes (award-badges,
-    // import-monthly-badges, user-badges/remove, users/delete) call
-    // ensureUsersWithinScope(), which — since the listUsers() wrong-import bug
-    // fix — resolves the caller's allowed user ids via real
-    // productive_unit_id matching against server/auth/repository.mjs's
-    // listUsers(). Using this route instead keeps the test focused on the
-    // guard shape without needing to construct matching-unit fixtures.
     const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/seed-indicator-badges').set('Authorization', header);
@@ -545,7 +534,7 @@ describe('protected routes exercised end-to-end with a valid token', () => {
   });
 
   it('ensureUsersWithinScope regression: a supervisor CAN award a badge to a real target user in their own productive unit', async () => {
-    // Direct coverage for server/index.mjs:39-48's real (non-developer)
+    // Direct coverage for ensureUsersWithinScope's supervisor
     // branch, which the listUsers() wrong-import bug always denied
     // regardless of actual scope. Both accounts are given the same real
     // productive_unit_id, and the target user is a real row in the users
@@ -624,16 +613,9 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     expect(response.body.user).toMatchObject({ full_name: 'Same Unit User', productive_unit_id: unitId });
   });
 
-  it('submission review flow: a developer approves a real pending submission end-to-end', async () => {
-    // 'developer' is used here to bypass ensureSubmissionWithinScope()
-    // outright via isDeveloper(): that function (now correctly reading
-    // server/auth/repository.mjs's listUsers() after the listUsers()
-    // wrong-import bug fix) resolves the submission owner's real
-    // productive_unit_id and compares it to the reviewer's — using
-    // 'developer' avoids depending on both accounts sharing a
-    // productive_unit_id for this test to pass.
-    const applicant = await authHeaderFor('user');
-    const reviewer = await authHeaderFor('developer');
+  it('submission review flow: an admin approves a pending submission from another productive unit end-to-end', async () => {
+    const applicant = await authHeaderFor('user', { productive_unit_id: 'unit-review-applicant' });
+    const reviewer = await authHeaderFor('admin', { productive_unit_id: 'unit-review-admin' });
 
     const submissionResponse = await request(app)
       .post('/api/submissions')
@@ -654,8 +636,8 @@ describe('protected routes exercised end-to-end with a valid token', () => {
     expect(reviewResponse.body.awardedBadge).toMatchObject({ user_id: applicant.user.id, badge_id: '1', tone: 'bronze' });
   });
 
-  it('a fake submission id 403s the review route even for a developer-equivalent supervisor within scope', async () => {
-    const reviewer = await authHeaderFor('admin');
+  it('a fake submission id 403s the review route for a supervisor', async () => {
+    const reviewer = await authHeaderFor('supervisor', { productive_unit_id: 'unit-review-fake' });
 
     // Submission ids are UUIDs: a non-UUID id currently 500s on the database
     // (invalid uuid syntax), a known gap tracked outside Fase 2.
@@ -815,7 +797,7 @@ describe('pending password change gate', () => {
 
 describe('admin-issued temporary passwords', () => {
   it('POST /api/admin/users without a password returns a one-time temporary password that logs in', async () => {
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
     const email = uniqueEmail('temp');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
@@ -830,7 +812,7 @@ describe('admin-issued temporary passwords', () => {
   });
 
   it('POST /api/admin/users with a password returns no temporary password', async () => {
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
       .send({ email: uniqueEmail('chosen'), full_name: 'Escolhida', role: 'user', password: 'escolhida1' });
@@ -840,7 +822,7 @@ describe('admin-issued temporary passwords', () => {
   });
 
   it('POST /api/admin/users/bulk-invite returns one temporary password per created user', async () => {
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
     const emails = [uniqueEmail('invite-a'), uniqueEmail('invite-b')];
 
     const response = await request(app).post('/api/admin/users/bulk-invite').set('Authorization', header)
@@ -988,7 +970,7 @@ describe('sessions end when access is withdrawn', () => {
   it('revokes every session of a user an admin deactivates', async () => {
     const { email, token } = await loginOverHttp('to-deactivate');
     const target = await prisma.user.findUnique({ where: { email } });
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
       .send({ id: target.id, email, full_name: target.full_name, role: 'user', is_active: false });
@@ -1001,7 +983,7 @@ describe('sessions end when access is withdrawn', () => {
   it('revokes every session of a user whose password an admin resets', async () => {
     const { email, token } = await loginOverHttp('to-reset');
     const target = await prisma.user.findUnique({ where: { email } });
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
       .send({ id: target.id, email, full_name: target.full_name, role: 'user', password: 'redefinida1' });
@@ -1014,7 +996,7 @@ describe('sessions end when access is withdrawn', () => {
   it('keeps the sessions of a user an admin only renames', async () => {
     const { email, token } = await loginOverHttp('to-rename');
     const target = await prisma.user.findUnique({ where: { email } });
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     await request(app).post('/api/admin/users').set('Authorization', header)
       .send({ id: target.id, email, full_name: 'Outro Nome', role: 'user' });
@@ -1163,19 +1145,6 @@ describe('POST /api/admin/users — who can edit an existing account', () => {
     expect(response.body.user).toMatchObject({ id: target.id, full_name: 'Nome Novo', role: 'user', productive_unit_id: 'edit-unit-a' });
   });
 
-  it('403s an admin resetting the developer account password', async () => {
-    const { header } = await authHeaderFor('admin');
-    const developer = await createTarget({ role: 'developer' });
-
-    const response = await request(app).post('/api/admin/users').set('Authorization', header)
-      .send(editPayload(developer, { role: 'admin', password: 'hacked123' }));
-
-    expect(response.status).toBe(403);
-    expect(response.body).toEqual({ error: 'Somente o desenvolvedor pode alterar essa conta.' });
-    expect(await loginStatus(developer.email, 'hacked123')).toBe(401);
-    expect((await prisma.user.findUnique({ where: { id: developer.id } })).role).toBe('developer');
-  });
-
   it('lets an admin edit another admin', async () => {
     const { header } = await authHeaderFor('admin');
     const target = await createTarget({ role: 'admin' });
@@ -1187,9 +1156,9 @@ describe('POST /api/admin/users — who can edit an existing account', () => {
     expect(response.body.user).toMatchObject({ id: target.id, full_name: 'Gestor Renomeado', role: 'admin' });
   });
 
-  it('lets the developer reset any account password', async () => {
-    const { header } = await authHeaderFor('developer');
-    const target = await createTarget({ role: 'admin' });
+  it('lets an admin reset the password of an admin from another unit', async () => {
+    const { header } = await authHeaderFor('admin', { productive_unit_id: 'edit-unit-a' });
+    const target = await createTarget({ role: 'admin', productive_unit_id: 'edit-unit-b' });
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
       .send(editPayload(target, { password: 'redefinida1' }));
@@ -1199,31 +1168,11 @@ describe('POST /api/admin/users — who can edit an existing account', () => {
   });
 });
 
-describe('POST /api/admin/users — the developer role does not come from the e-mail', () => {
-  const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
-  // Renomeia em vez de apagar: a conta pode ter sessões (auth_sessions) apontando para ela.
-  const releaseDeveloperEmail = () => prisma.user.updateMany({
-    where: { email: DEVELOPER_EMAIL }, data: { email: uniqueEmail('former-developer') },
-  });
-
-  it('keeps an admin who takes a case variant of the developer e-mail as admin', async () => {
-    await releaseDeveloperEmail();
-    const { header, user } = await authHeaderFor('admin');
-
-    const response = await request(app).post('/api/admin/users').set('Authorization', header)
-      .send({ id: user.id, email: 'ALO.DE.CASTRO@HOTMAIL.COM', full_name: user.full_name, role: 'admin' });
-    const me = await request(app).get('/api/auth/me').set('Authorization', header);
-
-    expect(response.status).toBe(201);
-    expect(response.body.user.email).toBe(DEVELOPER_EMAIL);
-    expect(me.body.user.role).toBe('admin');
-    await releaseDeveloperEmail();
-  });
-
+describe('POST /api/admin/users — e-mail normalization', () => {
   it('409s a case variant of an e-mail that is already registered', async () => {
     const existingEmail = uniqueEmail('taken');
     await createTestUser({ email: existingEmail, full_name: 'Dono', role: 'user' });
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
       .send({ email: existingEmail.toUpperCase(), full_name: 'Copia', role: 'user' });
@@ -1234,7 +1183,7 @@ describe('POST /api/admin/users — the developer role does not come from the e-
   });
 
   it('stores a new account e-mail in lowercase, without surrounding spaces', async () => {
-    const { header } = await authHeaderFor('developer');
+    const { header } = await authHeaderFor('admin');
     const email = uniqueEmail('mixed');
 
     const response = await request(app).post('/api/admin/users').set('Authorization', header)
@@ -1296,5 +1245,77 @@ describe('security headers', () => {
 
     expect(response.headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
     expect(cspOf(response)).toHaveProperty('upgrade-insecure-requests');
+  });
+});
+
+describe('admin has global scope; supervisor stays within their unit', () => {
+  it('lets an admin award a badge to a user from another productive unit', async () => {
+    const { header } = await authHeaderFor('admin', { productive_unit_id: 'unit-global-admin' });
+    const { user: target } = await authHeaderFor('user', { productive_unit_id: 'unit-global-other' });
+
+    const response = await request(app).post('/api/admin/award-badges').set('Authorization', header)
+      .send({ user_ids: [target.id], badge_id: '1', tone: 'silver' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.awardedBadges).toEqual([
+      expect.objectContaining({ user_id: target.id, badge_id: '1', tone: 'silver', productive_unit_id: 'unit-global-other' }),
+    ]);
+  });
+
+  it('lets an admin without a productive unit award a badge to a user that has one', async () => {
+    const { header } = await authHeaderFor('admin');
+    const { user: target } = await authHeaderFor('user', { productive_unit_id: 'unit-global-target' });
+
+    const response = await request(app).post('/api/admin/award-badges').set('Authorization', header)
+      .send({ user_ids: [target.id], badge_id: '1', tone: 'bronze' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.awardedBadges).toEqual([expect.objectContaining({ user_id: target.id })]);
+  });
+
+  it('lets an admin create a user in a productive unit other than their own', async () => {
+    const { header } = await authHeaderFor('admin', { productive_unit_id: 'unit-global-admin' });
+    await prisma.productiveUnit.upsert({
+      where: { id: 'unit-global-new' }, create: { id: 'unit-global-new', name: 'Unidade nova' }, update: {},
+    });
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email: uniqueEmail('global-new'), full_name: 'Outra Unidade', role: 'supervisor', productive_unit_id: 'unit-global-new' });
+
+    expect(response.status).toBe(201);
+    expect(response.body.user).toMatchObject({ full_name: 'Outra Unidade', role: 'supervisor', productive_unit_id: 'unit-global-new' });
+  });
+
+  it('lets an admin save a badge in the global library', async () => {
+    const { header } = await authHeaderFor('admin');
+
+    const response = await request(app).post('/api/admin/badges').set('Authorization', header)
+      .send({ id: 'badge-admin-library', name: 'Selo da Biblioteca', description: 'Criado por um admin', category: 'Qualidade', icon_name: 'Award', points: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.badge).toMatchObject({ id: 'badge-admin-library', name: 'Selo da Biblioteca' });
+  });
+
+  it('403s a supervisor saving a badge in the global library', async () => {
+    const { header } = await authHeaderFor('supervisor', { productive_unit_id: 'unit-global-sup' });
+
+    const response = await request(app).post('/api/admin/badges').set('Authorization', header)
+      .send({ id: 'badge-supervisor-library', name: 'Não pode' });
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Somente administradores podem manter a biblioteca global de selos.' });
+    expect(await prisma.badge.findUnique({ where: { id: 'badge-supervisor-library' } })).toBeNull();
+  });
+
+  it('400s a role that no longer exists, such as developer', async () => {
+    const { header } = await authHeaderFor('admin');
+    const email = uniqueEmail('legacy-role');
+
+    const response = await request(app).post('/api/admin/users').set('Authorization', header)
+      .send({ email, full_name: 'Papel Antigo', role: 'developer' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Papel inválido.' });
+    expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
   });
 });

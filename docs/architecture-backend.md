@@ -20,7 +20,7 @@ server/
 │   └── prisma.mjs              # the single PrismaClient (connection pool)
 ├── auth/
 │   ├── service.mjs             # login/logout, session validation, Zod schemas
-│   ├── repository.mjs          # users + sessions, the built-in developer account
+│   ├── repository.mjs          # users + sessions, the built-in admin account
 │   └── crypto.mjs              # password hashing, session token signing
 ├── admin/
 │   └── repository.mjs          # CRUD for badges, units, users; bulk invite
@@ -28,7 +28,7 @@ server/
 │   └── repository.mjs          # badge awards, submissions (create/review), imports
 ├── db/
 │   ├── resourceRepository.mjs  # per-route listings (badges, units, legends, ...)
-│   └── seed.mjs                # idempotent seed (developer account; --demo data)
+│   └── seed.mjs                # idempotent seed (built-in admin account; --demo data)
 ├── test/                       # test-only helpers: globalSetup, resetDatabase, fixtures
 └── uploads/
     ├── uploadRoutes.mjs        # /api/upload router (multipart receive)
@@ -41,8 +41,8 @@ server/
 ## Request flow
 
 1. **Auth gate** — every protected route starts with `requireAuthenticatedUser(req.headers.authorization)` (or `getAuthenticatedUser` when auth is optional, e.g. `/api/auth/me`). The session token is a signed string in the `Authorization` header.
-2. **Role check** — helpers in `index.mjs` (`isAdminOrDeveloper`, `isDeveloper`, `isManager`, `isSupervisor`, `canManageUnit`) gate by role.
-3. **Scope check** — for routes that touch users/submissions, `ensureUsersWithinScope` and `ensureSubmissionWithinScope` confirm the actor's company/unit covers the target. See `docs/architecture-authorization.md` for the role + scoping rules.
+2. **Role check** — helpers in `index.mjs` (`isAdmin`, `isSupervisor`, `canManageUnit`) gate by role.
+3. **Scope check** — for routes that touch users/submissions, `ensureUsersWithinScope` and `ensureSubmissionWithinScope` let admins through and confirm a supervisor's productive unit covers the target. See `docs/architecture-authorization.md` for the role + scoping rules.
 4. **Repository call** — the relevant repository runs the query through Prisma.
 5. **Response** — JSON; errors bubble to the global handler.
 
@@ -64,5 +64,5 @@ For the full inventory and request/response shapes, see `docs/architecture-api-r
 
 - **`server/index.mjs`** — every route lives here. Splitting it into modules is Fase 3 of `.specs/2026-10-06-arquitetura-prod-design.md`.
 - **`server/admin/repository.mjs`** and **`server/operations/repository.mjs`** — the largest data-access modules.
-- **`server/auth/repository.mjs`** — users, sessions, the built-in developer account.
+- **`server/auth/repository.mjs`** — users, sessions, the built-in admin account.
 - **`prisma/schema.prisma`** and **`prisma/migrations/`** — the schema and its versioned migrations.

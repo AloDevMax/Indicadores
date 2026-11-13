@@ -12,7 +12,7 @@ Pré-requisitos: Node.js 20–22 e Docker (para o Postgres local — veja [docs/
 npm install
 cp .env.example .env      # ajuste DATABASE_URL etc.
 npm run db:migrate        # aplica as migrations
-npm run db:seed -- --demo # conta developer + dados de demonstração
+npm run db:seed -- --demo # conta admin embutida + dados de demonstração
 npm run dev:full          # frontend :3000 + backend :4004
 ```
 
@@ -30,7 +30,7 @@ Secrets do GitHub (environment `production`):
 |---|---|
 | `PROD_DATABASE_URL` | Pooler de transação do Supabase (porta 6543, `?pgbouncer=true&connection_limit=1`) |
 | `PROD_DIRECT_URL` | Session pooler do Supabase (porta 5432), usado pelo Prisma Migrate |
-| `PROD_DEVELOPER_INITIAL_PASSWORD` | Senha da conta developer embutida (o seed a regrava a cada release) |
+| `PROD_DEVELOPER_INITIAL_PASSWORD` | Senha da conta admin embutida (o seed a regrava a cada release) |
 
 Variáveis obrigatórias em produção (veja `.env.example`): `DATABASE_URL`, `AUTH_SECRET`, `DEVELOPER_INITIAL_PASSWORD`, `STORAGE_DRIVER=supabase`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` — o servidor não sobe sem elas.
 

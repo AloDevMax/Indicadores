@@ -32,10 +32,10 @@ const CLIENT_BUILD_DIR = path.resolve(__dirname, isBuiltServer ? '../client' : '
 const asyncRoute = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
 
-const isAdminOrDeveloper = (user) => user.role === 'admin' || user.role === 'developer';
-const isDeveloper = (user) => user.role === 'developer';
+const ROLES = ['admin', 'supervisor', 'user'];
+const isAdmin = (user) => user.role === 'admin';
 const isSupervisor = (user) => user.role === 'supervisor';
-const canManageUnit = (user) => isAdminOrDeveloper(user) || isSupervisor(user);
+const canManageUnit = (user) => isAdmin(user) || isSupervisor(user);
 
 // Usuário comum vê o próprio e-mail, não o dos colegas.
 const hideEmailFrom = (viewer, user) => {
@@ -46,7 +46,7 @@ const hideEmailFrom = (viewer, user) => {
 
 // Supervisor vê a própria unidade e usuário comum só as próprias solicitações.
 const scopeSubmissions = (viewer, submissions, users) => {
-  if (isAdminOrDeveloper(viewer)) return submissions;
+  if (isAdmin(viewer)) return submissions;
   if (isSupervisor(viewer) && viewer.productive_unit_id) {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return submissions.filter((s) => unitUserIds.has(s.user_id));
@@ -58,7 +58,7 @@ const scopeSubmissions = (viewer, submissions, users) => {
 // Concessões: quem tem unidade vê as da própria unidade (inclusive as próprias);
 // usuário comum sem unidade, só as próprias. O ranking entre unidades usa /api/ranking.
 const scopeUserBadges = (viewer, userBadges, users) => {
-  if (isAdminOrDeveloper(viewer)) return userBadges;
+  if (isAdmin(viewer)) return userBadges;
   if (viewer.productive_unit_id) {
     const unitUserIds = new Set(users.filter((u) => u.productive_unit_id === viewer.productive_unit_id).map((u) => u.id));
     return userBadges.filter((ub) => unitUserIds.has(ub.user_id));
@@ -77,8 +77,9 @@ const ensureManagerUnitScope = (user, unitId) => {
   return true;
 };
 
+// Admin alcança todas as unidades; supervisor, só a própria.
 const ensureUsersWithinScope = async (user, targetUserIds) => {
-  if (isDeveloper(user)) return true;
+  if (isAdmin(user)) return true;
 
   const users = await listUsers();
   const allowedUserIds = new Set(
@@ -91,8 +92,6 @@ const ensureUsersWithinScope = async (user, targetUserIds) => {
 // Editar uma conta exige alcançá-la como ela está no banco, não só pelos dados enviados:
 // senão um supervisor "trazia" para a própria unidade (e redefinia a senha de) qualquer conta.
 const reasonToDenyEditing = (editor, target) => {
-  if (isDeveloper(editor)) return null;
-  if (isDeveloper(target)) return 'Somente o desenvolvedor pode alterar essa conta.';
   if (!isSupervisor(editor)) return null;
 
   const isOwnUnitCollaborator = target.role === 'user'
@@ -102,7 +101,7 @@ const reasonToDenyEditing = (editor, target) => {
 };
 
 const ensureSubmissionWithinScope = async (user, submissionId) => {
-  if (isDeveloper(user)) return true;
+  if (isAdmin(user)) return true;
 
   const owner = await findSubmissionOwnerUnit(submissionId);
   if (!owner) return false;
@@ -219,7 +218,7 @@ export function createApp({
 
   app.post('/api/admin/seed-indicator-badges', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
+    if (auth.status !== 200 || !isAdmin(auth.body.user)) return res.sendStatus(403);
 
     const badges = await seedIndicatorBadges();
     res.status(200).json({ badges });
@@ -324,8 +323,8 @@ export function createApp({
     if (auth.status !== 200 || !canManageUnit(auth.body.user)) {
       return res.status(403).json({ error: 'Acesso restrito.' });
     }
-    if (req.body.role === 'developer' && !isDeveloper(auth.body.user)) {
-      return res.status(403).json({ error: 'Somente o desenvolvedor pode manter esse papel.' });
+    if (req.body.role !== undefined && !ROLES.includes(req.body.role)) {
+      return res.status(400).json({ error: 'Papel inválido.' });
     }
     if (isSupervisor(auth.body.user) && req.body.role && req.body.role !== 'user') {
       return res.status(403).json({ error: 'Supervisores só podem cadastrar colaboradores.' });
@@ -333,7 +332,7 @@ export function createApp({
     if (req.body.role === 'supervisor' && !req.body.productive_unit_id) {
       return res.status(400).json({ error: 'Supervisor precisa de uma unidade produtiva.' });
     }
-    if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+    if (!ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
       return res.status(403).json({ error: 'Gestores só podem cadastrar usuários da própria unidade produtiva.' });
     }
     if (req.body.id === auth.body.user.id && req.body.is_active === false) {
@@ -365,8 +364,8 @@ export function createApp({
 
   app.post('/api/admin/badges', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
-      return res.status(403).json({ error: 'Somente o desenvolvedor pode manter a biblioteca global de selos.' });
+    if (auth.status !== 200 || !isAdmin(auth.body.user)) {
+      return res.status(403).json({ error: 'Somente administradores podem manter a biblioteca global de selos.' });
     }
     const badge = await saveBadge(req.body);
     res.status(200).json({ badge });
@@ -374,8 +373,8 @@ export function createApp({
 
   app.post('/api/admin/badges/delete', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isDeveloper(auth.body.user)) {
-      return res.status(403).json({ error: 'Somente o desenvolvedor pode remover selos da biblioteca global.' });
+    if (auth.status !== 200 || !isAdmin(auth.body.user)) {
+      return res.status(403).json({ error: 'Somente administradores podem remover selos da biblioteca global.' });
     }
     const result = await deleteBadge(req.body.id);
     res.status(200).json(result);
@@ -394,10 +393,7 @@ export function createApp({
 
   app.post('/api/admin/productive-units', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
-    if (auth.status !== 200 || !isAdminOrDeveloper(auth.body.user)) return res.sendStatus(403);
-    if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
-      return res.status(403).json({ error: 'Gestores só podem acessar a própria unidade produtiva.' });
-    }
+    if (auth.status !== 200 || !isAdmin(auth.body.user)) return res.sendStatus(403);
 
     const productiveUnit = await saveProductiveUnit(req.body);
     res.status(201).json({ productiveUnit });
@@ -406,7 +402,7 @@ export function createApp({
   app.post('/api/admin/users/bulk-invite', asyncRoute(async (req, res) => {
     const auth = await requireAuthenticatedUser(req.headers.authorization);
     if (auth.status !== 200 || !canManageUnit(auth.body.user)) return res.sendStatus(403);
-    if (!isDeveloper(auth.body.user) && !ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
+    if (!ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
       return res.status(403).json({ error: 'Gestores só podem convidar usuários da própria unidade produtiva.' });
     }
     const result = await bulkInviteUsers(req.body);
