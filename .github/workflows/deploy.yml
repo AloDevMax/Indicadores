@@ -136,7 +136,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # O seed regrava a senha da conta developer; sem o secret ele gravaria a senha de dev.
+      # O seed regrava a senha da conta admin embutida; sem o secret ele gravaria a senha de dev.
       - name: Check required secrets
         run: |
           for name in DATABASE_URL DIRECT_URL DEVELOPER_INITIAL_PASSWORD; do
@@ -152,7 +152,7 @@ jobs:
       - name: Apply migrations
         run: npx prisma migrate deploy
 
-      - name: Seed developer account
+      - name: Seed built-in admin account
         run: npm run build && node dist/server/db/seed.mjs
 
       # Só fast-forward: se `production` divergiu da main, o push falha em vez de reescrever histórico.

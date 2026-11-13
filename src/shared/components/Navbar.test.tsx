@@ -33,13 +33,6 @@ function renderNavbar(user: Profile, onLogout = vi.fn()) {
 }
 
 describe('Navbar', () => {
-  it('renders the "Dev" pill and "Desenvolvedor" subtitle for a developer', () => {
-    renderNavbar(makeProfile({ role: 'developer', full_name: 'Marcos Costa' }));
-
-    expect(screen.getByText('Dev')).toBeInTheDocument();
-    expect(screen.getByText('Desenvolvedor')).toBeInTheDocument();
-  });
-
   it('renders the "Supervisor" pill and "Supervisor de Unidade" subtitle for a supervisor', () => {
     renderNavbar(makeProfile({ role: 'supervisor', full_name: 'Marina Torres' }));
 
@@ -57,7 +50,6 @@ describe('Navbar', () => {
   it('renders no role pill and a monthly-score subtitle for a plain user', () => {
     renderNavbar(makeProfile({ role: 'user', full_name: 'Plain User' }));
 
-    expect(screen.queryByText('Dev')).not.toBeInTheDocument();
     expect(screen.queryByText('Supervisor')).not.toBeInTheDocument();
     expect(screen.queryByText('Admin')).not.toBeInTheDocument();
     expect(screen.getByText('+0 pts este mês')).toBeInTheDocument();

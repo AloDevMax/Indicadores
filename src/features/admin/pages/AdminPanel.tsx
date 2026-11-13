@@ -104,20 +104,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const { data: productiveUnits = [], refresh: refreshUnits } = useRouteData('units', fetchProductiveUnitsWithApi, []);
   const { data: badgeLegends = DEFAULT_BADGE_LEGENDS } = useRouteData('badgeLegends', fetchBadgeLegendsWithApi, DEFAULT_BADGE_LEGENDS);
   const location = useLocation();
-  const isDeveloper = currentUser.role === 'developer';
+  const isAdmin = currentUser.role === 'admin';
   const isSupervisor = currentUser.role === 'supervisor';
-  const canManageGlobalCatalog = isDeveloper;
+  const canManageGlobalCatalog = isAdmin;
   const view = useMemo(() => {
     const allowedViews = new Set([
       'overview', 'submissions', 'users', 'award',
-      ...(isDeveloper ? ['badges'] : []),
+      ...(isAdmin ? ['badges'] : []),
     ]);
     const path = location.pathname.split('/').pop();
     if (path === 'admin' || !path) return 'overview';
     return allowedViews.has(path)
       ? path as 'overview' | 'submissions' | 'users' | 'award' | 'badges'
       : 'overview';
-  }, [isDeveloper, location.pathname]);
+  }, [isAdmin, location.pathname]);
 
   // UI State
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -205,7 +205,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     );
   };
 
-  const adminProfile = users.find(u => u.role === 'admin' || u.role === 'developer') || users[0] || null;
+  const adminProfile = users.find(u => u.role === 'admin') || users[0] || null;
   const safeAdminProfile: Profile = adminProfile || {
     id: 'admin-local',
     email: 'admin@local',
@@ -260,7 +260,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleSaveBadge = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canManageGlobalCatalog) {
-      toast.error('Somente o desenvolvedor pode manter a biblioteca global de selos.');
+      toast.error('Somente administradores podem manter a biblioteca global de selos.');
       return;
     }
     const formData = new FormData(e.currentTarget);
@@ -289,7 +289,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleDeleteBadge = async (badge: Badge) => {
     if (!canManageGlobalCatalog) {
-      toast.error('Somente o desenvolvedor pode remover selos da biblioteca global.');
+      toast.error('Somente administradores podem remover selos da biblioteca global.');
       return;
     }
     const ok = await confirm({
@@ -1451,7 +1451,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <option value="user">Colaborador</option>
                     {!isSupervisor && <option value="supervisor">Supervisor</option>}
                     {!isSupervisor && <option value="admin">Gestor</option>}
-                    {isDeveloper && <option value="developer">Desenvolvedor</option>}
                   </select>
                 </div>
                 <div className="space-y-2">

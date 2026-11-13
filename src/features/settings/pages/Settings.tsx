@@ -15,7 +15,6 @@ const ROLE_LABELS: Record<Role, string> = {
   user: 'Colaborador',
   supervisor: 'Supervisor',
   admin: 'Gestor',
-  developer: 'Desenvolvedor',
 };
 
 const INPUT_CLASS = 'w-full px-6 py-4 rounded-2xl bg-slate-50 border-none font-bold outline-none focus:ring-2 focus:ring-brand-primary text-slate-900';

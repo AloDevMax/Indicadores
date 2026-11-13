@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../shared/db/prisma.mjs';
-import { ensureBuiltInDeveloper } from '../auth/repository.mjs';
+import { ensureBuiltInAdmin } from '../auth/repository.mjs';
 
 // Dados de demonstração para o banco local. Nunca entram em produção:
 // só são gravados com `--demo` (npm run db:seed -- --demo).
@@ -32,7 +32,7 @@ const seedDemoData = async () => {
 
 /** Idempotente: pode rodar a cada deploy. */
 export const runSeed = async ({ demo = false } = {}) => {
-  await ensureBuiltInDeveloper();
+  await ensureBuiltInAdmin();
   if (demo) await seedDemoData();
 };
 
@@ -42,7 +42,7 @@ if (isDirectRun) {
   const demo = process.argv.includes('--demo');
   try {
     await runSeed({ demo });
-    console.log(`[SEED] Conta developer garantida${demo ? ' e dados de demonstração gravados' : ''}.`);
+    console.log(`[SEED] Conta admin embutida garantida${demo ? ' e dados de demonstração gravados' : ''}.`);
   } catch (error) {
     console.error('[SEED] Falhou:', error);
     process.exitCode = 1;
