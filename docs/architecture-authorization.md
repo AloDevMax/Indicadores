@@ -11,3 +11,6 @@
   - only the developer can edit the developer account;
   - a supervisor can edit only `user` accounts of their own productive unit;
   - admins can edit any other account.
+- Uploads (`/api/upload/*`) check the session **before** reading the body, and accept exactly one file in the expected field, up to 5MB (413 above that):
+  - `badge-image`: developer only, like the badge library (`POST /api/admin/badges`);
+  - `user-avatar`: any authenticated user.

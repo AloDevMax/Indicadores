@@ -26,7 +26,7 @@ describe('optimizeImage', () => {
     expect(meta).toMatchObject({ format: 'webp', width: 256, height: 256 });
   });
 
-  it.each(['badge', 'company'])('reduz %s para caber em 512px mantendo a proporção', async (kind) => {
+  it.each(['badge'])('reduz %s para caber em 512px mantendo a proporção', async (kind) => {
     const result = await optimizeImage(await solidImage(2000, 1000), kind);
 
     const meta = await sharp(result.buffer).metadata();
@@ -73,5 +73,20 @@ describe('optimizeImage', () => {
 
   it('rejeita um tipo de upload desconhecido', async () => {
     await expect(optimizeImage(await solidImage(10, 10), 'banner')).rejects.toThrow('Tipo de upload desconhecido: banner');
+  });
+
+  it('recusa SVG, mesmo o sharp sabendo decodificar', async () => {
+    const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>');
+
+    await expect(optimizeImage(svg, 'badge')).rejects.toThrow('Formato de imagem não permitido. Envie JPEG, PNG, WebP ou GIF.');
+  });
+
+  it('recusa TIFF', async () => {
+    await expect(optimizeImage(await solidImage(4, 4, 'tiff'), 'badge'))
+      .rejects.toThrow('Formato de imagem não permitido. Envie JPEG, PNG, WebP ou GIF.');
+  });
+
+  it('continua tratando bytes que não são imagem como arquivo corrompido', async () => {
+    await expect(optimizeImage(Buffer.from('not an image'), 'avatar')).rejects.toThrow('Arquivo de imagem inválido ou corrompido.');
   });
 });

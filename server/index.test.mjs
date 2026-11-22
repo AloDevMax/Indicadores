@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import request from 'supertest';
+import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createApp } from './index.mjs';
 import { createSession } from './auth/repository.mjs';
@@ -22,6 +23,7 @@ import { createSessionToken, generateSessionId } from './auth/crypto.mjs';
 import { prisma } from './shared/db/prisma.mjs';
 import { resetDatabase } from './test/db.mjs';
 import { createTestUser, seedReferenceData } from './test/fixtures.mjs';
+import { LOCAL_UPLOADS_DIR } from './uploads/storage/localStorage.mjs';
 
 const app = createApp();
 
@@ -1296,5 +1298,92 @@ describe('security headers', () => {
 
     expect(response.headers['strict-transport-security']).toBe('max-age=31536000; includeSubDomains');
     expect(cspOf(response)).toHaveProperty('upgrade-insecure-requests');
+  });
+});
+
+describe('uploads de imagem', () => {
+  const STORED_URL = /^\/uploads\/[0-9a-f]{16}-\d+\.webp$/;
+  const storedUrls = [];
+  let png;
+
+  beforeAll(async () => {
+    png = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#f00' } }).png().toBuffer();
+  });
+
+  afterAll(() => {
+    for (const url of storedUrls) fs.rmSync(path.join(LOCAL_UPLOADS_DIR, path.basename(url)), { force: true });
+  });
+
+  // Registra o que foi gravado antes de qualquer asserção, para o afterAll limpar mesmo quando o teste falha.
+  const post = async (route, header, field, file, filename) => {
+    const response = await request(app).post(route).set('Authorization', header).attach(field, file, filename);
+    for (const key of ['imageUrl', 'avatarUrl', 'logoUrl']) if (response.body?.[key]) storedUrls.push(response.body[key]);
+    return response;
+  };
+
+  it('recusa imagem de selo enviada por quem não é o developer', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await post('/api/upload/badge-image', header, 'image', png, 'selo.png');
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({ error: 'Acesso restrito.' });
+  });
+
+  it('aceita imagem de selo do developer e grava em webp', async () => {
+    const { header } = await authHeaderFor('developer');
+
+    const response = await post('/api/upload/badge-image', header, 'image', png, 'selo.png');
+
+    expect(response.status).toBe(200);
+    expect(response.body.imageUrl).toMatch(STORED_URL);
+  });
+
+  it('aceita avatar de qualquer usuário autenticado', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await post('/api/upload/user-avatar', header, 'avatar', png, 'avatar.png');
+
+    expect(response.status).toBe(200);
+    expect(response.body.avatarUrl).toMatch(STORED_URL);
+  });
+
+  it('responde 413 quando o arquivo passa de 5MB, em vez de processar o arquivo truncado', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await request(app).post('/api/upload/user-avatar').set('Authorization', header)
+      .attach('avatar', Buffer.alloc(5 * 1024 * 1024 + 1), 'grande.png');
+
+    expect(response.status).toBe(413);
+    expect(response.body).toEqual({ error: 'Arquivo muito grande. Máximo: 5MB' });
+  });
+
+  it('recusa dois arquivos no mesmo envio', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await request(app).post('/api/upload/user-avatar').set('Authorization', header)
+      .attach('avatar', png, 'a.png')
+      .attach('avatar', png, 'b.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Envie um único arquivo no campo "avatar".' });
+  });
+
+  it('recusa o arquivo enviado em outro campo', async () => {
+    const { header } = await authHeaderFor('user');
+
+    const response = await request(app).post('/api/upload/user-avatar').set('Authorization', header)
+      .attach('foto', png, 'a.png');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ error: 'Envie um único arquivo no campo "avatar".' });
+  });
+
+  it('não tem mais a rota de logo de empresa', async () => {
+    const { header } = await authHeaderFor('developer');
+
+    const response = await post('/api/upload/company-logo', header, 'logo', png, 'logo.png');
+
+    expect(response.body?.logoUrl).toBeUndefined();
   });
 });

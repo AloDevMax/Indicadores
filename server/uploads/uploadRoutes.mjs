@@ -7,93 +7,86 @@ export const uploadRouter = express.Router();
 
 const UPLOAD_SIZE_LIMIT = 5 * 1024 * 1024; // 5MB
 
-const parseFormData = (req, res, next) => {
-  const bb = busboy({ headers: req.headers, limits: { fileSize: UPLOAD_SIZE_LIMIT } });
-  req.files = {};
-  req.fields = {};
+// Roda antes do parser: quem não pode enviar é recusado sem que o corpo seja lido.
+const requireUploader = (canUpload) => async (req, res, next) => {
+  try {
+    const auth = await requireAuthenticatedUser(req.headers.authorization);
+    if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+    if (!canUpload(auth.body.user)) return res.status(403).json({ error: 'Acesso restrito.' });
 
-  bb.on('file', (fieldname, file, info) => {
+    req.authUser = auth.body.user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Aceita exatamente um arquivo, no campo esperado e dentro do limite de tamanho.
+const parseSingleFile = (fieldName) => (req, res, next) => {
+  let bb;
+  try {
+    bb = busboy({ headers: req.headers, limits: { files: 1, fields: 0, fileSize: UPLOAD_SIZE_LIMIT } });
+  } catch {
+    return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+  }
+
+  let responded = false;
+  const reject = (status, error) => {
+    if (responded) return;
+    responded = true;
+    req.unpipe(bb);
+    req.resume();
+    res.status(status).json({ error });
+  };
+  const rejectShape = () => reject(400, `Envie um único arquivo no campo "${fieldName}".`);
+
+  bb.on('file', (name, file, info) => {
+    if (name !== fieldName) {
+      file.resume();
+      return rejectShape();
+    }
     const chunks = [];
-    file.on('data', data => {
-      chunks.push(data);
-    });
+    file.on('data', (data) => chunks.push(data));
+    file.on('limit', () => reject(413, `Arquivo muito grande. Máximo: ${UPLOAD_SIZE_LIMIT / 1024 / 1024}MB`));
     file.on('end', () => {
-      req.files[fieldname] = {
-        buffer: Buffer.concat(chunks),
-        filename: info.filename,
-        mimeType: info.mimeType,
-      };
+      if (file.truncated) return;
+      req.file = { buffer: Buffer.concat(chunks), filename: info.filename, mimeType: info.mimeType };
     });
   });
-
-  bb.on('field', (fieldname, val) => {
-    req.fields[fieldname] = val;
-  });
-
+  bb.on('filesLimit', rejectShape);
+  bb.on('fieldsLimit', rejectShape);
   bb.on('close', () => {
+    if (responded) return;
+    if (!req.file) return reject(400, 'Nenhum arquivo enviado');
     next();
   });
-
-  bb.on('error', (error) => {
-    next(error);
-  });
+  bb.on('error', () => reject(400, 'Envio de arquivo inválido.'));
 
   req.pipe(bb);
 };
 
-uploadRouter.post('/badge-image', parseFormData, async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
-
+const handleImageUpload = ({ kind, responseKey, label }) => async (req, res) => {
   try {
-    if (!req.files.image) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    }
-
-    const { buffer, mimeType } = req.files.image;
-    const imageUrl = await saveUploadedFile(buffer, mimeType, 'badge');
-
-    res.json({ success: true, imageUrl });
+    const { buffer, mimeType } = req.file;
+    const url = await saveUploadedFile(buffer, mimeType, kind);
+    res.json({ success: true, [responseKey]: url });
   } catch (error) {
-    console.error('Erro ao fazer upload de imagem de selo:', error);
+    console.error(`Erro ao fazer upload de ${label}:`, error);
     res.status(400).json({ error: error.message });
   }
-});
+};
 
-uploadRouter.post('/company-logo', parseFormData, async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
+// A biblioteca de selos é do developer (ver POST /api/admin/badges); avatar, qualquer usuário autenticado.
+uploadRouter.post(
+  '/badge-image',
+  requireUploader((user) => user.role === 'developer'),
+  parseSingleFile('image'),
+  handleImageUpload({ kind: 'badge', responseKey: 'imageUrl', label: 'imagem de selo' }),
+);
 
-  try {
-    if (!req.files.logo) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    }
-
-    const { buffer, mimeType } = req.files.logo;
-    const logoUrl = await saveUploadedFile(buffer, mimeType, 'company');
-
-    res.json({ success: true, logoUrl });
-  } catch (error) {
-    console.error('Erro ao fazer upload de logo de empresa:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
-
-uploadRouter.post('/user-avatar', parseFormData, async (req, res) => {
-  const auth = await requireAuthenticatedUser(req.headers.authorization);
-  if (auth.status !== 200) return res.status(auth.status).json(auth.body);
-
-  try {
-    if (!req.files.avatar) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    }
-
-    const { buffer, mimeType } = req.files.avatar;
-    const avatarUrl = await saveUploadedFile(buffer, mimeType, 'avatar');
-
-    res.json({ success: true, avatarUrl });
-  } catch (error) {
-    console.error('Erro ao fazer upload de avatar:', error);
-    res.status(400).json({ error: error.message });
-  }
-});
+uploadRouter.post(
+  '/user-avatar',
+  requireUploader(() => true),
+  parseSingleFile('avatar'),
+  handleImageUpload({ kind: 'avatar', responseKey: 'avatarUrl', label: 'avatar' }),
+);

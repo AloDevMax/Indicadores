@@ -14,7 +14,7 @@ export const validateImageFile = (mimeType, size) => {
   }
 };
 
-// kind: 'avatar' | 'badge' | 'company' — define o tamanho final (ver imageProcessing.mjs).
+// kind: 'avatar' | 'badge' — define o tamanho final (ver imageProcessing.mjs).
 export const saveUploadedFile = async (buffer, mimeType, kind) => {
   validateImageFile(mimeType, buffer.length);
 

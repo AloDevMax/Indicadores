@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { storeAuthToken } from '@/shared/api';
 import { ImageUpload } from './ImageUpload';
 
 function makeFile(name: string, sizeInBytes: number, type = 'image/png'): File {
@@ -12,10 +13,12 @@ function makeFile(name: string, sizeInBytes: number, type = 'image/png'): File {
 describe('ImageUpload', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
+    storeAuthToken('token-abc');
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    sessionStorage.clear();
   });
 
   it('renders the label', () => {
@@ -58,6 +61,7 @@ describe('ImageUpload', () => {
 
     expect(mockedFetch).toHaveBeenCalledWith('/api/upload/badge-image', {
       method: 'POST',
+      headers: { Authorization: 'Bearer token-abc' },
       body: expect.any(FormData),
     });
   });
