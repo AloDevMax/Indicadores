@@ -6,7 +6,7 @@ import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatc
 import BadgeCard from '@/features/badges/components/BadgeCard';
 import TemporaryPasswordsDialog from '@/features/admin/components/TemporaryPasswordsDialog';
 import { ImageUpload } from '@/shared/components/ImageUpload';
-import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
+import { BADGE_TONE_LABELS, findMonthlyAward, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
 import { MAX_WORKBOOK_BYTES, MONTH_NAMES_PT, normalizeStr, parseMonthlyWorkbook } from '@/features/admin/lib/monthlyWorkbook';
 import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
@@ -461,7 +461,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleRemoveBadgeFromUser = async (targetUserId: string, badgeId: string) => {
     const ok = await confirm({
       title: 'Remover selo?',
-      message: 'Este selo será removido da cartela do colaborador.',
+      message: 'Este selo será removido da cartela do colaborador neste mês. Os meses anteriores não mudam.',
     });
     if (!ok) return;
 
@@ -1449,7 +1449,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
               <div className="overflow-y-auto pr-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {badges.map(badge => {
-                  const badgeAward = userBadges.find(ub => ub.user_id === viewingUserBadges.id && ub.badge_id === badge.id);
+                  const badgeAward = findMonthlyAward(viewingUserBadges.id, badge.id, userBadges);
                   const isAssigned = Boolean(badgeAward);
 
                   return (
