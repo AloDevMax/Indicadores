@@ -18,6 +18,11 @@ const UUID = /^[0-9a-f-]{36}$/;
 
 const iso = (date) => date.toISOString();
 const id4 = (index) => `00000000-0000-4000-9000-${String(index).padStart(12, '0')}`;
+// Dia 15 do mês anterior, em UTC: o mesmo recorte de mês da importação e do front.
+const lastMonth = () => {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15));
+};
 const userBadgesOf = (userId) => prisma.userBadge.findMany({ where: { user_id: userId }, orderBy: { awarded_at: 'asc' } });
 
 beforeEach(async () => {
@@ -73,10 +78,8 @@ describe('createSubmission', () => {
 });
 
 describe('reviewSubmission', () => {
-  it('approves, replaces any previous award of that badge with a bronze one and returns both', async () => {
-    await prisma.userBadge.create({
-      data: { user_id: ANA_ID, badge_id: 'b1', tone: 'gold', awarded_at: new Date('2023-01-01T00:00:00.000Z') },
-    });
+  it('approves, replaces this month\'s award of that badge with a bronze one and returns both', async () => {
+    await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'gold' } });
     const { id } = await createSubmission({ userId: ANA_ID, badgeId: 'b1', description: 'evidência' });
 
     const result = await reviewSubmission({ submissionId: id, reviewerId: ADMIN_ID, status: 'approved' });
@@ -185,8 +188,43 @@ describe('awardBadges', () => {
   });
 });
 
+describe('awards keep the history of other months', () => {
+  it('a manual award replaces only the current month, keeping last month\'s award of the same badge', async () => {
+    const previous = await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'bronze', awarded_at: lastMonth() } });
+    await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'silver' } });
+
+    const [award] = await awardBadges({ reviewerId: ADMIN_ID, userIds: [ANA_ID], badgeId: 'b1', tone: 'gold' });
+
+    expect(await userBadgesOf(ANA_ID)).toEqual([
+      expect.objectContaining({ id: previous.id, tone: 'bronze', awarded_at: lastMonth() }),
+      expect.objectContaining({ id: award.id, tone: 'gold' }),
+    ]);
+  });
+
+  it('approving a submission keeps last month\'s award of the same badge', async () => {
+    const previous = await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'gold', awarded_at: lastMonth() } });
+    const submission = await createSubmission({ userId: ANA_ID, badgeId: 'b1', description: 'Evidência' });
+
+    const { awardedBadge } = await reviewSubmission({ submissionId: submission.id, reviewerId: ADMIN_ID, status: 'approved' });
+
+    expect(await userBadgesOf(ANA_ID)).toEqual([
+      expect.objectContaining({ id: previous.id, tone: 'gold' }),
+      expect.objectContaining({ id: awardedBadge.id, tone: 'bronze' }),
+    ]);
+  });
+
+  it('removing a badge clears only the current month, keeping last month\'s award', async () => {
+    const previous = await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'silver', awarded_at: lastMonth() } });
+    await prisma.userBadge.create({ data: { user_id: ANA_ID, badge_id: 'b1', tone: 'gold' } });
+
+    expect(await removeUserBadge({ reviewerId: ADMIN_ID, userId: ANA_ID, badgeId: 'b1' })).toEqual({ success: true });
+
+    expect(await userBadgesOf(ANA_ID)).toEqual([expect.objectContaining({ id: previous.id, tone: 'silver' })]);
+  });
+});
+
 describe('removeUserBadge', () => {
-  it('removes every award of that badge for the user, and only that', async () => {
+  it('removes every award of that badge for the user this month, and only that', async () => {
     await prisma.userBadge.createMany({
       data: [
         { user_id: ANA_ID, badge_id: 'b1', tone: 'bronze' },

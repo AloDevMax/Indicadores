@@ -12,14 +12,15 @@ GET  /api/ranking?year=&month=          # Session required; per-user monthly sco
 GET  /api/submissions                   # Session required; scoped (user: own, supervisor: unit)
 
 POST /api/submissions                   # User requests a badge
-POST /api/submissions/:id/review        # Admin approves/rejects
+POST /api/submissions/:id/review        # Admin approves/rejects; approval replaces only this month's award
 
 POST /api/admin/badges
 POST /api/admin/companies
 POST /api/admin/productive-units
 POST /api/admin/users                  # no password given → returns a one-time temporary_password
 POST /api/admin/users/bulk-invite      # returns temporaryPasswords: one per created user
-POST /api/admin/award-badges
+POST /api/admin/award-badges           # replaces this month's award of the badge (UTC month); older months are kept
+POST /api/admin/user-badges/remove     # clears this month's award of the badge; older months are kept
 POST /api/admin/import-monthly-badges  # Excel import (see architecture-excel-import.md)
 PUT  /api/user/profile                 # own name and password (current_password required); e-mail is admin-only
 ```

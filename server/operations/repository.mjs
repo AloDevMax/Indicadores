@@ -64,10 +64,21 @@ const buildAwardPayload = async (db, { userId, badgeId, awardedBy, tone, id, awa
   };
 };
 
+// Mês corrente em UTC, o mesmo recorte de importMonthlyBadges (date_trunc sobre o timestamp) e do front
+// (isSameMonth em badgeMetrics.ts). Conceder ou remover mexe só neste mês: os anteriores são histórico.
+const currentMonthRange = (now = new Date()) => ({
+  gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)),
+  lt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1)),
+});
+
+const deleteCurrentMonthAwards = (client, { userId, badgeId, now }) =>
+  client.userBadge.deleteMany({ where: { user_id: userId, badge_id: badgeId, awarded_at: currentMonthRange(now) } });
+
 const replaceAward = async (tx, { userId, badgeId, awardedBy, tone }) => {
-  await tx.userBadge.deleteMany({ where: { user_id: userId, badge_id: badgeId } });
+  const now = new Date();
+  await deleteCurrentMonthAwards(tx, { userId, badgeId, now });
   const inserted = await tx.userBadge.create({
-    data: { user_id: userId, badge_id: badgeId, awarded_by: awardedBy, tone },
+    data: { user_id: userId, badge_id: badgeId, awarded_by: awardedBy, tone, awarded_at: now },
     select: USER_BADGE_SELECT,
   });
 
@@ -196,7 +207,7 @@ export const awardBadges = async ({ reviewerId, userIds, badgeId, tone }) => {
 export const removeUserBadge = async ({ reviewerId, userId, badgeId }) => {
   await ensureReviewer(reviewerId, 'Apenas administradores e supervisores podem remover badges.');
 
-  await prisma.userBadge.deleteMany({ where: { user_id: userId, badge_id: badgeId } });
+  await deleteCurrentMonthAwards(prisma, { userId, badgeId, now: new Date() });
   return { success: true };
 };
 

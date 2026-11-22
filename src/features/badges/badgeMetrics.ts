@@ -35,6 +35,10 @@ const isSameMonth = (dateIso: string, reference = new Date()) => {
 export const getUserMonthlyBadges = (userId: string, userBadges: UserBadge[], reference = new Date()) =>
   userBadges.filter(badge => badge.user_id === userId && isSameMonth(badge.awarded_at, reference));
 
+/** A concessão do selo no mês de referência: é a que conceder ou remover no painel substitui (ver replaceAward). */
+export const findMonthlyAward = (userId: string, badgeId: string, userBadges: UserBadge[], reference = new Date()): UserBadge | undefined =>
+  getUserMonthlyBadges(userId, userBadges, reference).find(badge => badge.badge_id === badgeId);
+
 export const getUserMonthlyBadgeMetrics = (userId: string, userBadges: UserBadge[], reference = new Date()) => {
   const monthlyBadges = getUserMonthlyBadges(userId, userBadges, reference);
 
