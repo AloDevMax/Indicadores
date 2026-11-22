@@ -1,7 +1,6 @@
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import { BarChart3, User, Users, Shield, Inbox, Pencil, Trash2, CheckCircle, Award, ChevronLeft, ChevronRight, Power } from 'lucide-react';
 import { Badge, Profile, Role, ProductiveUnit, BadgeTone, IndicatorRow, UserMatchResult, DEFAULT_BADGE_LEGENDS, IssuedPassword } from '@/shared/types';
 import BadgeCard from '@/features/badges/components/BadgeCard';
@@ -9,6 +8,7 @@ import TemporaryPasswordsDialog from '@/features/admin/components/TemporaryPassw
 import { ImageUpload } from '@/shared/components/ImageUpload';
 import { BADGE_TONE_LABELS, getUserMonthlyBadgeMetrics } from '@/features/badges/badgeMetrics';
 import { cn } from '@/shared/lib/cn';
+import { MAX_WORKBOOK_BYTES, MONTH_NAMES_PT, normalizeStr, parseMonthlyWorkbook } from '@/features/admin/lib/monthlyWorkbook';
 import { importMonthlyBadgesWithApi, seedIndicatorBadgesWithApi, fetchBadgesWithApi, fetchUsersWithApi, fetchUserBadgesWithApi, fetchSubmissionsWithApi, fetchProductiveUnitsWithApi, fetchBadgeLegendsWithApi, saveBadgeWithApi, deleteBadgeWithApi, saveProductiveUnitWithApi, saveUserWithApi, bulkInviteUsersWithApi, deleteUserWithApi, awardBadgesWithApi, removeUserBadgeWithApi, reviewSubmissionWithApi } from '@/shared/api';
 import { toast } from '@/shared/lib/toast';
 import { useAuth } from '@/shared/contexts/AuthContext';
@@ -22,53 +22,11 @@ const invalidateAwardCaches = () => {
   invalidateCacheByPrefix('ranking:');
 };
 
-const MONTH_NAMES_PT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 const AWARD_PAGE_SIZE = 10;
 const UNITS_PAGE_SIZE = 5;
 const ACTIVITY_PAGE_SIZE = 5;
 
-// Maps normalized Excel column header keywords → badge ID (more specific keys must come first)
-const EXCEL_COLUMN_TO_BADGE_ID: Record<string, string> = {
-  'vol nps': 'ind-vol-nps',
-  'volume nps': 'ind-vol-nps',
-  'qtd nps': 'ind-vol-nps',
-  'quantidade nps': 'ind-vol-nps',
-  'avaliacoes nps': 'ind-vol-nps',
-  'avaliacao nps': 'ind-vol-nps',
-  'qtd. avaliacao': 'ind-vol-nps',
-  'nps': 'ind-nps',
-  'recoleta': 'ind-recoletas',
-  'recoletas': 'ind-recoletas',
-  '5s': 'ind-5s',
-  'auditoria': 'ind-5s',
-  'leitura': 'ind-docs',
-  'documento': 'ind-docs',
-  'documentos': 'ind-docs',
-  'nc': 'ind-nc',
-  'nao conformidade': 'ind-nc',
-  'nao conformidades': 'ind-nc',
-  'nao conformid': 'ind-nc',
-  'ponto': 'ind-ponto',
-  'ajuste de ponto': 'ind-ponto',
-  'assiduidade': 'ind-ponto',
-  'absenteismo': 'ind-ponto',
-  'iapp': 'ind-iapp',
-  'curso': 'ind-curso',
-  'cursos': 'ind-curso',
-  'aceleradoras': 'ind-aceleradoras',
-  'atitudes': 'ind-aceleradoras',
-  'faturamento': 'ind-faturamento',
-  'guia': 'ind-faturamento',
-  'advertencia': 'ind-advertencia',
-  'advertencias': 'ind-advertencia',
-  'reincidente': 'ind-reincidente',
-  'criterio reincidente': 'ind-reincidente',
-};
-
 const TONE_FROM_VALUE: Record<number, BadgeTone | null> = { 3: 'gold', 2: 'silver', 1: 'bronze', 0: null, [-1]: 'loss_1', [-2]: 'loss_2' };
-
-const normalizeStr = (s: string) =>
-  s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
 const stringSimilarity = (a: string, b: string): number => {
   const na = normalizeStr(a);
@@ -588,86 +546,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleExcelUpload = useCallback((file: File) => {
     setImportError('');
+    if (file.size > MAX_WORKBOOK_BYTES) {
+      setImportError('Arquivo muito grande. Máximo: 10MB.');
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target!.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-
-        const targetSheetName = normalizeStr(MONTH_NAMES_PT[importMonth - 1]);
-        const matchedSheet = workbook.SheetNames.find(
-          n => normalizeStr(n) === targetSheetName || normalizeStr(n).startsWith(targetSheetName.slice(0, 3)),
-        );
-
-        if (!matchedSheet) {
-          setImportError(`Aba "${MONTH_NAMES_PT[importMonth - 1].toUpperCase()}" não encontrada no arquivo. Abas disponíveis: ${workbook.SheetNames.join(', ')}`);
+        const parsed = parseMonthlyWorkbook(data, importMonth);
+        if (parsed.ok === false) {
+          setImportError(parsed.error);
           return;
         }
-
-        const ws = workbook.Sheets[matchedSheet];
-        const rawRows: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-
-        // Find header row — search up to 20 rows for a row containing "nome" and at least 1 indicator keyword
-        let headerRowIndex = -1;
-        let nameColIndex = -1;
-        const columnBadgeIds: (string | null)[] = [];
-
-        for (let ri = 0; ri < Math.min(rawRows.length, 20); ri++) {
-          const row = rawRows[ri] as unknown[];
-          let nameIdx = -1;
-          const candidate: (string | null)[] = row.map((cell, ci) => {
-            if (!cell) return null;
-            const normalized = normalizeStr(String(cell));
-            if (normalized.includes('nome') && nameIdx === -1) { nameIdx = ci; return null; }
-            for (const [key, badgeId] of Object.entries(EXCEL_COLUMN_TO_BADGE_ID)) {
-              if (normalized.includes(key)) return badgeId;
-            }
-            return null;
-          });
-          const hits = candidate.filter(Boolean).length;
-          if (nameIdx !== -1 && hits >= 1) {
-            headerRowIndex = ri;
-            nameColIndex = nameIdx;
-            columnBadgeIds.push(...candidate);
-            break;
-          }
-        }
-
-        if (headerRowIndex === -1) {
-          setImportError('Não foi possível identificar a linha de cabeçalho. Verifique se a planilha contém uma coluna "Nome do Colaborador" e colunas de indicadores como NPS, Recoletas, etc.');
-          return;
-        }
-
-        const detectedBadgeIds = [...new Set(columnBadgeIds.filter(Boolean) as string[])];
-        setImportColumnIds(detectedBadgeIds);
-
-        const dataRows: IndicatorRow[] = [];
-        for (let ri = headerRowIndex + 1; ri < rawRows.length; ri++) {
-          const row = rawRows[ri] as unknown[];
-          const nameCell = row[nameColIndex];
-          if (!nameCell || typeof nameCell !== 'string') continue;
-          const name = nameCell.trim();
-          if (!name || normalizeStr(name) === 'total' || normalizeStr(name).startsWith('total')) continue;
-
-          const indicators: Record<string, number> = {};
-          columnBadgeIds.forEach((badgeId, colIdx) => {
-            if (!badgeId) return;
-            const val = row[colIdx];
-            const num = val !== null && val !== undefined ? Number(val) : 0;
-            if (!isNaN(num) && num !== 0) {
-              indicators[badgeId] = num;
-            }
-          });
-
-          if (Object.keys(indicators).length > 0) {
-            dataRows.push({ excelName: name, indicators });
-          }
-        }
-
-        if (dataRows.length === 0) {
-          setImportError('Nenhuma linha de dados encontrada após o cabeçalho.');
-          return;
-        }
+        setImportColumnIds(parsed.badgeIds);
+        const dataRows = parsed.rows;
 
         // Auto-match users
         const companyUsers = users;
