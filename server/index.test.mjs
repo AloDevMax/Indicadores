@@ -830,6 +830,32 @@ describe('admin-issued temporary passwords', () => {
     expect(response.status).toBe(200);
     expect(response.body.temporaryPasswords.map((entry) => entry.email)).toEqual(emails);
   });
+
+  it('POST /api/admin/users/bulk-invite creates the invited users in the chosen productive unit', async () => {
+    const { header } = await authHeaderFor('admin');
+    const emails = [uniqueEmail('unit-invite-a'), uniqueEmail('unit-invite-b')];
+
+    const response = await request(app).post('/api/admin/users/bulk-invite').set('Authorization', header)
+      .send({ emails, productive_unit_id: 'pu1' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.createdUsers.map((user) => user.productive_unit_id)).toEqual(['pu1', 'pu1']);
+    const stored = await prisma.user.findMany({ where: { email: { in: emails } }, select: { productive_unit_id: true } });
+    expect(stored).toEqual([{ productive_unit_id: 'pu1' }, { productive_unit_id: 'pu1' }]);
+  });
+
+  it('a supervisor\'s bulk invite lands in their unit, so they can then see the invited user', async () => {
+    const supervisor = await authHeaderFor('supervisor', { productive_unit_id: 'pu2' });
+    const email = uniqueEmail('supervisor-invite');
+
+    const response = await request(app).post('/api/admin/users/bulk-invite').set('Authorization', supervisor.header)
+      .send({ emails: [email], productive_unit_id: 'pu2' });
+
+    expect(response.status).toBe(200);
+    expect(response.body.createdUsers).toEqual([expect.objectContaining({ email, productive_unit_id: 'pu2' })]);
+    const users = await request(app).get('/api/users').set('Authorization', supervisor.header);
+    expect(users.body.users.map((user) => user.email)).toContain(email);
+  });
 });
 
 describe('static files: only the client build is public', () => {
