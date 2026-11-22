@@ -7,7 +7,6 @@ import {
   saveProductiveUnit,
   updateUserProfile,
   saveUser,
-  deleteUser,
   bulkInviteUsers,
 } from './repository.mjs';
 import { findUserByEmail } from '../auth/repository.mjs';
@@ -86,18 +85,6 @@ describe('saveUser', () => {
     expect(user.full_name).toBe('Novo Usuário');
     const stored = await findUserByEmail(email);
     expect(stored.id).toBe(user.id);
-  });
-});
-
-describe('deleteUser', () => {
-  it('removes the user from the store', async () => {
-    const email = `u-${crypto.randomUUID()}@test.com`;
-    const user = await saveUser({ email, full_name: 'Para Remover', role: 'user' }, 'senha123');
-
-    const result = await deleteUser(user.id);
-
-    expect(result).toEqual({ success: true });
-    expect(await findUserByEmail(email)).toBeNull();
   });
 });
 

@@ -205,15 +205,6 @@ export const findUserAvatarUrl = async (userId) => {
   return user?.avatar_url ?? null;
 };
 
-export const deleteUser = async (userId) => {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { avatar_url: true } });
-  await prisma.user.deleteMany({ where: { id: userId } });
-
-  await deleteUploadIfUnreferenced(user?.avatar_url);
-
-  return { success: true };
-};
-
 export const bulkInviteUsers = async ({ emails, productiveUnitId }) => {
   const normalizedEmails = [...new Set(
     emails
