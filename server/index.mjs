@@ -406,7 +406,8 @@ export function createApp({
     if (!ensureManagerUnitScope(auth.body.user, req.body.productive_unit_id)) {
       return res.status(403).json({ error: 'Gestores só podem convidar usuários da própria unidade produtiva.' });
     }
-    const result = await bulkInviteUsers(req.body);
+    // O cliente manda snake_case (productive_unit_id); o repositório recebe camelCase.
+    const result = await bulkInviteUsers({ emails: req.body.emails, productiveUnitId: req.body.productive_unit_id });
     res.status(200).json(result);
   }));
 
