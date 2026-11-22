@@ -3,12 +3,12 @@ import { developerPasswordProblem, env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from './crypto.mjs';
 
-const BUILT_IN_DEVELOPER = {
+const BUILT_IN_ADMIN = {
   id: 'dev-1',
   email: 'alo.de.castro@hotmail.com',
   password: env.DEVELOPER_INITIAL_PASSWORD,
   full_name: 'Alo de Castro',
-  role: 'developer',
+  role: 'admin',
   email_verified: true,
 };
 
@@ -70,24 +70,24 @@ export const findUserById = async (userId) =>
   prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
 
 // DEVELOPER_INITIAL_PASSWORD só vale na criação: o seed roda a cada release e não pode desfazer a senha
-// que o developer escolheu. resetPassword (seed --reset-developer-password) é o caminho de recuperação.
-const hashDeveloperPassword = (password) => {
+// que o admin embutido escolheu. resetPassword (seed --reset-admin-password) é o caminho de recuperação.
+const hashBuiltInAdminPassword = (password) => {
   const problem = developerPasswordProblem(password, env);
   if (problem) throw new Error(`DEVELOPER_INITIAL_PASSWORD: ${problem}`);
   return hashPassword(password);
 };
 
-export const ensureBuiltInDeveloper = async ({ resetPassword = false, password = BUILT_IN_DEVELOPER.password } = {}) => {
-  const existingUser = await findUserRowByEmail(BUILT_IN_DEVELOPER.email);
+export const ensureBuiltInAdmin = async ({ resetPassword = false, password = BUILT_IN_ADMIN.password } = {}) => {
+  const existingUser = await findUserRowByEmail(BUILT_IN_ADMIN.email);
 
   if (existingUser) {
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        ...(resetPassword && { password_hash: await hashDeveloperPassword(password) }),
-        full_name: BUILT_IN_DEVELOPER.full_name,
-        role: BUILT_IN_DEVELOPER.role,
-        email_verified: BUILT_IN_DEVELOPER.email_verified,
+        ...(resetPassword && { password_hash: await hashBuiltInAdminPassword(password) }),
+        full_name: BUILT_IN_ADMIN.full_name,
+        role: BUILT_IN_ADMIN.role,
+        email_verified: BUILT_IN_ADMIN.email_verified,
         updated_at: new Date(),
       },
       select: USER_WITH_PASSWORD_SELECT,
@@ -101,11 +101,11 @@ export const ensureBuiltInDeveloper = async ({ resetPassword = false, password =
   const createdUser = await prisma.user.create({
     data: {
       id: crypto.randomUUID(),
-      email: BUILT_IN_DEVELOPER.email,
-      password_hash: await hashDeveloperPassword(password),
-      full_name: BUILT_IN_DEVELOPER.full_name,
-      role: BUILT_IN_DEVELOPER.role,
-      email_verified: BUILT_IN_DEVELOPER.email_verified,
+      email: BUILT_IN_ADMIN.email,
+      password_hash: await hashBuiltInAdminPassword(password),
+      full_name: BUILT_IN_ADMIN.full_name,
+      role: BUILT_IN_ADMIN.role,
+      email_verified: BUILT_IN_ADMIN.email_verified,
     },
     select: createSelect,
   });

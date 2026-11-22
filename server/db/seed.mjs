@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prisma } from '../shared/db/prisma.mjs';
-import { ensureBuiltInDeveloper } from '../auth/repository.mjs';
+import { ensureBuiltInAdmin } from '../auth/repository.mjs';
 
 // Dados de demonstração para o banco local. Nunca entram em produção:
 // só são gravados com `--demo` (npm run db:seed -- --demo).
@@ -31,8 +31,8 @@ const seedDemoData = async () => {
 };
 
 /** Idempotente: pode rodar a cada deploy. */
-export const runSeed = async ({ demo = false, resetDeveloperPassword = false } = {}) => {
-  await ensureBuiltInDeveloper({ resetPassword: resetDeveloperPassword });
+export const runSeed = async ({ demo = false, resetAdminPassword = false } = {}) => {
+  await ensureBuiltInAdmin({ resetPassword: resetAdminPassword });
   if (demo) await seedDemoData();
 };
 
@@ -40,10 +40,10 @@ const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURL
 
 if (isDirectRun) {
   const demo = process.argv.includes('--demo');
-  const resetDeveloperPassword = process.argv.includes('--reset-developer-password');
+  const resetAdminPassword = process.argv.includes('--reset-admin-password');
   try {
-    await runSeed({ demo, resetDeveloperPassword });
-    console.log(`[SEED] Conta developer garantida${resetDeveloperPassword ? ' (senha redefinida)' : ''}${demo ? ' e dados de demonstração gravados' : ''}.`);
+    await runSeed({ demo, resetAdminPassword });
+    console.log(`[SEED] Conta admin embutida garantida${resetAdminPassword ? ' (senha redefinida)' : ''}${demo ? ' e dados de demonstração gravados' : ''}.`);
   } catch (error) {
     console.error('[SEED] Falhou:', error);
     process.exitCode = 1;

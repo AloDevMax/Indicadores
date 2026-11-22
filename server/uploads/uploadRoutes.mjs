@@ -76,10 +76,10 @@ const handleImageUpload = ({ kind, responseKey, label }) => async (req, res) => 
   }
 };
 
-// A biblioteca de selos é do developer (ver POST /api/admin/badges); avatar, qualquer usuário autenticado.
+// A biblioteca de selos é do admin (ver POST /api/admin/badges); avatar, qualquer usuário autenticado.
 uploadRouter.post(
   '/badge-image',
-  requireUploader((user) => user.role === 'developer'),
+  requireUploader((user) => user.role === 'admin'),
   parseSingleFile('image'),
   handleImageUpload({ kind: 'badge', responseKey: 'imageUrl', label: 'imagem de selo' }),
 );

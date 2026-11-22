@@ -11,7 +11,7 @@ interface BottomNavProps {
 }
 
 const BottomNav: React.FC<BottomNavProps> = ({ user, adminViewMode, onOpenSolicitation }) => {
-  const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
+  const isAdmin = ['admin', 'supervisor'].includes(user.role);
 
   const showUserMenu = !isAdmin || (isAdmin && adminViewMode === 'personal');
 

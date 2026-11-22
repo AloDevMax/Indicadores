@@ -21,25 +21,25 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   if (!user) return null;
 
-  const isAdmin = ['admin', 'developer', 'supervisor'].includes(user.role);
-  const isDeveloper = user.role === 'developer';
+  const isAdmin = ['admin', 'supervisor'].includes(user.role);
+  const isGlobalAdmin = user.role === 'admin';
   const isSupervisor = user.role === 'supervisor';
   const showUserMenu = !isAdmin || adminViewMode === 'personal';
 
   const userLinks = [
     { to: '/dashboard', label: 'Meu Progresso', icon: TrendingUp },
     { to: '/badges', label: 'Meus Selos', icon: Shield },
-    { to: '/ranking', label: user.role === 'developer' ? 'Ranking Global' : 'Ranking da Empresa', icon: Trophy },
+    { to: '/ranking', label: 'Ranking da Empresa', icon: Trophy },
   ];
 
-  const rankingLabel = isDeveloper ? 'Ranking Global' : isSupervisor ? 'Ranking da Unidade' : 'Ranking da Empresa';
+  const rankingLabel = isSupervisor ? 'Ranking da Unidade' : 'Ranking da Empresa';
   const adminLinks = [
     { to: '/admin', label: 'Visão Geral', icon: BarChart3 },
     { to: '/ranking', label: rankingLabel, icon: Trophy },
     { to: '/admin/award', label: 'Premiar Selos', icon: Award },
     { to: '/admin/submissions', label: 'Solicitações', icon: Inbox },
     { to: '/admin/users', label: 'Colaboradores', icon: Users },
-    ...(isDeveloper ? [{ to: '/admin/badges', label: 'Biblioteca', icon: Shield }] : []),
+    ...(isGlobalAdmin ? [{ to: '/admin/badges', label: 'Biblioteca', icon: Shield }] : []),
   ];
 
   const links = showUserMenu ? userLinks : adminLinks;
