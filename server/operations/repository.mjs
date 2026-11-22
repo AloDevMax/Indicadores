@@ -105,13 +105,16 @@ const persistAwardNotifications = async (tx, { userIds, badgeName, tone }) => {
 };
 
 // Unidade produtiva do dono da submissão, ou null se a submissão não existe.
-export const findSubmissionOwnerUnit = async (submissionId) => {
+// O que a rota de revisão precisa para decidir: de quem é, de qual unidade e se ainda está pendente.
+export const findSubmissionForReview = async (submissionId) => {
   const submission = await prisma.badgeSubmission.findUnique({
     where: { id: submissionId },
-    select: { user: { select: { productive_unit_id: true } } },
+    select: { user_id: true, status: true, user: { select: { productive_unit_id: true } } },
   });
 
-  return submission ? { productive_unit_id: submission.user.productive_unit_id } : null;
+  return submission
+    ? { user_id: submission.user_id, productive_unit_id: submission.user.productive_unit_id, status: submission.status }
+    : null;
 };
 
 export const createSubmission = async ({ userId, badgeId, description, proofUrl }) => {
@@ -128,15 +131,24 @@ export const createSubmission = async ({ userId, badgeId, description, proofUrl 
   return mapSubmission({ ...submission, user_name: user.full_name });
 };
 
+// Perdeu a corrida: outra revisão mudou o status entre a checagem da rota e o update.
+export class SubmissionNotPendingError extends Error {
+  constructor(options) {
+    super('Solicitação não encontrada ou já revisada.', options);
+    this.name = 'SubmissionNotPendingError';
+  }
+}
+
 const markSubmissionReviewed = async (tx, { submissionId, reviewerId, status }) => {
   try {
+    // Condicionado a 'pending': entre duas revisões simultâneas, só a primeira atualiza.
     return await tx.badgeSubmission.update({
-      where: { id: submissionId },
+      where: { id: submissionId, status: 'pending' },
       data: { status, reviewed_by: reviewerId, reviewed_at: new Date() },
       select: SUBMISSION_SELECT,
     });
   } catch (error) {
-    if (isRecordNotFound(error)) throw new Error('Solicitação não encontrada.', { cause: error });
+    if (isRecordNotFound(error)) throw new SubmissionNotPendingError({ cause: error });
     throw error;
   }
 };
