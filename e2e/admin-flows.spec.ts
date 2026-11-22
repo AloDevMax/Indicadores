@@ -22,7 +22,7 @@ const DEVELOPER_EMAIL = 'alo.de.castro@hotmail.com';
 // Mirrors server/config/env.mjs — env var wins if set, otherwise the same
 // dev-only default the seed uses outside production.
 // eslint-disable-next-line no-undef -- process.env is a Node global in a Playwright spec, not a browser one
-const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || '2665398';
+const DEVELOPER_PASSWORD = process.env.DEVELOPER_INITIAL_PASSWORD || 'dev-only-developer-password';
 const TEST_PASSWORD = 'Senha123!';
 
 // Real badges from the demo seed (server/db/seed.mjs) — used

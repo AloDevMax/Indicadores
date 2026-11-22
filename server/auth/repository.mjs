@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { env } from '../config/env.mjs';
+import { developerPasswordProblem, env } from '../config/env.mjs';
 import { prisma } from '../shared/db/prisma.mjs';
 import { hashPassword } from './crypto.mjs';
 
@@ -69,15 +69,22 @@ export const findUserByEmail = async (email) => findUserRowByEmail(email.toLower
 export const findUserById = async (userId) =>
   prisma.user.findUnique({ where: { id: userId }, select: USER_SELECT });
 
-export const ensureBuiltInDeveloper = async () => {
-  const passwordHash = await hashPassword(BUILT_IN_DEVELOPER.password);
+// DEVELOPER_INITIAL_PASSWORD só vale na criação: o seed roda a cada release e não pode desfazer a senha
+// que o developer escolheu. resetPassword (seed --reset-developer-password) é o caminho de recuperação.
+const hashDeveloperPassword = (password) => {
+  const problem = developerPasswordProblem(password, env);
+  if (problem) throw new Error(`DEVELOPER_INITIAL_PASSWORD: ${problem}`);
+  return hashPassword(password);
+};
+
+export const ensureBuiltInDeveloper = async ({ resetPassword = false, password = BUILT_IN_DEVELOPER.password } = {}) => {
   const existingUser = await findUserRowByEmail(BUILT_IN_DEVELOPER.email);
 
   if (existingUser) {
     const updatedUser = await prisma.user.update({
       where: { id: existingUser.id },
       data: {
-        password_hash: passwordHash,
+        ...(resetPassword && { password_hash: await hashDeveloperPassword(password) }),
         full_name: BUILT_IN_DEVELOPER.full_name,
         role: BUILT_IN_DEVELOPER.role,
         email_verified: BUILT_IN_DEVELOPER.email_verified,
@@ -95,7 +102,7 @@ export const ensureBuiltInDeveloper = async () => {
     data: {
       id: crypto.randomUUID(),
       email: BUILT_IN_DEVELOPER.email,
-      password_hash: passwordHash,
+      password_hash: await hashDeveloperPassword(password),
       full_name: BUILT_IN_DEVELOPER.full_name,
       role: BUILT_IN_DEVELOPER.role,
       email_verified: BUILT_IN_DEVELOPER.email_verified,
